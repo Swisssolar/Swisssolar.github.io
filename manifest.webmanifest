@@ -1,0 +1,23 @@
+{
+  "name": "Swiss Solar System — OS interne",
+  "short_name": "SSS OS",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#C41310",
+  "icons": [
+    {
+      "src": "/sss-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/sss-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
