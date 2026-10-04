@@ -3867,12 +3867,46 @@ function sssEcranBienvenue(){
   if(s) s.textContent="Ton accès est prêt. Choisis ton mot de passe (10 caractères minimum, avec au moins une lettre et un chiffre) : tu l'utiliseras à chaque connexion.";
 }
 
+/* ------------------------------------------------------------------ 3 bis. Rester connecté
+   La session Supabase (jetons, jamais le mot de passe) est gardée dans le stockage de l'appareil et renouvelée
+   automatiquement tant que l'application sert. Reconnexion seulement après : déconnexion volontaire, changement
+   de mot de passe, longue inactivité (30 jours ; 14 jours pour le super administrateur — aussi imposé côté serveur :
+   30 jours), ou fermeture de l'application si « Rester connecté » est décoché. */
+var SSS_SESSION={ cle:'sss-rester-connecte', activite:'sss-derniere-activite', onglet:'sss-session-onglet', joursSalarie:30, joursPatron:14 };
+function sssResterConnecte(){ try{ return localStorage.getItem(SSS_SESSION.cle)!=='0'; }catch(e){ return true; } }
+function sssMarquerActivite(){ try{ localStorage.setItem(SSS_SESSION.activite, String(Date.now())); sessionStorage.setItem(SSS_SESSION.onglet,'1'); }catch(e){} }
+function sssCaseRester(){
+  if(document.getElementById('li-rester')) return; var btn=document.getElementById('li-btn'); if(!btn) return;
+  var d=document.createElement('label'); d.id='li-rester-l'; d.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;margin:2px 0 12px;cursor:pointer;user-select:none';
+  d.innerHTML="<input type='checkbox' id='li-rester' style='width:18px;height:18px;accent-color:var(--red,#C41310)'"+(sssResterConnecte()?' checked':'')+"> Rester connecté sur cet appareil";
+  btn.parentNode.insertBefore(d,btn);
+}
+/* Fin de session « locale » seulement : les autres appareils de la personne restent connectés. */
+async function sssFinSessionLocale(raison){ try{ SSS_AUTH.logoutVoulu=true; await db.auth.signOut({scope:'local'}); }catch(e){} setTimeout(function(){ SSS_AUTH.logoutVoulu=false; },2000); showLogin(); sssCaseRester(); var m=document.getElementById('li-msg'); if(m&&raison) msg(m,raison,'err'); }
+(function(){
+  var _login=doLogin;
+  doLogin=async function(){ try{ var c=document.getElementById('li-rester'); localStorage.setItem(SSS_SESSION.cle, (c&&!c.checked)?'0':'1'); }catch(e){} sssMarquerActivite(); return _login.apply(this,arguments); };
+  var _sl=showLogin; showLogin=function(){ var r=_sl.apply(this,arguments); try{ sssCaseRester(); }catch(e){} return r; };
+  ['click','keydown','touchstart'].forEach(function(ev){ var t=0; document.addEventListener(ev,function(){ var n=Date.now(); if(n-t>60000){ t=n; sssMarquerActivite(); } },{passive:true}); });
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') sssMarquerActivite(); });
+  document.addEventListener('DOMContentLoaded',function(){ try{ sssCaseRester(); }catch(e){} });
+})();
+
 /* ------------------------------------------------------------------ 4. Démarrage : ordre des contrôles */
 (function(){
   var _boot=boot;
   boot=async function(){
     var sess=null; try{ var rs=await db.auth.getSession(); sess=rs&&rs.data&&rs.data.session; }catch(e){}
     if(sess){
+      /* 0) « Rester connecté » décoché et application rouverte, ou trop longue inactivité → reconnexion */
+      try{
+        var nouvelOnglet=!sessionStorage.getItem(SSS_SESSION.onglet);
+        if(nouvelOnglet && !sssResterConnecte()){ await sssFinSessionLocale("Reconnecte-toi (« Rester connecté » n'était pas coché)."); return; }
+        var der=Number(localStorage.getItem(SSS_SESSION.activite)||0);
+        if(der){ var patron=false; try{ var r0=await db.rpc('sss_mon_compte'); patron=!!(r0&&r0.data&&r0.data.role==='superadmin'); }catch(e){}
+          var jours=(Date.now()-der)/864e5; if(jours>(patron?SSS_SESSION.joursPatron:SSS_SESSION.joursSalarie)){ await sssFinSessionLocale("Tu n'avais pas utilisé l'application depuis longtemps : reconnecte-toi."); return; } }
+      }catch(e){}
+      sssMarquerActivite();
       /* a) facteur vérifié mais session au seul mot de passe → code */
       try{ var a=await db.auth.mfa.getAuthenticatorAssuranceLevel(); var d=a&&a.data;
            if(d && d.nextLevel==='aal2' && d.currentLevel!=='aal2'){ sssEcranCodeMfa(); return; } }catch(e){}
