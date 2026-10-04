@@ -3862,7 +3862,7 @@ function sssEcranBienvenue(){
   var carte=document.querySelector('#login .login-card'); if(!carte) return;
   var h=carte.querySelector('h1'), s=carte.querySelector('.sub');
   if(h) h.textContent="Bienvenue chez Swiss Solar System";
-  if(s) s.textContent="Ton accès est prêt. Choisis ton mot de passe (8 caractères minimum) : tu l'utiliseras à chaque connexion.";
+  if(s) s.textContent="Ton accès est prêt. Choisis ton mot de passe (10 caractères minimum, avec au moins une lettre et un chiffre) : tu l'utiliseras à chaque connexion.";
 }
 
 /* ------------------------------------------------------------------ 4. Démarrage : ordre des contrôles */
@@ -3902,7 +3902,53 @@ function sssEcranBienvenue(){
   var _uu=db.auth.updateUser.bind(db.auth);
   db.auth.updateUser=async function(attrs,opts){ var r=await _uu(attrs,opts); if(attrs&&attrs.password&&r&&!r.error){ try{ await db.auth.signOut({scope:'others'}); }catch(e){} } return r; };
   /* Messages plus clairs */
-  var _tr=traduireErreur; traduireErreur=function(m){ m=''+(m||''); if(/banned/i.test(m)) return "Ton compte a été désactivé par la direction."; if(/rate limit|too many requests/i.test(m)) return "Trop de tentatives : attends une minute puis réessaie."; if(/Password should be|password/i.test(m)&&/short|least/i.test(m)) return "Mot de passe trop court (8 caractères minimum)."; return _tr(m); };
+  var _tr=traduireErreur; traduireErreur=function(m){ m=''+(m||''); if(/banned/i.test(m)) return "Ton compte a été désactivé par la direction."; if(/rate limit|too many requests/i.test(m)) return "Trop de tentatives : attends une minute puis réessaie."; if(/Password should|password/i.test(m)&&/short|least|contain|character/i.test(m)) return SSS_MDP_REGLE; if(/AAL2|aal2/i.test(m)) return "Saisis d'abord le code de ton application d'authentification."; return _tr(m); };
+})();
+
+/* ------------------------------------------------------------------ 4 bis. Nouveau mot de passe (lien « oublié » / invitation)
+   Règle de Supabase : 10 caractères minimum, au moins une lettre et un chiffre.
+   Compte avec double authentification : Supabase refuse le changement tant que la session n'est pas
+   vérifiée par le code → le code est demandé sur le même écran, juste avant d'enregistrer. */
+var SSS_MDP_REGLE="10 caractères minimum, avec au moins une lettre et un chiffre.";
+function sssMdpInvalide(a){ if((a||'').length<10) return "Il faut au moins 10 caractères."; if(!/[A-Za-z]/.test(a)||!/[0-9]/.test(a)) return "Mets au moins une lettre et un chiffre."; return ''; }
+(function(){
+  var _ecran=ecranNouveauMdp;
+  ecranNouveauMdp=function(){
+    var deja=!!document.getElementById('np-1'); var r=_ecran.apply(this,arguments); if(deja) return r;
+    try{ ['np-1'].forEach(function(id){ var e=document.getElementById(id); if(e) e.placeholder='10 caractères, lettres et chiffres'; });
+         var s=document.querySelector('#login .login-card .sub'); if(s && /Choisis ton mot de passe, puis/.test(s.textContent)) s.textContent="Choisis ton mot de passe ("+SSS_MDP_REGLE+")"; }catch(e){}
+    (async function(){ try{
+      var a=await db.auth.mfa.getAuthenticatorAssuranceLevel(); var d=a&&a.data;
+      if(d && d.nextLevel==='aal2' && d.currentLevel!=='aal2') sssChampCodeNouveauMdp();
+    }catch(e){} })();
+    return r;
+  };
+  function sssChampCodeNouveauMdp(){
+    if(document.getElementById('np-code')) return; var bt=document.getElementById('np-btn'); if(!bt) return;
+    var w=document.createElement('div'); w.innerHTML=sssAuthChamp('np-code','Code de ton application d\'authentification (6 chiffres)','tel','123 456','enregistrerNouveauMdp();');
+    bt.parentNode.insertBefore(w.firstChild, bt);
+  }
+  enregistrerNouveauMdp=async function(){
+    var a=(document.getElementById('np-1')||{}).value||'', b=(document.getElementById('np-2')||{}).value||'';
+    var m=document.getElementById('np-msg'), bt=document.getElementById('np-btn'), ce=document.getElementById('np-code');
+    var err=sssMdpInvalide(a); if(err){ msg(m,err,'err'); return; }
+    if(a!==b){ msg(m,'Les deux mots de passe ne sont pas identiques.','err'); return; }
+    var code=ce?(ce.value||'').replace(/\D/g,''):'';
+    if(ce && code.length!==6){ msg(m,'Saisis le code à 6 chiffres de ton application d\'authentification.','err'); return; }
+    if(bt){ bt.disabled=true; bt.textContent='Enregistrement…'; }
+    var fin=function(){ if(bt){ bt.disabled=false; bt.textContent='Enregistrer et entrer'; } };
+    if(ce){ var f=await sssFacteurVerifie(); if(!f){ fin(); msg(m,'Aucune application d\'authentification trouvée pour ce compte.','err'); return; }
+            var v=null; try{ v=await db.auth.mfa.challengeAndVerify({factorId:f.id, code:code}); }catch(e){ v={error:e}; }
+            if(v&&v.error){ fin(); msg(m,sssMfaTraduire(v.error.message||''+v.error),'err'); ce.value=''; return; } }
+    var r=null; try{ r=await db.auth.updateUser({password:a}); }catch(e){ r={error:e}; }
+    fin();
+    if(r&&r.error){ var t=''+(r.error.message||r.error);
+      if(/AAL2|aal2/i.test(t) && !ce) sssChampCodeNouveauMdp();
+      msg(m,sssMfaTraduire(t),'err'); return; }
+    msg(m,'Mot de passe enregistré.','ok');
+    try{ history.replaceState(null,'',location.pathname); }catch(_e){}
+    SSS_AUTH.hashType=null; setTimeout(function(){ try{ boot(); }catch(e){} },400);
+  };
 })();
 
 /* ------------------------------------------------------------------ 5. Page « Sécurité » (tout le monde) */
@@ -3932,7 +3978,7 @@ async function renderSecurite(){
        :("<div style='font-size:13px;line-height:1.6;margin-bottom:10px'>Pas encore activée."+(etat.exigee?" <b>Obligatoire pour ton rôle.</b>":" Recommandée : même avec ton mot de passe, personne d'autre n'entre.")+"</div><div id='sss-mfa-hote'></div><button class='btn' style='width:auto;padding:10px 16px' onclick=\"sssEnrolerMfa(false,document.getElementById('sss-mfa-hote'))\">Activer</button>"));
   h+=sssSecBloc("Mot de passe",
       "<div style='display:grid;gap:8px;max-width:360px'>"
-      +"<input id='sec-p1' type='password' autocomplete='new-password' placeholder='Nouveau mot de passe (8 caractères min.)' style='padding:9px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--text)'>"
+      +"<input id='sec-p1' type='password' autocomplete='new-password' placeholder='Nouveau mot de passe (10 caractères, lettres et chiffres)' style='padding:9px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--text)'>"
       +"<input id='sec-p2' type='password' autocomplete='new-password' placeholder='Confirme' style='padding:9px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--text)'>"
       +"<button class='btn' style='width:auto;padding:10px 16px' onclick='sssChangerMdp()'>Changer mon mot de passe</button><div class='msg' id='sec-msg'></div></div>"
       +"<div style='font-size:12px;color:var(--text-3);margin-top:6px'>Après le changement, tes autres appareils sont déconnectés.</div>");
@@ -3942,7 +3988,7 @@ async function renderSecurite(){
 }
 async function sssChangerMdp(){
   var a=(document.getElementById('sec-p1')||{}).value||'', b=(document.getElementById('sec-p2')||{}).value||'';
-  if(a.length<8){ sssAuthMsg('sec-msg','8 caractères minimum.','err'); return; }
+  var err=sssMdpInvalide(a); if(err){ sssAuthMsg('sec-msg',err,'err'); return; }
   if(a!==b){ sssAuthMsg('sec-msg','Les deux mots de passe ne sont pas identiques.','err'); return; }
   var r=null; try{ r=await db.auth.updateUser({password:a}); }catch(e){ r={error:e}; }
   if(r&&r.error){ sssAuthMsg('sec-msg',sssMfaTraduire(r.error.message),'err'); return; }
