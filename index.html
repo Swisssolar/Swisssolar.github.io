@@ -4174,7 +4174,7 @@ async function renderControle(){
   /* synchronisations */
   var noms={mail:'E-mails (contact@)',bexio:'Bexio'}; var couleurs={ok:'#22a06b',erreur:'#e5484d',non_configure:'#e0a52b',jamais:'#8a8f98',en_cours:'#3b82f6',partiel:'#e0a52b'};
   var lig=['mail','bexio'].map(function(s){ var e=etats.find(function(x){ return x.service===s; })||{statut:'jamais'};
-    var aide=e.statut==='non_configure'?("<div style='font-size:12px;margin-top:4px'><a target='_blank' rel='noopener' href='"+SSS_SUPA_SECRETS+"' style='color:var(--green)'>Relier : secret "+(s==='mail'?'MAIL_PASSWORD':'BEXIO_TOKEN')+" ↗</a></div>"):'';
+    var aide="<div style='margin-top:6px'><button class='"+(e.statut==='ok'?'btn-out':'btn')+"' style='width:auto;padding:6px 12px;font-size:12.5px' onclick=\"sssRelier('"+s+"')\">🔗 "+(e.statut==='ok'?'Changer l’accès':'Relier')+"</button></div>";
     return "<div style='border-top:1px solid var(--line);padding:9px 0'><div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'><b style='font-size:13.5px'>"+noms[s]+"</b>"+sssPastille(({ok:'à jour',erreur:'erreur',non_configure:'non relié',jamais:'jamais lancé',en_cours:'en cours'})[e.statut]||e.statut,couleurs[e.statut]||'#8a8f98')
       +"<div class='spacer' style='flex:1'></div><button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick=\"sssSyncLancer('"+s+"',this)\">↻ Synchroniser</button></div>"
       +"<div style='font-size:12px;color:var(--text-3);margin-top:3px'>Dernier succès : "+sssQuand(e.derniere_reussite)+" · dernier essai : "+sssQuand(e.derniere_tentative)+"</div>"
@@ -4234,6 +4234,29 @@ async function sssMailOuvrir(id){
     +"<div style='display:flex;gap:8px;margin-top:12px'><button class='btn-out' onclick='closeModal()'>Fermer</button></div>");
 }
 async function sssPieceModal(i,b){ var d=window.__SSS_MSG; if(!d) return; var p=d.pj[i]; b.disabled=true; try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'attachment',id:d.id,index:(p.index!=null?p.index:i)}}); var x=r&&r.data; if(!x||!x.ok) throw new Error((x&&x.error)||'refus'); sssTelecharger(x.nom,x.type,x.b64); }catch(e){ alert('Pièce jointe : '+((e&&e.message)||e)); } b.disabled=false; }
+/* Relier un service : l'identifiant est vérifié par le service lui-même, puis rangé chiffré dans le coffre de la base.
+   Il ne reste jamais dans la page et personne ne peut le relire depuis l'application. */
+function sssRelier(s){
+  var mail=(s==='mail');
+  modal("<h3 style='margin-top:0'>"+(mail?'Relier la boîte contact@swisssolarsystem.com':'Relier Bexio')+"</h3>"
+    +"<div style='font-size:13px;line-height:1.6;color:var(--text-2);margin-bottom:12px'>"+(mail
+      ?"Infomaniak → Service Mail → contact@ → <b>Appareils connectés</b> → <b>Ajouter</b> (nom : SSS OS). Copie le mot de passe généré et colle-le ici. <a target='_blank' rel='noopener' style='color:var(--green)' href='https://manager.infomaniak.com/v3/mail/1424984/mail-service/883465/mailboxes/_contact/dashboard/devices'>Ouvrir Infomaniak ↗</a>"
+      :"bexio → portail développeur → <b>Personal Access Tokens</b> → <b>Create new token</b> (société : Swiss Solar System). Copie le jeton et colle-le ici. Il est valable 60 jours : SSS OS te préviendra quand il faudra le renouveler. <a target='_blank' rel='noopener' style='color:var(--green)' href='https://developer.bexio.com/pat'>Ouvrir bexio ↗</a>")+"</div>"
+    +"<div class='field'><label>"+(mail?'Mot de passe d’appareil':'Jeton d’accès Bexio')+"</label><input id='sss-relier-v' type='password' autocomplete='off' style='width:100%'></div>"
+    +"<div style='display:flex;gap:8px'><button class='btn' id='sss-relier-b' onclick=\"sssRelierGo('"+s+"')\">Vérifier et relier</button><button class='btn-out' onclick='closeModal()'>Annuler</button></div><div class='msg' id='sss-relier-m'></div>");
+  setTimeout(function(){ var i=document.getElementById('sss-relier-v'); if(i) i.focus(); },50);
+}
+async function sssRelierGo(s){
+  var i=document.getElementById('sss-relier-v'), b=document.getElementById('sss-relier-b'), m=document.getElementById('sss-relier-m');
+  var v=(i&&i.value||'').trim(); if(!v){ msg(m,'Colle d\'abord la valeur.','err'); return; }
+  b.disabled=true; b.textContent='Vérification…';
+  var d=null; try{ var r=await db.functions.invoke(s==='mail'?'gmail-badge':'bexio',{body:(s==='mail'?{action:'configurer',password:v}:{action:'configurer',token:v})}); d=r&&r.data; }catch(e){ d={ok:false,error:(e&&e.message)||e}; }
+  if(i) i.value='';
+  b.disabled=false; b.textContent='Vérifier et relier';
+  if(!d||!d.ok){ msg(m,(d&&d.error)||'Refusé.','err'); return; }
+  msg(m,'Relié ✔ — première synchronisation : '+((d.sync&&d.sync.message)||'lancée'),'ok');
+  setTimeout(function(){ closeModal(); renderControle(); },2500);
+}
 async function sssSyncLancer(s,b){
   if(b){ b.disabled=true; b.textContent='…'; }
   var r=await db.rpc('sss_sync_lancer',{p_service:s,p_declenche:'manuel'});
