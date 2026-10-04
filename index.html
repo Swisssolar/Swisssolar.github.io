@@ -2336,6 +2336,8 @@ function renderNav(){
     ['tech_bat','Chantiers batterie en cours','<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="7" width="16" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M9 4h6v3H9zM12 10v5M9.5 12.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_sav','SAV en cours','<svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4l-4.6 4.6 2 2 4.6-4.6a4 4 0 0 1 5.4-5.4l-2.2 2.2-1.8-1.8 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_materiel','Outillage','<svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
+    ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
+    ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
     ['tech_quittances','Justificatifs','<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_conges','Congés / absences','<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8.5 15.5h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['mon_planning','Mon planning','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17.5h6"/></svg>',['superadmin','direction','technicien']],
@@ -4062,6 +4064,200 @@ async function sssMfaReset(uid,nomAff){
 })();
 
 /* SSS-AUTH-FIN */
+
+/* SSS-INTEG-DEBUT */
+/* ==========================================================================
+   SSS OS — intégrations : « Centre de contrôle » du patron (e-mails, Bexio, Sonepar,
+   synchronisations) et « Commandes Sonepar » des installateurs.
+   Les droits sont tenus par la BASE et les fonctions (0010) : cet écran ne fait qu'afficher
+   ce que le compte connecté a le droit de lire.
+   ========================================================================== */
+var SSS_CTRL_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>';
+var SSS_SONEPAR_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>';
+var SSS_SUPA_SECRETS='https://supabase.com/dashboard/project/xfidulapidmqgazerhzw/functions/secrets';
+function sssPatron(){ return !!(ME && ME.role==='superadmin'); }
+function sssChf(n){ n=Number(n)||0; return 'CHF '+n.toLocaleString('fr-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function sssDateC(d){ if(!d) return '—'; try{ return new Date((''+d).length<=10?d+'T12:00:00':d).toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'2-digit'}); }catch(e){ return ''+d; } }
+function sssQuand(d){ if(!d) return 'jamais'; try{ var t=new Date(d); return t.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit'})+' '+t.toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''+d; } }
+function sssBloc(titre,corps,droite){ return "<div class='card' style='padding:16px 18px;margin-bottom:14px;text-align:left'><div style='display:flex;align-items:center;gap:10px;margin-bottom:10px'><h3 style='margin:0;font-size:15px'>"+titre+"</h3><div class='spacer' style='flex:1'></div>"+(droite||'')+"</div>"+corps+"</div>"; }
+var SSS_STATUT_ACHAT={commandee:['Commandée','#3b82f6'],expediee:['Expédiée','#e0a52b'],livree:['Livrée','#22a06b'],annulee:['Annulée','#8a8f98']};
+function sssPastille(t,c){ return "<span style='display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;background:"+c+"22;color:"+c+"'>"+esc(t)+"</span>"; }
+function sssTelecharger(nom,type,b64){ try{ var bin=atob(b64), u=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([u],{type:type||'application/octet-stream'})); a.download=nom||'piece-jointe'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500); }catch(e){ alert('Téléchargement impossible : '+e); } }
+
+/* ------------------------------------------------------------------ branchement */
+(function(){
+  var TOUS=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant'];
+  try{ VUE_ROLES.mes_achats=['superadmin','direction','technicien']; VUE_SERVICES.mes_achats=['technique']; }catch(e){}
+  try{ VUE_ROLES.controle=['superadmin']; VUE_SERVICES.controle=TOUS; }catch(e){}
+  try{ SSS_MENU_TECH.forEach(function(g){ if(g.id==='gtstk' && g.keys.indexOf('mes_achats')<0) g.keys.splice(1,0,'mes_achats'); }); }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ sssCtrlBouton(); if(VIEW==='mes_achats') renderMesAchats(); else if(VIEW==='controle') renderControle(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+  /* boîte mail : téléchargement des pièces jointes, webmail Infomaniak, message « non reliée » exact */
+  try{ var _pm=mbPaintMsg; mbPaintMsg=function(){ var r=_pm.apply(this,arguments); try{ sssMbPieces(); sssMbLibelles(); }catch(e){} return r; }; }catch(e){}
+  try{ var _pp=mbPaint; mbPaint=function(){ var r=_pp.apply(this,arguments); try{ sssMbLibelles(); if(MB.connected===false) sssMbNonReliee(); }catch(e){} return r; }; }catch(e){}
+})();
+function sssCtrlBouton(){
+  if(!sssPatron() || document.getElementById('sssCtrlBtn')) return;
+  var ref=document.getElementById('sssSecBtn')||document.getElementById('sssBell'); if(!ref) return;
+  var b=document.createElement('button'); b.className='iconbtn'; b.id='sssCtrlBtn'; b.title='Centre de contrôle (e-mails, Bexio, Sonepar)'; b.setAttribute('aria-label','Centre de contrôle'); b.style.cssText='padding:7px 10px;font-size:15px'; b.textContent='🎛';
+  b.onclick=function(){ go('controle'); }; ref.parentNode.insertBefore(b,ref);
+}
+function sssMbLibelles(){ document.querySelectorAll('#main button, #main a').forEach(function(e){ if(/Ouvrir dans Gmail/.test(e.textContent)) e.textContent='Ouvrir le webmail ↗'; }); }
+function sssMbNonReliee(){
+  var m=document.getElementById('main'); if(!m) return; var c=m.querySelector("div[style*='max-width:620px']"); if(!c) return;
+  c.innerHTML="<div style='font-weight:800;margin-bottom:6px'>La boîte contact@swisssolarsystem.com n'est pas encore reliée</div>"
+    +"<div style='font-size:13px;color:var(--text-3);line-height:1.6;margin-bottom:14px'>Elle se relie une seule fois : le mot de passe de la boîte (ou un mot de passe d'application Infomaniak) est enregistré dans Supabase, jamais dans l'application. Ensuite SSS OS lit, cherche et envoie depuis cette boîte, et la synchronise toutes les 10 minutes.</div>"
+    +(MB.err?"<div style='font-size:12.5px;color:#e5484d;margin-bottom:12px'>"+esc(MB.err)+"</div>":"")
+    +(sssPatron()?"<a class='btn' style='width:auto;padding:11px 20px;display:inline-block;text-decoration:none' target='_blank' rel='noopener' href='"+SSS_SUPA_SECRETS+"'>Enregistrer le mot de passe (secret MAIL_PASSWORD) ↗</a>":"<div style='font-size:13px'>La boîte e-mail est réservée à la direction.</div>");
+}
+function sssMbPieces(){
+  var m=MB.msg; if(!m||!m.pj||!m.pj.length) return;
+  var main=document.getElementById('main'); if(!main) return;
+  main.querySelectorAll('div').forEach(function(d){ if(/s'ouvrent dans la messagerie/.test(d.textContent) && d.children.length<=1) d.remove(); });
+  var box=document.createElement('div'); box.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px';
+  m.pj.forEach(function(p,i){ var b=document.createElement('button'); b.className='btn-out'; b.style.cssText='width:auto;padding:6px 12px;font-size:12.5px'; b.textContent='📎 '+(p.nom||('pièce '+(i+1)));
+    b.onclick=async function(){ b.disabled=true; var t=b.textContent; b.textContent='…'; try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'attachment',id:m.id,index:(p.index!=null?p.index:i)}}); var d=r&&r.data; if(!d||!d.ok) throw new Error((d&&d.error)||'refus'); sssTelecharger(d.nom,d.type,d.b64); }catch(e){ alert('Pièce jointe : '+((e&&e.message)||e)); } b.disabled=false; b.textContent=t; };
+    box.appendChild(b); });
+  var kv=Array.prototype.slice.call(main.querySelectorAll('.kv')).filter(function(k){ return /Pièces jointes/.test(k.textContent); })[0];
+  if(kv) kv.parentNode.insertBefore(box,kv.nextSibling);
+}
+
+/* ------------------------------------------------------------------ installateurs : commandes Sonepar */
+async function renderMesAchats(){
+  var m=document.getElementById('main'); if(!m) return;
+  m.innerHTML="<div class='page-head'><h2>Commandes Sonepar</h2></div><div class='loading'>Chargement…</div>";
+  var r=await db.from('achats_miens').select('*').order('date_commande',{ascending:false,nullsFirst:false}).limit(200);
+  var l=(r&&r.data)||[];
+  var ids=Array.from(new Set(l.map(function(x){ return x.affaire_id; }).filter(Boolean))); var noms={};
+  if(ids.length){ try{ var c=await db.from('chantiers_terrain').select('id, contact:contact_id(nom,prenom,localite)').in('id',ids); ((c&&c.data)||[]).forEach(function(a){ var k=a.contact||{}; noms[a.id]=[k.nom,k.prenom].filter(Boolean).join(' ')+(k.localite?(' — '+k.localite):''); }); }catch(e){} }
+  var h="<div class='page-head'><h2>Commandes Sonepar</h2><div class='spacer'></div><button class='btn-out' style='width:auto;padding:8px 14px' onclick=\"go('commandes')\">+ Demander du matériel</button></div>";
+  h+="<div style='font-size:12.5px;color:var(--text-3);margin:-6px 0 14px'>Les commandes passées pour toi, tes chantiers et tes interventions : articles, quantités et suivi de livraison.</div>";
+  if(r&&r.error) h+="<div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>";
+  if(!l.length){ h+="<div style='text-align:center;color:var(--text-3);padding:34px 0'>Aucune commande pour le moment.</div>"; m.innerHTML=h; return; }
+  h+="<div style='display:grid;gap:10px;max-width:880px'>";
+  l.forEach(function(a){ var st=SSS_STATUT_ACHAT[a.statut]||[a.statut,'#8a8f98'];
+    h+="<div class='card' style='padding:13px 15px;text-align:left'><div style='display:flex;gap:10px;align-items:baseline;flex-wrap:wrap'><b>"+esc(a.fournisseur||'Sonepar')+" n° "+esc(a.num_commande)+"</b>"+sssPastille(st[0],st[1])
+      +"<span style='font-size:12px;color:var(--text-3)'>"+sssDateC(a.date_commande)+"</span><div class='spacer' style='flex:1'></div><span style='font-size:12px;color:var(--text-3)'>"+(a.pour==='moi'?'pour moi':a.pour==='chantier'?('chantier : '+esc(noms[a.affaire_id]||'—')):'intervention SAV')+"</span></div>";
+    if(a.reference) h+="<div style='font-size:12.5px;color:var(--text-3);margin-top:3px'>Réf. "+esc(a.reference)+"</div>";
+    var art=a.articles||[];
+    h+=art.length?("<table style='width:100%;margin-top:8px;font-size:13px;border-collapse:collapse'>"+art.map(function(x){ return "<tr style='border-top:1px solid var(--line)'><td style='padding:5px 6px;white-space:nowrap;color:var(--text-3)'>"+esc(x.ref||'')+"</td><td style='padding:5px 6px'>"+esc(x.designation||'')+"</td><td style='padding:5px 6px;text-align:right;white-space:nowrap'><b>"+esc(x.quantite!=null?String(x.quantite):'')+"</b> "+esc(x.unite||'')+"</td></tr>"; }).join('')+"</table>")
+                 :"<div style='font-size:12.5px;color:var(--text-3);margin-top:6px'>Détail des articles pas encore reçu.</div>";
+    h+="</div>"; });
+  h+="</div>"; m.innerHTML=h;
+}
+
+/* ------------------------------------------------------------------ patron : centre de contrôle */
+var SSS_CTRL={q:''};
+async function renderControle(){
+  var m=document.getElementById('main'); if(!m) return;
+  if(!sssPatron()){ go(serviceDefault(SERVICE)); return; }
+  m.innerHTML="<div class='page-head'><h2>Centre de contrôle</h2></div><div class='loading'>Chargement…</div>";
+  var auj=new Date().toISOString().slice(0,10), mois=auj.slice(0,7)+'-01';
+  var q=function(p){ return p.then(function(r){ return r; },function(e){ return {error:e}; }); };
+  var R=await Promise.all([
+    q(db.from('sync_etat').select('*').order('service')),
+    q(db.from('sync_journal').select('service,action,declenche,debut,statut,nb,message').order('id',{ascending:false}).limit(12)),
+    q(db.from('mail_messages').select('id,dossier,uid,date,de,objet,extrait,nonlu,contact_id,fournisseur,sens,pj').order('date',{ascending:false}).limit(40)),
+    q(db.from('mail_messages').select('id',{count:'exact',head:true}).eq('nonlu',true).eq('sens','recu').eq('dossier','INBOX')),
+    q(db.from('bexio_documents').select('genre,id,numero,titre,contact_bexio_id,statut,statut_id,date,echeance,total_ttc,reste').in('statut_id',[2,8,16,31])),
+    q(db.from('bexio_paiements').select('montant,date').gte('date',mois)),
+    q(db.from('bexio_charges').select('id,numero,fournisseur,echeance,montant,reste,statut').order('echeance',{ascending:true}).limit(200)),
+    q(db.from('achats_fournisseurs').select('id,fournisseur,num_commande,date_commande,statut,reference,affaire_id,user_id,montant_ttc,montant_ht,lignes,source').order('date_commande',{ascending:false,nullsFirst:false}).limit(30)),
+    q(db.from('contacts').select('id,nom,prenom').limit(2000)),
+    q(db.rpc('sss_mfa_etat'))
+  ]);
+  var etats=(R[0].data)||[], jr=(R[1].data)||[], mails=(R[2].data)||[], nonlus=R[3].count||0, docs=(R[4].data)||[], pay=(R[5].data)||[], ch=(R[6].data)||[], ach=(R[7].data)||[], cts=(R[8].data)||[], mfa=(R[9].data)||{};
+  var cn={}; cts.forEach(function(c){ cn[c.id]=[c.nom,c.prenom].filter(Boolean).join(' '); });
+  var h="<div class='page-head'><h2>Centre de contrôle</h2><div class='spacer'></div><span style='font-size:12px;color:var(--text-3)'>visible par toi seul"+(mfa.aal==='aal2'?' · session vérifiée par code':'')+"</span></div>";
+  if(mfa.aal!=='aal2') h+="<div class='msg err' style='display:block;margin-bottom:12px'>Saisis ton code de double authentification (reconnecte-toi) : sans lui, la base ne montre rien ici.</div>";
+  h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;align-items:start'>";
+
+  /* synchronisations */
+  var noms={mail:'E-mails (contact@)',bexio:'Bexio'}; var couleurs={ok:'#22a06b',erreur:'#e5484d',non_configure:'#e0a52b',jamais:'#8a8f98',en_cours:'#3b82f6',partiel:'#e0a52b'};
+  var lig=['mail','bexio'].map(function(s){ var e=etats.find(function(x){ return x.service===s; })||{statut:'jamais'};
+    var aide=e.statut==='non_configure'?("<div style='font-size:12px;margin-top:4px'><a target='_blank' rel='noopener' href='"+SSS_SUPA_SECRETS+"' style='color:var(--green)'>Relier : secret "+(s==='mail'?'MAIL_PASSWORD':'BEXIO_TOKEN')+" ↗</a></div>"):'';
+    return "<div style='border-top:1px solid var(--line);padding:9px 0'><div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'><b style='font-size:13.5px'>"+noms[s]+"</b>"+sssPastille(({ok:'à jour',erreur:'erreur',non_configure:'non relié',jamais:'jamais lancé',en_cours:'en cours'})[e.statut]||e.statut,couleurs[e.statut]||'#8a8f98')
+      +"<div class='spacer' style='flex:1'></div><button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick=\"sssSyncLancer('"+s+"',this)\">↻ Synchroniser</button></div>"
+      +"<div style='font-size:12px;color:var(--text-3);margin-top:3px'>Dernier succès : "+sssQuand(e.derniere_reussite)+" · dernier essai : "+sssQuand(e.derniere_tentative)+"</div>"
+      +(e.message?"<div style='font-size:12.5px;margin-top:3px;color:"+(e.statut==='ok'?'var(--text-2)':'#e5484d')+"'>"+esc(e.message)+"</div>":"")+aide+"</div>"; }).join('');
+  lig+="<div style='font-size:12px;color:var(--text-3);margin-top:6px'>Automatique : e-mails toutes les 10 min, Bexio toutes les heures. Sonepar : confirmations reçues par e-mail + import CSV.</div>";
+  h+=sssBloc('Synchronisations',lig);
+
+  /* e-mails */
+  var echanges=mails.filter(function(x){ return x.contact_id||x.fournisseur; }).slice(0,8);
+  var em="<div style='display:flex;gap:8px;margin-bottom:10px'><input id='sss-mq' value=\""+esc(SSS_CTRL.q)+"\" placeholder='Chercher dans les e-mails (client, fournisseur, objet…)' style='flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;font-size:13px' onkeydown=\"if(event.key==='Enter')sssMailCherche()\"><button class='btn-out' style='width:auto;padding:8px 12px' onclick='sssMailCherche()'>Chercher</button></div><div id='sss-mres'></div>";
+  em+="<div style='font-size:12.5px;color:var(--text-3);margin:4px 0 6px'>Derniers échanges clients / fournisseurs</div>";
+  em+=echanges.length?echanges.map(sssLigneMail.bind(null,cn)).join(''):"<div style='font-size:12.5px;color:var(--text-3)'>Aucun échange reconnu pour l'instant.</div>";
+  h+=sssBloc('E-mails <span style="font-weight:400;color:var(--text-3);font-size:12.5px">· '+nonlus+' non lu(s)</span>',em,"<button class='btn' style='width:auto;padding:7px 13px;font-size:12.5px' onclick=\"go('mailbox')\">Ouvrir la boîte</button>");
+
+  /* Bexio */
+  var fact=docs.filter(function(d){ return d.genre==='facture'; }), retard=fact.filter(function(d){ return d.echeance && d.echeance<auj; }), devis=docs.filter(function(d){ return d.genre==='offre'; });
+  var somme=function(l,k){ return l.reduce(function(s,x){ return s+(Number(x[k])||0); },0); };
+  var chOuv=ch.filter(function(c){ return Number(c.reste)>0; });
+  var bx="<div style='display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px'>"
+    +[['Factures ouvertes',fact.length,somme(fact,'reste')],['dont en retard',retard.length,somme(retard,'reste')],['Encaissé ce mois',pay.length,somme(pay,'montant')],['Devis en attente',devis.length,somme(devis,'total_ttc')],['Factures fournisseurs à payer',chOuv.length,somme(chOuv,'reste')]]
+      .map(function(k,i){ return "<div style='border:1px solid var(--line);border-radius:10px;padding:9px 11px'><div style='font-size:11.5px;color:var(--text-3)'>"+k[0]+"</div><div style='font-weight:800;font-size:15px;"+(i===1&&k[1]?'color:#e5484d':'')+"'>"+sssChf(k[2])+"</div><div style='font-size:11.5px;color:var(--text-3)'>"+k[1]+" document(s)</div></div>"; }).join('')+"</div>";
+  if(retard.length) bx+="<div style='font-size:12.5px;color:var(--text-3);margin:4px 0'>En retard</div>"+retard.sort(function(a,b){ return (a.echeance||'')<(b.echeance||'')?-1:1; }).slice(0,8).map(function(d){ return "<div style='display:flex;gap:8px;font-size:13px;padding:4px 0;border-top:1px solid var(--line)'><span>"+esc(d.numero||String(d.id))+"</span><span style='color:var(--text-3)'>échue le "+sssDateC(d.echeance)+"</span><div class='spacer' style='flex:1'></div><b>"+sssChf(d.reste)+"</b><a target='_blank' rel='noopener' style='color:var(--green)' href='https://office.bexio.com/index.php/kb_invoice/show/id/"+d.id+"'>↗</a></div>"; }).join('');
+  h+=sssBloc('Bexio',bx,"<a class='btn-out' style='width:auto;padding:7px 13px;font-size:12.5px;text-decoration:none' target='_blank' rel='noopener' href='https://office.bexio.com/'>Ouvrir Bexio ↗</a>");
+
+  /* Sonepar */
+  var so=ach.length?ach.map(function(a){ var st=SSS_STATUT_ACHAT[a.statut]||[a.statut,'#8a8f98'];
+      return "<div style='border-top:1px solid var(--line);padding:8px 0'><div style='display:flex;gap:8px;align-items:baseline;flex-wrap:wrap'><b style='font-size:13px'>"+esc(a.num_commande)+"</b>"+sssPastille(st[0],st[1])+"<span style='font-size:12px;color:var(--text-3)'>"+sssDateC(a.date_commande)+(a.reference?(' · '+esc(a.reference)):'')+"</span><div class='spacer' style='flex:1'></div><b style='font-size:13px'>"+(a.montant_ttc!=null?sssChf(a.montant_ttc):a.montant_ht!=null?sssChf(a.montant_ht)+' HT':'')+"</b></div>"
+        +"<div style='font-size:12px;color:var(--text-3);margin-top:2px'>"+((a.lignes||[]).length)+" article(s) · "+(a.affaire_id?'rattachée à un chantier':'<span style="color:#e0a52b">à rattacher</span>')+" · <a href='#' style='color:var(--green)' onclick=\"sssAchatRattacher('"+a.id+"');return false\">rattacher…</a></div></div>"; }).join('')
+    :"<div style='font-size:12.5px;color:var(--text-3)'>Aucune commande importée. Elles arrivent seules avec les confirmations Sonepar reçues sur contact@, ou par import CSV.</div>";
+  h+=sssBloc('Sonepar',so);
+
+  /* journal */
+  h+=sssBloc('Journal des synchronisations',jr.length?jr.map(function(j){ return "<div style='display:flex;gap:8px;font-size:12.5px;padding:4px 0;border-top:1px solid var(--line)'><span style='white-space:nowrap;color:var(--text-3)'>"+sssQuand(j.debut)+"</span><b>"+esc(j.service)+"</b>"+sssPastille(j.statut,couleurs[j.statut]||'#8a8f98')+"<span style='flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' title=\""+esc(j.message||'')+"\">"+esc(j.message||'')+"</span></div>"; }).join(''):"<div style='font-size:12.5px;color:var(--text-3)'>Rien pour l'instant.</div>");
+  h+="</div>";
+  m.innerHTML=h;
+}
+function sssLigneMail(cn,x){
+  return "<div onclick=\"sssMailOuvrir('"+esc(x.dossier)+':'+x.uid+"')\" style='cursor:pointer;border-top:1px solid var(--line);padding:7px 0'><div style='display:flex;gap:8px;align-items:baseline'><b style='font-size:13px;"+(x.nonlu?'':'font-weight:600')+"'>"+esc(x.sens==='envoye'?('→ '+(cn[x.contact_id]||'')):(cn[x.contact_id]||mbNom(x.de)))+"</b>"+(x.fournisseur?sssPastille(x.fournisseur,'#3b82f6'):'')+(x.pj&&x.pj.length?"<span title='pièce jointe'>📎</span>":'')+"<div class='spacer' style='flex:1'></div><span style='font-size:11.5px;color:var(--text-3)'>"+sssDateC(x.date)+"</span></div>"
+    +"<div style='font-size:12.5px;"+(x.nonlu?'font-weight:700':'')+"'>"+esc(x.objet||'(sans objet)')+"</div><div style='font-size:12px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(x.extrait||'')+"</div></div>";
+}
+async function sssMailCherche(){
+  var v=((document.getElementById('sss-mq')||{}).value||'').trim(); SSS_CTRL.q=v; var box=document.getElementById('sss-mres'); if(!box) return;
+  if(!v){ box.innerHTML=''; return; }
+  box.innerHTML="<div class='loading'>Recherche…</div>";
+  var r=await db.from('mail_messages').select('id,dossier,uid,date,de,objet,extrait,nonlu,contact_id,fournisseur,sens,pj').textSearch('recherche',v.split(/\s+/).filter(Boolean).map(function(w){ return w.replace(/[^\p{L}\p{N}@._-]/gu,'')+':*'; }).filter(function(w){ return w.length>2; }).join(' & '),{config:'simple'}).order('date',{ascending:false}).limit(25);
+  var l=(r&&r.data)||[];
+  box.innerHTML=(r&&r.error)?("<div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>"):(l.length?("<div style='font-size:12.5px;color:var(--text-3);margin-bottom:4px'>"+l.length+" résultat(s)</div>"+l.map(sssLigneMail.bind(null,{})).join('')+"<div style='height:10px'></div>"):"<div style='font-size:12.5px;color:var(--text-3);margin-bottom:10px'>Aucun résultat.</div>");
+}
+async function sssMailOuvrir(id){
+  modal("<h3 style='margin-top:0'>Message</h3><div class='loading'>Ouverture…</div>");
+  var d=null; try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'read',id:id}}); d=r&&r.data; }catch(e){ d={ok:false,error:(e&&e.message)||e}; }
+  if(!d||d.ok===false){ modal("<h3 style='margin-top:0'>Message</h3><div class='msg err' style='display:block'>"+esc((d&&d.error)||'Message illisible.')+"</div><button class='btn-out' style='margin-top:12px' onclick='closeModal()'>Fermer</button>"); return; }
+  window.__SSS_MSG=d;
+  modal("<h3 style='margin-top:0'>"+esc(d.objet||'(sans objet)')+"</h3><div class='kv'><span>De</span><b>"+esc(d.de)+"</b></div><div class='kv'><span>À</span><b>"+esc(d.a||'')+"</b></div><div class='kv'><span>Date</span><b>"+esc(d.date||'')+"</b></div>"
+    +((d.pj||[]).length?"<div style='display:flex;gap:6px;flex-wrap:wrap;margin:8px 0'>"+d.pj.map(function(p,i){ return "<button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick='sssPieceModal("+i+",this)'>📎 "+esc(p.nom)+"</button>"; }).join('')+"</div>":"")
+    +"<div style='white-space:pre-wrap;font-size:13.5px;line-height:1.6;max-height:50vh;overflow:auto;border-top:1px solid var(--line);margin-top:10px;padding-top:10px'>"+esc(d.corps||'')+"</div>"
+    +"<div style='display:flex;gap:8px;margin-top:12px'><button class='btn-out' onclick='closeModal()'>Fermer</button></div>");
+}
+async function sssPieceModal(i,b){ var d=window.__SSS_MSG; if(!d) return; var p=d.pj[i]; b.disabled=true; try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'attachment',id:d.id,index:(p.index!=null?p.index:i)}}); var x=r&&r.data; if(!x||!x.ok) throw new Error((x&&x.error)||'refus'); sssTelecharger(x.nom,x.type,x.b64); }catch(e){ alert('Pièce jointe : '+((e&&e.message)||e)); } b.disabled=false; }
+async function sssSyncLancer(s,b){
+  if(b){ b.disabled=true; b.textContent='…'; }
+  var r=await db.rpc('sss_sync_lancer',{p_service:s,p_declenche:'manuel'});
+  if(r&&r.error){ alert('Synchronisation : '+r.error.message); if(b){ b.disabled=false; b.textContent='↻ Synchroniser'; } return; }
+  setTimeout(function(){ if(VIEW==='controle') renderControle(); }, s==='bexio'?20000:12000);
+  if(b) b.textContent='lancée…';
+}
+async function sssAchatRattacher(id){
+  var R=await Promise.all([db.from('affaires').select('id, etape, contact:contact_id(nom,prenom,localite)').order('created_at',{ascending:false}).limit(300), db.from('utilisateurs').select('id,prenom,nom,role').eq('actif',true).in('role',['technicien','soustraitant']), db.from('achats_fournisseurs').select('affaire_id,user_id,num_commande').eq('id',id).single()]);
+  var aff=(R[0].data)||[], gens=(R[1].data)||[], a=(R[2].data)||{};
+  modal("<h3 style='margin-top:0'>Rattacher la commande "+esc(a.num_commande||'')+"</h3>"
+    +"<div class='field'><label>Chantier</label><select id='sss-ra-aff'><option value=''>— aucun —</option>"+aff.map(function(x){ var c=x.contact||{}; return "<option value='"+x.id+"'"+(x.id===a.affaire_id?' selected':'')+">"+esc([c.nom,c.prenom].filter(Boolean).join(' ')+(c.localite?(' — '+c.localite):''))+"</option>"; }).join('')+"</select></div>"
+    +"<div class='field'><label>Installateur</label><select id='sss-ra-user'><option value=''>— aucun —</option>"+gens.map(function(g){ return "<option value='"+g.id+"'"+(g.id===a.user_id?' selected':'')+">"+esc((g.prenom||'')+' '+(g.nom||''))+"</option>"; }).join('')+"</select></div>"
+    +"<div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>L'installateur et ceux du chantier verront les articles et quantités, jamais les montants.</div>"
+    +"<div style='display:flex;gap:8px'><button class='btn' onclick=\"sssAchatEnregistrer('"+id+"')\">Enregistrer</button><button class='btn-out' onclick='closeModal()'>Annuler</button></div><div class='msg' id='sss-ra-msg'></div>");
+}
+async function sssAchatEnregistrer(id){
+  var af=(document.getElementById('sss-ra-aff')||{}).value||null, us=(document.getElementById('sss-ra-user')||{}).value||null;
+  var r=await db.from('achats_fournisseurs').update({affaire_id:af||null,user_id:us||null,updated_at:new Date().toISOString()}).eq('id',id).select('id');
+  if(r.error||!r.data||!r.data.length){ msg(document.getElementById('sss-ra-msg'),(r.error&&r.error.message)||'Refusé.','err'); return; }
+  closeModal(); renderControle();
+}
+
+/* SSS-INTEG-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
