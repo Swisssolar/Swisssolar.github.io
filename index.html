@@ -3559,18 +3559,28 @@ function sssNotifInit(){
   try{ if(SSSN.canal) db.removeChannel(SSSN.canal);
     SSSN.canal=db.channel('notif-'+ME.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+ME.id},function(p){
       sssNotifCompter(); var n=(p&&p.new)||{}; try{ if(window.Notification&&Notification.permission==='granted'&&document.hidden&&!(window.SSSPUSH&&SSSPUSH.actif)) new Notification(n.titre||'Swiss Solar System',{body:'Touche pour voir le détail dans SSS OS',icon:'/sss-icon-192.png',tag:'sss-'+n.id}); }catch(e){}
-      if(VIEW==='notifications') renderNotifications(); try{ if(sssEstDir()) sssATraiterMaj(); }catch(e){} }).subscribe(); }catch(e){}
+      if(VIEW==='notifications') renderNotifications(); try{ if(sssEstDir()) sssATraiterMaj(); }catch(e){} })
+      /* lu sur un autre appareil → compteur et liste à jour ici aussitôt */
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'notifications',filter:'user_id=eq.'+ME.id},function(){ sssNotifCompter(); if(VIEW==='notifications') renderNotifications(); }).subscribe(); }catch(e){}
+  try{ document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') sssNotifCompter(); }); }catch(e){}
 }
+/* Une notification reste non lue tant qu'on ne l'a pas ouverte ou marquée comme lue (ouvrir la liste ne lit rien). */
+var SSSN_PAGE=50;
+async function sssNotifToutLu(){ try{ await db.from('notifications').update({lu_at:new Date().toISOString()}).is('lu_at',null); }catch(e){} sssNotifCompter(); renderNotifications(); }
+async function sssNotifBasculer(id,lu,ev){ try{ if(ev) ev.stopPropagation(); }catch(e){} try{ await db.from('notifications').update({lu_at:lu?new Date().toISOString():null}).eq('id',id); }catch(e){} sssNotifCompter(); renderNotifications(); }
+function sssNotifPlus(){ SSSN_PAGE+=50; renderNotifications(); }
 async function renderNotifications(){
   $('#main').innerHTML="<div class='page-head'><h2>Notifications</h2><div class='spacer'></div>"+"</div><div id='sssn-push'></div><div id='sssn-atraiter'></div><div id='sssn-list' class='loading'>Chargement…</div>";
   if(sssEstDir()) sssATraiterBloc('sssn-atraiter');
   try{ sssPushCarte('sssn-push'); }catch(e){}
-  var r=await db.from('notifications').select('id,type,titre,corps,lien,ref_id,lu_at,created_at').order('created_at',{ascending:false}).limit(80);
+  var r=await db.from('notifications').select('id,type,titre,corps,lien,ref_id,lu_at,created_at',{count:'exact'}).order('created_at',{ascending:false}).range(0,SSSN_PAGE-1);
   var box=document.getElementById('sssn-list'); if(!box) return; box.className=''; if(r.error){ box.innerHTML="<div class='empty'>Lecture impossible : "+esc(r.error.message)+"</div>"; return; }
   var rows=r.data||[]; if(!rows.length){ box.innerHTML="<div class='empty' style='max-width:760px'>Aucune notification.</div>"; return; }
-  box.innerHTML="<div style='display:grid;gap:7px;max-width:760px'>"+rows.map(function(x){ return "<div class='card' onclick=\""+(x.lien?("sssNotifOuvrir({type:'"+esc(x.type||'')+"',lien:'"+esc(x.lien)+"',ref_id:'"+esc(x.ref_id||'')+"'})"):"")+"\" style='padding:11px 14px;cursor:"+(x.lien?'pointer':'default')+";"+(x.lu_at?'opacity:.62':'border-left:4px solid var(--green)')+"'><div style='display:flex;justify-content:space-between;gap:10px'><div style='font-weight:700'>"+esc(x.titre)+"</div><div style='font-size:11.5px;color:var(--text-3);white-space:nowrap'>"+esc(sssDateFr(x.created_at))+" "+esc(sssHeure(x.created_at))+"</div></div>"+(x.corps?"<div style='font-size:13px;color:var(--text-2);margin-top:2px'>"+esc(x.corps)+"</div>":"")+"</div>"; }).join('')+"</div>";
-  var nl=rows.filter(function(x){ return !x.lu_at; }).map(function(x){ return x.id; });
-  if(nl.length){ try{ await db.from('notifications').update({lu_at:new Date().toISOString()}).in('id',nl); }catch(e){} sssNotifCompter(); }
+  var nonLues=rows.filter(function(x){ return !x.lu_at; }).length;
+  var tete="<div style='display:flex;align-items:center;gap:10px;max-width:760px;margin-bottom:8px'><span style='font-size:13px;color:var(--text-3)'>"+(SSSN.non_lues||nonLues)+" non lue(s) · "+(r.count||rows.length)+" au total</span><div class='spacer' style='flex:1'></div>"+((SSSN.non_lues||nonLues)?"<button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick='sssNotifToutLu()'>Tout marquer comme lu</button>":"")+"</div>";
+  box.innerHTML=tete+"<div style='display:grid;gap:7px;max-width:760px'>"+rows.map(function(x){ return "<div class='card' onclick=\"sssNotifOuvrirId("+x.id+")\" style='padding:11px 14px;cursor:pointer;"+(x.lu_at?'opacity:.62':'border-left:4px solid var(--green)')+"'><div style='display:flex;justify-content:space-between;gap:10px'><div style='font-weight:700'>"+esc(x.titre)+"</div><div style='font-size:11.5px;color:var(--text-3);white-space:nowrap'>"+esc(sssDateFr(x.created_at))+" "+esc(sssHeure(x.created_at))+"</div></div>"+(x.corps?"<div style='font-size:13px;color:var(--text-2);margin-top:2px'>"+esc(x.corps)+"</div>":"")
+      +"<div style='margin-top:6px'><a href='#' style='font-size:11.5px;color:var(--text-3)' onclick=\"sssNotifBasculer("+x.id+","+(x.lu_at?'false':'true')+",event);return false\">"+(x.lu_at?'marquer comme non lue':'marquer comme lue')+"</a></div></div>"; }).join('')+"</div>"
+    +((r.count||0)>rows.length?"<div style='max-width:760px;text-align:center;margin:12px 0'><button class='btn-out' style='width:auto;padding:8px 16px' onclick='sssNotifPlus()'>Voir les plus anciennes</button></div>":"");
 }
 function sssNotifAller(v){ try{ if(VUE_SERVICES[v] && VUE_SERVICES[v].indexOf(SERVICE)<0){ var s=serviceDeVue(v); if(s){ SERVICE=s; } } }catch(e){} go(v); }
 
