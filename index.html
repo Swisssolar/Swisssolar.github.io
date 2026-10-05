@@ -4684,6 +4684,74 @@ function sssCsvBanque(texte){
 }
 function sssReleveLire(nom,texte){ return (/^\s*<\?xml|<Document[\s>]/.test(String(texte||'').slice(0,800)) || /\.xml$/i.test(nom||'')) ? Object.assign(sssCamt053(texte),{format:'camt053'}) : Object.assign(sssCsvBanque(texte),{format:'csv'}); }
 
+/* ------------------------------------------------------------------ fichier tel que la banque le donne
+   ZIP (plusieurs relevés journaliers + PDF), XML CAMT.052/053/054 quelle que soit l'extension, CSV.
+   On se fie au CONTENU, jamais au nom. Tout est lu dans le navigateur. */
+function sssOctetsTexte(u8){
+  var t=''; try{ t=new TextDecoder('utf-8',{fatal:true}).decode(u8); }catch(e){ try{ t=new TextDecoder('windows-1252').decode(u8); }catch(e2){ t=new TextDecoder('utf-8').decode(u8); } }
+  return t.replace(/^﻿/,'');
+}
+async function sssZipLire(u8){
+  // lecteur ZIP minimal : répertoire central, entrées « stockées » (0) ou « deflate » (8), décompressées par le navigateur
+  var dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength), fin=-1;
+  for(var i=u8.length-22;i>=Math.max(0,u8.length-65558);i--){ if(dv.getUint32(i,true)===0x06054b50){ fin=i; break; } }
+  if(fin<0) throw new Error('archive ZIP illisible (répertoire introuvable)');
+  var n=dv.getUint16(fin+10,true), p=dv.getUint32(fin+16,true), sortie=[];
+  for(var k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50) throw new Error('archive ZIP endommagée');
+    var meth=dv.getUint16(p+10,true), taille=dv.getUint32(p+20,true), lnom=dv.getUint16(p+28,true), lext=dv.getUint16(p+30,true), lcom=dv.getUint16(p+32,true), loc=dv.getUint32(p+42,true);
+    var nom=new TextDecoder().decode(u8.subarray(p+46,p+46+lnom)); p+=46+lnom+lext+lcom;
+    if(/\/$/.test(nom)) continue;
+    var deb=loc+30+dv.getUint16(loc+26,true)+dv.getUint16(loc+28,true), brut=u8.subarray(deb,deb+taille), octets;
+    if(meth===0) octets=brut;
+    else if(meth===8){ var ds=new Blob([brut]).stream().pipeThrough(new DecompressionStream('deflate-raw')); octets=new Uint8Array(await new Response(ds).arrayBuffer()); }
+    else { sortie.push({nom:nom,erreur:'compression non prise en charge ('+meth+')'}); continue; }
+    sortie.push({nom:nom,octets:octets});
+  }
+  return sortie;
+}
+function sssGenreContenu(nom,u8){
+  if(u8.length>=4 && u8[0]===0x50 && u8[1]===0x4b) return 'zip';
+  if(u8.length>=4 && u8[0]===0x25 && u8[1]===0x50 && u8[2]===0x44 && u8[3]===0x46) return 'pdf';
+  if(u8.length>=3 && ((u8[0]===0xff && u8[1]===0xd8) || (u8[0]===0x89 && u8[1]===0x50 && u8[2]===0x4e) || (u8[0]===0x47 && u8[1]===0x49 && u8[2]===0x46))) return 'image';
+  var ctrl=0, n=Math.min(u8.length,2000); for(var i=0;i<n;i++){ var b=u8[i]; if(b<9||(b>13&&b<32)) ctrl++; } if(n && ctrl/n>0.05) return 'binaire';
+  var debut=sssOctetsTexte(u8.subarray(0,4000));
+  if(/BkToCstmrStmt|BkToCstmrAcctRpt|BkToCstmrDbtCdtNtfctn|camt\.05[234]/.test(debut)) return 'camt';
+  if(/^\s*</.test(debut)) return 'xml';
+  if(/^\s*(\{|%PDF)/.test(debut)) return 'autre';
+  return /[;,\t]/.test(debut) ? 'csv' : 'autre';
+}
+/* entrée : un ou plusieurs fichiers (File) ; sortie : un relevé fusionné + l'explication de ce qui a été lu ou écarté */
+async function sssRelevesDepuisFichiers(fichiers){
+  var res={lignes:[],comptes:[],fichiers:[],ignores:[],pdfs:[],avertissements:[],format:null};
+  var traiter=async function(nom,u8,dansZip){
+    var g=sssGenreContenu(nom,u8);
+    if(g==='zip'){ if(dansZip){ res.ignores.push(nom+' : archive dans l’archive'); return; } var l; try{ l=await sssZipLire(u8); }catch(e){ res.ignores.push(nom+' : '+e.message); return; }
+      for(var i=0;i<l.length;i++){ if(l[i].erreur) res.ignores.push(l[i].nom+' : '+l[i].erreur); else await traiter(l[i].nom,l[i].octets,true); } return; }
+    if(g==='pdf'){ res.pdfs.push({nom:nom,octets:u8}); return; }   // relevé PDF : lu à part (IA + contrôle des totaux)
+    if(g==='image'){ res.ignores.push(nom+' : image (photo / capture), pas un relevé'); return; }
+    if(g==='binaire'||g==='autre'){ res.ignores.push(nom+' : ni relevé CAMT ni CSV'); return; }
+    var t=sssOctetsTexte(u8), r;
+    if(g==='camt'||g==='xml'){ r=sssCamt053(t); r.format='camt053'; if(!r.lignes.length && g==='xml'){ res.ignores.push(nom+' : fichier XML qui n’est pas un relevé CAMT'); return; } }
+    else { r=sssCsvBanque(t); r.format='csv'; }
+    if(!r.lignes.length){ res.ignores.push(nom+' : '+((r.avertissements||[])[0]||'aucun mouvement')); return; }
+    res.fichiers.push({nom:nom,format:r.format,lignes:r.lignes.length}); res.format=res.format&&res.format!==r.format?'mixte':r.format;
+    if(r.compte && res.comptes.indexOf(r.compte)<0) res.comptes.push(r.compte);
+    (r.avertissements||[]).forEach(function(a){ res.avertissements.push(nom+' : '+a); });
+    res.lignes=res.lignes.concat(r.lignes);
+  };
+  for(var i=0;i<fichiers.length;i++){ var f=fichiers[i]; await traiter(f.name||('fichier '+(i+1)), new Uint8Array(await f.arrayBuffer()), false); }
+  // un même mouvement présent dans deux relevés (ex. relevé du mois + relevés journaliers) n'est gardé qu'une fois
+  var vus={}; res.lignes=res.lignes.filter(function(x){ var k=[x.compte,x.date_compta,x.montant,x.ref_banque||x.libelle].join('|'); if(vus[k]) return false; vus[k]=1; return true; });
+  var d=res.lignes.map(function(x){ return x.date_compta; }).sort();
+  res.du=d[0]||null; res.au=d[d.length-1]||null;
+  res.debits=res.lignes.filter(function(x){ return x.montant<0; }); res.credits=res.lignes.filter(function(x){ return x.montant>0; });
+  res.total_debits=Math.round(res.debits.reduce(function(a,x){ return a+x.montant; },0)*100)/100;
+  res.total_credits=Math.round(res.credits.reduce(function(a,x){ return a+x.montant; },0)*100)/100;
+  if(!res.lignes.length && !res.pdfs.length) res.erreur=res.ignores.length?'Aucun relevé bancaire lisible dans ce fichier.\n'+res.ignores.join('\n')+'\n\nTélécharge depuis ton e-banking le relevé au format CAMT.053 (souvent appelé « ISO 20022 », « XML » ou « e-documents »).':'Fichier vide.';
+  return res;
+}
+
 /* SSS-BANQUE-FIN */
 
 /* SSS-FIN-DEBUT */
@@ -4711,7 +4779,8 @@ async function sssFinancesBloc(){
   var h="<div class='card' style='padding:16px 18px;text-align:left'>"
     +"<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px'><h3 style='margin:0;font-size:15px'>🧾 Factures reçues (fournisseurs)</h3><div class='spacer' style='flex:1'></div>"
     +"<button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick='sssFLire(this)'>📥 Lire les nouvelles factures</button>"
-    +"<label class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px;cursor:pointer'>🏦 Importer un relevé<input type='file' accept='.xml,.csv,.txt' style='display:none' onchange='sssFReleve(this)'></label></div>"
+    +"<label class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px;cursor:pointer'>🏦 Importer un relevé<input type='file' multiple style='display:none' onchange='sssFReleve(this)'></label></div>"
+    +"<div id='sssf-depot' ondragover=\"event.preventDefault();this.style.borderColor='#3b82f6'\" ondragleave=\"this.style.borderColor=''\" ondrop=\"event.preventDefault();this.style.borderColor='';sssFAnalyser(event.dataTransfer.files)\" onclick=\"this.parentNode.querySelector('input[type=file]').click()\" style='border:2px dashed var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--text-3);text-align:center;cursor:pointer'>🏦 Glisse ici le fichier téléchargé depuis ta banque (tel quel : ZIP, XML / CAMT.053, CSV ou relevé PDF) — ou clique pour le choisir</div>"
     +"<div style='display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px'>"+kpi('Total à payer (ouvertes)',f.total_ouvert,'#e5484d')+kpi('dont échues',st.echues)+kpi('échéance ≤ 7 j',st.echeance_7_jours)+kpi('échéance ≤ 30 j',st.echeance_30_jours)+kpi('sans échéance',st.sans_echeance)+kpi('à vérifier',st.a_verifier,'#e0a52b')+"</div>"
     +"<div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>"
       +(rb.lignes?"Relevés bancaires importés : "+rb.lignes+" mouvements du "+sssFDate(rb.du)+" au "+sssFDate(rb.au)+".":"<b style='color:#e0a52b'>Aucun relevé bancaire importé</b> : sans lui, une facture ne peut pas être prouvée payée (statut « probable »). Exporte un relevé CAMT.053 depuis ton e-banking et importe-le ici.")
@@ -4740,20 +4809,74 @@ async function sssFLire(b){
   catch(e){ alert('Lecture impossible : '+((e&&e.message)||e)); }
   b.disabled=false; b.textContent=t; sssFinancesBloc();
 }
-async function sssFReleve(inp){
-  var f=inp.files&&inp.files[0]; inp.value=''; if(!f) return;
-  if(f.size>20*1024*1024){ alert('Fichier trop lourd (20 Mo au plus).'); return; }
-  var txt=await f.text(); var r=sssReleveLire(f.name,txt);
-  if(!r.lignes.length){ alert('Aucun mouvement lu.\n'+(r.avertissements||[]).join('\n')); return; }
-  var dates=r.lignes.map(function(x){ return x.date_compta; }).sort(), deb=r.lignes.filter(function(x){ return x.montant<0; }), cre=r.lignes.filter(function(x){ return x.montant>0; });
-  var s=function(l){ return l.reduce(function(a,x){ return a+x.montant; },0); };
-  if(!confirm('Relevé '+(r.format==='camt053'?'CAMT.053':'CSV')+(r.compte?' du compte '+r.compte:'')+'\n'+r.lignes.length+' mouvements du '+sssFDate(dates[0])+' au '+sssFDate(dates[dates.length-1])+'\nDébits : '+deb.length+' ('+sssFChf(s(deb))+')\nCrédits : '+cre.length+' ('+sssFChf(s(cre))+')\n'+((r.avertissements||[]).length?'\n'+r.avertissements.join('\n')+'\n':'')+'\nImporter dans SSS OS (les lignes déjà importées sont ignorées) ?')) return;
-  var lot=f.name+' '+new Date().toISOString().slice(0,16);
-  var res={importees:0,deja_presentes:0};
-  for(var i=0;i<r.lignes.length;i+=500){ var x=await db.rpc('sss_banque_importer',{p_lignes:r.lignes.slice(i,i+500),p_source:r.format,p_lot:lot}); if(x.error){ alert('Import interrompu : '+x.error.message); break; } res.importees+=x.data.importees; res.deja_presentes+=x.data.deja_presentes; }
+/* ------------------------------------------------------------------ import d'un relevé, tel que la banque le donne
+   ZIP / XML CAMT (quelle que soit l'extension) / CSV lus dans le navigateur ; relevé PDF lu par l'IA puis contrôlé contre
+   les totaux imprimés. Aperçu complet AVANT import ; rien n'est envoyé tant que le patron n'a pas cliqué « Importer ». */
+var SSSF_IMP=null;
+function sssFReleve(inp){ var l=Array.prototype.slice.call(inp.files||[]); inp.value=''; if(l.length) sssFAnalyser(l); }
+function sssFB64(u8){ var s=''; for(var i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+function sssFFenetre(html){
+  var f=document.getElementById('sssf-fen'); if(!f){ f=document.createElement('div'); f.id='sssf-fen'; f.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px'; document.body.appendChild(f); }
+  f.innerHTML="<div class='card' style='max-width:640px;width:100%;max-height:90vh;overflow:auto;padding:18px 20px;text-align:left'>"+html+"</div>"; f.style.display='flex'; return f;
+}
+function sssFFermer(){ var f=document.getElementById('sssf-fen'); if(f) f.remove(); SSSF_IMP=null; }
+async function sssFAnalyser(fichiers){
+  fichiers=Array.prototype.slice.call(fichiers||[]); if(!fichiers.length) return;
+  var trop=fichiers.filter(function(f){ return f.size>40*1024*1024; }); if(trop.length){ sssFFenetre("<h3 style='margin-top:0'>Fichier trop lourd</h3><div>"+esc(trop[0].name)+" dépasse 40 Mo.</div><div style='margin-top:12px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer()'>Fermer</button></div>"); return; }
+  sssFFenetre("<h3 style='margin-top:0'>Lecture du relevé…</h3><div id='sssf-etape' style='font-size:13px;color:var(--text-3)'>Ouverture du fichier</div>");
+  var r; try{ r=await sssRelevesDepuisFichiers(fichiers); }catch(e){ sssFFenetre("<h3 style='margin-top:0'>Fichier illisible</h3><div>"+esc((e&&e.message)||e)+"</div><div style='margin-top:12px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer()'>Fermer</button></div>"); return; }
+  // relevés PDF : lecture par l'IA + contrôle des totaux (rien n'est gardé si les totaux ne retombent pas juste)
+  r.lignesPdf=[]; r.pdfLus=[];
+  for(var i=0;i<r.pdfs.length;i++){
+    var p=r.pdfs[i], et=document.getElementById('sssf-etape'); if(et) et.textContent='Lecture du relevé PDF « '+p.nom+' » ('+(i+1)+'/'+r.pdfs.length+') — environ une minute par relevé…';
+    try{
+      var x=await db.functions.invoke('agent',{body:{action:'releve_pdf',nom:p.nom,b64:sssFB64(p.octets)}}); var d=(x&&x.data)||{};
+      if(d.ok===false||!d.ok){ r.ignores.push(p.nom+' : '+(d.error||'lecture impossible')); continue; }
+      if(!d.valide){ r.ignores.push(p.nom+' : '+(d.raison||'non retenu')); continue; }
+      var rv=d.releve||{}, cpt=(rv.compte||'').replace(/\s+/g,'').toUpperCase()||null;
+      var lp=(d.lignes||[]).map(function(l){ return {compte:cpt, date_compta:l.date, date_valeur:/^\d{4}-\d{2}-\d{2}$/.test(l.valeur||'')?l.valeur:null, montant:Math.round(((Number(l.credit)||0)-(Number(l.debit)||0))*100)/100, devise:rv.devise||'CHF', contrepartie:null, iban_contrepartie:null, reference:null, libelle:l.libelle||null, ref_banque:null}; }).filter(function(l){ return l.montant!==0; });
+      r.pdfLus.push({nom:p.nom, du:rv.periode_du, au:rv.periode_au, lignes:lp.length, debits:d.controle&&d.controle.debits, credits:d.controle&&d.controle.credits});
+      if(cpt && r.comptes.indexOf(cpt)<0) r.comptes.push(cpt);
+      r.lignesPdf=r.lignesPdf.concat(lp);
+    }catch(e){ r.ignores.push(p.nom+' : '+((e&&e.message)||e)); }
+  }
+  // un mouvement présent dans un CAMT et dans un PDF (même jour, même montant) : la version CAMT, plus détaillée, est gardée
+  var cle=function(x){ return x.date_compta+'|'+x.montant; }, camt={}; r.lignes.forEach(function(x){ camt[cle(x)]=(camt[cle(x)]||0)+1; });
+  r.lignesPdf=r.lignesPdf.filter(function(x){ if(camt[cle(x)]){ camt[cle(x)]--; return false; } return true; });
+  var tout=r.lignes.concat(r.lignesPdf);
+  if(!tout.length){ sssFFenetre("<h3 style='margin-top:0'>Ce fichier n’est pas importable</h3><div style='white-space:pre-wrap;font-size:13px'>"+esc(r.erreur||('Aucun mouvement lisible.\n'+r.ignores.join('\n')))+"</div><div style='margin-top:12px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer()'>Fermer</button></div>"); return; }
+  var dts=tout.map(function(x){ return x.date_compta; }).sort(), deb=tout.filter(function(x){ return x.montant<0; }), cre=tout.filter(function(x){ return x.montant>0; });
+  var som=function(l){ return Math.round(l.reduce(function(a,x){ return a+x.montant; },0)*100)/100; };
+  SSSF_IMP={camt:r.lignes, pdf:r.lignesPdf, format:r.format||'camt053', lot:fichiers.map(function(f){ return f.name; }).join(', ').slice(0,120)+' '+new Date().toISOString().slice(0,16)};
+  var li=function(t){ return "<li style='margin:2px 0'>"+t+"</li>"; };
+  sssFFenetre("<h3 style='margin-top:0'>Aperçu du relevé</h3>"
+    +"<div style='display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px'>"
+    +"<span style='color:var(--text-3)'>Compte</span><b>"+esc(r.comptes.join(', ')||'non indiqué')+"</b>"
+    +"<span style='color:var(--text-3)'>Période</span><b>"+sssFDate(dts[0])+" → "+sssFDate(dts[dts.length-1])+"</b>"
+    +"<span style='color:var(--text-3)'>Mouvements</span><b>"+tout.length+"</b>"
+    +"<span style='color:var(--text-3)'>Débits</span><b style='color:#e5484d'>"+deb.length+" · "+sssFChf(som(deb))+"</b>"
+    +"<span style='color:var(--text-3)'>Crédits</span><b style='color:#22a06b'>"+cre.length+" · "+sssFChf(som(cre))+"</b></div>"
+    +"<div style='margin-top:12px;font-size:12.5px'><b>Fichiers lus</b><ul style='margin:4px 0 0 18px;padding:0'>"
+      +r.fichiers.map(function(f){ return li(esc(f.nom)+" — "+(f.format==='csv'?'CSV':'CAMT')+", "+f.lignes+" mouvement(s)"); }).join('')
+      +r.pdfLus.map(function(f){ return li(esc(f.nom)+" — relevé PDF du "+sssFDate(f.du)+" au "+sssFDate(f.au)+", "+f.lignes+" mouvement(s) ✔ totaux de la banque vérifiés"); }).join('')+"</ul>"
+    +(r.pdfLus.length?"<div style='color:var(--text-3)'>(les mouvements des PDF déjà présents dans les CAMT ne sont comptés qu’une fois)</div>":"")
+    +(r.ignores.length?"<div style='margin-top:8px'><b>Écartés</b><ul style='margin:4px 0 0 18px;padding:0;color:var(--text-3)'>"+r.ignores.map(function(x){ return li(esc(x)); }).join('')+"</ul></div>":"")
+    +(r.avertissements.length?"<div style='margin-top:8px;color:#e0a52b'>"+r.avertissements.map(esc).join('<br>')+"</div>":"")+"</div>"
+    +"<div style='font-size:12px;color:var(--text-3);margin-top:10px'>Les mouvements déjà importés ne sont jamais ajoutés deux fois. Rien n’est modifié à la banque.</div>"
+    +"<div style='display:flex;gap:8px;margin-top:14px'><button class='btn' style='width:auto;padding:9px 18px' onclick='sssFImporter(this)'>Importer "+tout.length+" mouvement(s)</button><button class='btn-out' style='width:auto;padding:9px 18px' onclick='sssFFermer()'>Annuler</button></div>");
+}
+async function sssFImporter(b){
+  if(!SSSF_IMP) return; b.disabled=true; b.textContent='Import en cours…';
+  var res={importees:0,deja_presentes:0,completees:0}, err=null;
+  var envoyer=async function(lignes,source){ for(var i=0;i<lignes.length&&!err;i+=400){ var x=await db.rpc('sss_banque_importer',{p_lignes:lignes.slice(i,i+400),p_source:source,p_lot:SSSF_IMP.lot}); if(x.error){ err=x.error.message; break; } res.importees+=x.data.importees||0; res.deja_presentes+=x.data.deja_presentes||0; res.completees+=x.data.completees||0; } };
+  await envoyer(SSSF_IMP.camt, SSSF_IMP.format==='csv'?'csv':'camt053');
+  if(!err) await envoyer(SSSF_IMP.pdf,'pdf');
   var rp=await db.rpc('sss_rapprocher_factures'); var d=(rp&&rp.data)||{};
-  alert(res.importees+' mouvement(s) importé(s), '+res.deja_presentes+' déjà présent(s).\nRapprochement : '+(d.payees||0)+' facture(s) payée(s), '+(d.ouvertes||0)+' ouverte(s), '+(d.a_verifier||0)+' à vérifier.');
-  sssFinancesBloc();
+  sssFFenetre("<h3 style='margin-top:0'>"+(err?'Import interrompu':'Relevé importé')+"</h3>"
+    +(err?"<div style='color:#e5484d'>"+esc(err)+"</div>":"")
+    +"<div style='font-size:13.5px;line-height:1.7'>"+res.importees+" mouvement(s) ajouté(s)"+(res.completees?", "+res.completees+" complété(s)":"")+", "+res.deja_presentes+" déjà présent(s).</div>"
+    +"<div style='font-size:13.5px;line-height:1.7'>Rapprochement des factures reçues : <b>"+(d.payees||0)+"</b> payée(s), <b>"+(d.ouvertes||0)+"</b> ouverte(s), <b>"+(d.a_verifier||0)+"</b> à vérifier"+(d.releves_du?" (relevés du "+sssFDate(d.releves_du)+" au "+sssFDate(d.releves_au)+")":"")+".</div>"
+    +"<div style='margin-top:14px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer();sssFinancesBloc()'>Fermer</button></div>");
 }
 (function(){
   try{ var _rc=renderControle; renderControle=async function(){ var r=await _rc.apply(this,arguments); try{
