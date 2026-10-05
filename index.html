@@ -2338,6 +2338,10 @@ function renderNav(){
     ['tech_materiel','Outillage','<svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
     ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
+    ['sc_chantiers','Chantiers à approvisionner','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>',['superadmin','direction','supply_chain']],
+    ['sc_achats','Achats fournisseurs','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>',['superadmin','direction','supply_chain']],
+    ['sc_stock','Stock','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',['superadmin','direction','supply_chain']],
+    ['sc_demandes','Demandes de matériel','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>',['superadmin','direction','supply_chain']],
     ['tech_quittances','Justificatifs','<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_conges','Congés / absences','<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8.5 15.5h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['mon_planning','Mon planning','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17.5h6"/></svg>',['superadmin','direction','technicien']],
@@ -2434,7 +2438,7 @@ function renderNav(){
   const GROUPS_RH=[ {id:'grec',title:'Recrutement & formation',keys:['recrut','recrut_tech','formation_com','rh_entree']}, {id:'grh2',title:'Ressources humaines',keys:['rh','rh_conges','rh_salaires']}, {id:'grh3',title:'Accès',keys:['rh_acces']} ];
   let GROUPS_TECH= techExterne()
     ? [ {id:'gtech',title:'Mes chantiers',keys:['tech_today','tech_pv','tech_bat','tech_sav','repasser','tech_termines']}, {id:'gtbo',title:'Mon back-office',keys:['commandes','st_remb']} ]
-    : [ {id:'gtech',title:'Technique',keys:['techdash','tech_today','tech_search','tech_pv','tech_bat','tech_sav','repasser','tech_termines','tech_materiel']}, {id:'gtstk',title:'Stock & fournitures',keys:['stock','commandes']}, {id:'gtequipe',title:'Équipe terrain',keys:['mon_planning','mes_chantiers','tech_quittances','tech_conges','mes_demandes','signalements_t','vehicule','pointage']} ].concat( ME.role==='technicien' ? [] : [{id:'gtst',title:'Sous-traitants',keys:['stmissions','st_remb']}] ); if(ME.role==='technicien' && !techExterne()) GROUPS_TECH=SSS_MENU_TECH.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; });
+    : [ {id:'gtech',title:'Technique',keys:['techdash','tech_today','tech_search','tech_pv','tech_bat','tech_sav','repasser','tech_termines','tech_materiel']}, {id:'gtstk',title:'Stock & fournitures',keys:['stock','commandes']}, {id:'gtequipe',title:'Équipe terrain',keys:['mon_planning','mes_chantiers','tech_quittances','tech_conges','mes_demandes','signalements_t','vehicule','pointage']} ].concat( ME.role==='technicien' ? [] : [{id:'gtst',title:'Sous-traitants',keys:['stmissions','st_remb']}] ); if(ME.role==='technicien' && !techExterne()) GROUPS_TECH=SSS_MENU_TECH.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(ME.role==='supply_chain' && typeof SSS_MENU_SUPPLY!=='undefined') GROUPS_TECH=SSS_MENU_SUPPLY.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(['superadmin','direction'].indexOf(ME.role)>=0) GROUPS_TECH.forEach(function(g){ if(g.id==='gtstk'){ ['sc_chantiers','sc_achats'].forEach(function(k){ if(g.keys.indexOf(k)<0) g.keys.push(k); }); } });
   const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
   const GROUPS_BACK=[ {id:'gback',title:'Mes tâches',keys:['botaches']} ];
   const avail=servicesAvail();
@@ -4056,9 +4060,9 @@ async function sssRemplacerMfa(){
 }
 
 /* ------------------------------------------------------------------ 6. Invitation d'un collaborateur (direction) */
-var SSS_ROLES_INVIT=[['technicien','Technicien (terrain, service technique)'],['backoffice','Assistante back-office'],['commercial','Commercial'],['admin','Administratif'],['soustraitant','Sous-traitant'],['direction','Direction']];
+var SSS_ROLES_INVIT=[['technicien','Technicien (terrain, service technique)'],['supply_chain','Approvisionnement (supply chain, lecture)'],['backoffice','Assistante back-office'],['commercial','Commercial'],['admin','Administratif'],['soustraitant','Sous-traitant'],['direction','Direction']];
 var SSS_SERVICES_INVIT=[['commercial','Commercial'],['admin','Administratif'],['technique','Technique'],['rh','RH'],['docs','Documents'],['financier','Financier'],['backoffice','Back-office']];
-var SSS_SERVICE_DEFAUT={technicien:['technique'],backoffice:['backoffice'],commercial:['commercial'],admin:['admin'],soustraitant:[],direction:[]};
+var SSS_SERVICE_DEFAUT={technicien:['technique'],supply_chain:['technique'],backoffice:['backoffice'],commercial:['commercial'],admin:['admin'],soustraitant:[],direction:[]};
 function sssInviterCollab(){
   if(!sssEstDir()){ alert('Réservé à la direction.'); return; }
   var st="width:100%;padding:9px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--text);box-sizing:border-box";
@@ -4400,6 +4404,484 @@ async function sssAchatEnregistrer(id){
 }
 
 /* SSS-INTEG-FIN */
+
+/* SSS-SUPPLY-DEBUT */
+/* ==========================================================================
+   SSS OS — « Approvisionnement » : espace du rôle supply_chain (Xiaoli) et vue
+   logistique de la direction. Chantiers vendus à approvisionner, achats fournisseurs
+   avec prix d'achat, stock, demandes de matériel des installateurs — en LECTURE.
+   Les droits sont tenus par la BASE (migration 0015 : vues chantiers_appro et
+   achats_appro, politiques *_sc_*) ; cet écran n'affiche que ce qu'elle renvoie.
+   Injecté dans index.html par tools/inject-extra.cjs.
+   ========================================================================== */
+var SSS_MENU_SUPPLY=[ {id:'gappro',title:'Approvisionnement',keys:['sc_chantiers','sc_achats','sc_stock','sc_demandes']},
+                      {id:'gmoi',title:'Mon espace',keys:['pointage','tech_quittances','tech_conges','mes_demandes','vehicule','notifications','securite']} ];
+var SSS_SC_VUES={sc_chantiers:1,sc_achats:1,sc_stock:1,sc_demandes:1};
+var SSSC={chantiers:null,filtre:'a_poser',q:'',achatsQ:''};
+function sssSupply(){ return !!(ME && ME.role==='supply_chain'); }
+function sssScChf(n){ if(n==null||n==='') return '—'; n=Number(n)||0; return 'CHF '+n.toLocaleString('fr-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function sssScDate(d){ if(!d) return '—'; try{ return new Date((''+d).length<=10?d+'T12:00:00':d).toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return ''+d; } }
+function sssScPastille(t,c){ return "<span style='display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;background:"+c+"22;color:"+c+"'>"+esc(t)+"</span>"; }
+var SSS_SC_TYPES={pv:'Photovoltaïque',batterie:'Batterie',pv_batterie:'PV + batterie',pac:'Pompe à chaleur',borne:'Borne de recharge',sav:'SAV / intervention'};
+var SSS_SC_ACHAT={commandee:['Commandée','#3b82f6'],expediee:['Expédiée','#e0a52b'],livree:['Livrée','#22a06b'],annulee:['Annulée','#8a8f98']};
+function sssScPose(a){ var s=a.suivi||{}; var r=s.install_rdv||{}; return r.date||((typeof s.installe==='string'&&/^\d{4}-\d{2}-\d{2}/.test(s.installe))?s.installe.slice(0,10):null); }
+function sssScPosee(a){ return a.installe===true || !!a.termine_at; }
+function sssScMateriel(a){ var l=[];
+  if(a.nb_panneaux) l.push(a.nb_panneaux+' panneaux'+(a.panneau_type?' '+a.panneau_type:''));
+  else if(a.panneau_type) l.push(a.panneau_type);
+  if(a.onduleur) l.push('onduleur '+a.onduleur);
+  if(a.bat_type||a.capacite_kwh) l.push('batterie '+[a.bat_type,(a.capacite_kwh?a.capacite_kwh+' kWh':''),a.bat_phase].filter(Boolean).join(' '));
+  return l.join(' · '); }
+function sssScTete(titre,droite){ return "<div class='page-head'><h2>"+titre+"</h2><div class='spacer'></div>"+(droite||'')+"</div>"; }
+function sssScBandeau(){ return sssSupply()?"<div style='max-width:900px;font-size:12.5px;color:var(--text-3);margin:-4px 0 12px'>Consultation seule. Pour une commande, une correction ou un besoin : <a href='#' onclick=\"go('mes_demandes');return false\">faire une demande à la direction</a>.</div>":""; }
+
+/* ------------------------------------------------------------------ chantiers à approvisionner */
+async function sssScChargerChantiers(force){
+  if(SSSC.chantiers && !force) return SSSC.chantiers;
+  var r=await db.from('chantiers_appro').select('*').order('date_signature',{ascending:false,nullsFirst:false}).limit(2000);
+  if(r.error) throw r.error; SSSC.chantiers=r.data||[]; return SSSC.chantiers;
+}
+async function renderScChantiers(){
+  var m=document.getElementById('main'); if(!m) return;
+  m.innerHTML=sssScTete('Chantiers à approvisionner',"<button class='iconbtn' title='Actualiser' onclick='sssScChargerChantiers(true).then(renderScChantiers)'>↻</button>")+sssScBandeau()+"<div id='sssc-filtres'></div><div id='sssc-list' class='loading'>Chargement…</div>";
+  var l; try{ l=await sssScChargerChantiers(); }catch(e){ var b=document.getElementById('sssc-list'); if(b){ b.className=''; b.innerHTML="<div class='empty'>Lecture impossible : "+esc(e.message||e)+"</div>"; } return; }
+  if(VIEW!=='sc_chantiers') return;
+  var n={a_poser:0,poses:0,sous_traitance:0,tous:l.length};
+  l.forEach(function(a){ if(sssScPosee(a)) n.poses++; else n.a_poser++; if(a.sous_traitance) n.sous_traitance++; });
+  var F=[['a_poser','À poser'],['poses','Posés'],['sous_traitance','Sous-traitance'],['tous','Tous']];
+  document.getElementById('sssc-filtres').innerHTML="<div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;max-width:900px'>"
+    +F.map(function(f){ return "<button class='"+(SSSC.filtre===f[0]?'btn':'btn-out')+"' style='width:auto;padding:7px 13px;font-size:13px' onclick=\"SSSC.filtre='"+f[0]+"';sssScListe()\">"+f[1]+" <b>"+n[f[0]]+"</b></button>"; }).join('')
+    +"<input id='sssc-q' placeholder='Rechercher client, localité, matériel…' value='"+esc(SSSC.q)+"' oninput=\"SSSC.q=this.value;sssScListe()\" style='flex:1;min-width:200px;padding:8px 11px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text)'></div>";
+  sssScListe();
+}
+function sssScListe(){
+  var box=document.getElementById('sssc-list'); if(!box) return; box.className='';
+  document.querySelectorAll('#sssc-filtres button').forEach(function(b){ var on=b.getAttribute('onclick').indexOf("'"+SSSC.filtre+"'")>=0; b.className=on?'btn':'btn-out'; });
+  var q=(SSSC.q||'').toLowerCase().trim();
+  var l=(SSSC.chantiers||[]).filter(function(a){
+    if(SSSC.filtre==='a_poser' && sssScPosee(a)) return false;
+    if(SSSC.filtre==='poses' && !sssScPosee(a)) return false;
+    if(SSSC.filtre==='sous_traitance' && !a.sous_traitance) return false;
+    if(!q) return true;
+    return [a.client,a.libelle,a.localite,a.npa,a.adresse,a.panneau_type,a.onduleur,a.bat_type,SSS_SC_TYPES[a.type]].join(' ').toLowerCase().indexOf(q)>=0; });
+  l.sort(function(x,y){ var a=sssScPose(x)||'9999', b=sssScPose(y)||'9999'; if(SSSC.filtre==='a_poser') return a<b?-1:(a>b?1:0); return (''+(y.date_signature||'')).localeCompare(''+(x.date_signature||'')); });
+  if(!l.length){ box.innerHTML="<div class='empty' style='max-width:900px'>Aucun chantier pour ce filtre.</div>"; return; }
+  box.innerHTML="<div style='max-width:900px'>"+l.slice(0,400).map(function(a){
+    var pose=sssScPose(a), mat=sssScMateriel(a);
+    var adr=[a.adresse,[a.npa,a.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return "<div class='card' style='padding:13px 15px;margin-bottom:9px;text-align:left'>"
+      +"<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'><b style='font-size:14.5px'>"+esc(a.client||a.libelle||'Client')+"</b>"
+      +(a.libelle&&a.client?"<span style='font-size:12px;color:var(--text-3)'>"+esc(a.libelle)+"</span>":"")
+      +"<div class='spacer' style='flex:1'></div>"+sssScPastille(SSS_SC_TYPES[a.type]||a.type||'—','#4FB6C7')
+      +(a.sous_traitance?sssScPastille('Sous-traitance','#a855f7'):'')
+      +(sssScPosee(a)?sssScPastille('Posé','#22a06b'):sssScPastille(pose?'Pose le '+sssScDate(pose):'Pose à planifier',pose?'#e0a52b':'#e5484d'))+"</div>"
+      +(adr?"<div style='font-size:13px;margin-top:6px'>📍 "+esc(adr)+(a.canton?" ("+esc(a.canton)+")":"")+"</div>":"")
+      +(mat?"<div style='font-size:13px;margin-top:4px'>🔧 "+esc(mat)+"</div>":"<div style='font-size:12.5px;margin-top:4px;color:var(--text-3)'>Matériel non renseigné</div>")
+      +"<div style='font-size:12px;color:var(--text-3);margin-top:6px'>Vendu le "+sssScDate(a.date_signature)
+      +" · "+(a.nb_achats?"<a href='#' onclick=\"SSSC.achatsQ='"+a.id+"';go('sc_achats');return false\">"+a.nb_achats+" achat"+(a.nb_achats>1?'s':'')+" fournisseur</a>":"aucun achat fournisseur rattaché")+"</div></div>"; }).join('')
+    +(l.length>400?"<div class='empty'>… "+(l.length-400)+" autres : affine la recherche.</div>":"")+"</div>";
+}
+
+/* ------------------------------------------------------------------ achats fournisseurs (prix d'achat) */
+async function renderScAchats(){
+  var m=document.getElementById('main'); if(!m) return;
+  var filtreChantier=SSSC.achatsQ||''; SSSC.achatsQ='';
+  m.innerHTML=sssScTete('Achats fournisseurs')+sssScBandeau()+"<div id='ssca-list' class='loading'>Chargement…</div>";
+  var q=db.from('achats_appro').select('*').order('date_commande',{ascending:false,nullsFirst:false}).limit(500);
+  if(filtreChantier) q=q.eq('affaire_id',filtreChantier);
+  var r=await q, ch={}; try{ (await sssScChargerChantiers()).forEach(function(a){ ch[a.id]=a; }); }catch(e){}
+  var box=document.getElementById('ssca-list'); if(!box||VIEW!=='sc_achats') return; box.className='';
+  if(r.error){ box.innerHTML="<div class='empty'>Lecture impossible : "+esc(r.error.message)+"</div>"; return; }
+  var l=r.data||[];
+  var tot=l.reduce(function(s,a){ return s+(a.statut==='annulee'?0:(Number(a.montant_ht)||0)); },0);
+  var h="<div style='max-width:900px'>";
+  if(filtreChantier){ var c=ch[filtreChantier]||{}; h+="<div style='margin-bottom:10px;font-size:13px'>Chantier : <b>"+esc(c.client||c.libelle||'')+"</b> · <a href='#' onclick=\"go('sc_achats');return false\">voir tous les achats</a></div>"; }
+  h+="<div class='card' style='padding:12px 15px;margin-bottom:12px;display:flex;gap:18px;flex-wrap:wrap;text-align:left'><div><div style='font-size:11.5px;color:var(--text-3)'>Commandes</div><b style='font-size:18px'>"+l.length+"</b></div>"
+    +"<div><div style='font-size:11.5px;color:var(--text-3)'>Total d'achat HT (hors annulées)</div><b style='font-size:18px'>"+sssScChf(tot)+"</b></div>"
+    +"<div><div style='font-size:11.5px;color:var(--text-3)'>Sans chantier rattaché</div><b style='font-size:18px'>"+l.filter(function(a){ return !a.affaire_id&&!a.sav_id; }).length+"</b></div></div>";
+  if(!l.length){ box.innerHTML=h+"<div class='empty'>Aucune commande fournisseur.</div></div>"; return; }
+  h+=l.map(function(a,i){ var st=SSS_SC_ACHAT[a.statut]||[a.statut||'—','#8a8f98']; var c=a.affaire_id?ch[a.affaire_id]:null;
+    var lignes=Array.isArray(a.lignes)?a.lignes:[];
+    return "<div class='card' style='padding:13px 15px;margin-bottom:9px;text-align:left'>"
+      +"<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'><b>"+esc(a.fournisseur||'Fournisseur')+" n° "+esc(a.num_commande||'')+"</b><span style='font-size:12px;color:var(--text-3)'>"+sssScDate(a.date_commande)+"</span>"
+      +"<div class='spacer' style='flex:1'></div>"+sssScPastille(st[0],st[1])+"<b>"+sssScChf(a.montant_ht)+"</b><span style='font-size:11.5px;color:var(--text-3)'>HT</span></div>"
+      +"<div style='font-size:12.5px;margin-top:5px;color:var(--text-3)'>"+(c?"Chantier : <b style='color:var(--text)'>"+esc(c.client||c.libelle||'')+"</b>"+(c.localite?" — "+esc(c.localite):""):(a.affaire_id||a.sav_id?"Rattachée à un dossier":"<span style='color:#e0a52b'>Pas encore rattachée à un chantier</span>"))
+      +(a.reference?" · Réf. "+esc(a.reference):"")+(a.commande_par?" · par "+esc(a.commande_par):"")+"</div>"
+      +(lignes.length?"<details style='margin-top:7px'><summary style='cursor:pointer;font-size:12.5px'>"+lignes.length+" ligne"+(lignes.length>1?'s':'')+"</summary><div style='overflow-x:auto'><table style='width:100%;font-size:12.5px;border-collapse:collapse;margin-top:6px'>"
+        +"<tr style='color:var(--text-3);text-align:left'><th style='padding:3px 6px'>Réf.</th><th style='padding:3px 6px'>Désignation</th><th style='padding:3px 6px;text-align:right'>Qté</th><th style='padding:3px 6px;text-align:right'>Prix unit.</th><th style='padding:3px 6px;text-align:right'>Total HT</th></tr>"
+        +lignes.map(function(x){ return "<tr style='border-top:1px solid var(--line)'><td style='padding:3px 6px'>"+esc(x.ref||'')+"</td><td style='padding:3px 6px'>"+esc(x.designation||'')+"</td><td style='padding:3px 6px;text-align:right'>"+esc(x.quantite==null?'':String(x.quantite))+" "+esc(x.unite||'')+"</td><td style='padding:3px 6px;text-align:right'>"+(x.prix_unitaire==null?'—':sssScChf(x.prix_unitaire))+"</td><td style='padding:3px 6px;text-align:right'>"+(x.total_ht==null?'—':sssScChf(x.total_ht))+"</td></tr>"; }).join('')
+        +"</table></div></details>":"")+"</div>"; }).join('')+"</div>";
+  box.innerHTML=h;
+}
+
+/* ------------------------------------------------------------------ stock et sorties */
+async function renderScStock(){
+  var m=document.getElementById('main'); if(!m) return;
+  m.innerHTML=sssScTete('Stock')+sssScBandeau()+"<div id='sscs-list' class='loading'>Chargement…</div>";
+  var R=await Promise.all([db.from('stock').select('*').order('categorie').order('ordre',{nullsFirst:false}).order('nom'), db.from('stock_sorties').select('id,kind,nom,lignes,created_at,created_by').order('created_at',{ascending:false}).limit(60), db.from('utilisateurs').select('id,prenom,nom')]);
+  var box=document.getElementById('sscs-list'); if(!box||VIEW!=='sc_stock') return; box.className='';
+  if(R[0].error){ box.innerHTML="<div class='empty'>Lecture impossible : "+esc(R[0].error.message)+"</div>"; return; }
+  var us={}; (R[2].data||[]).forEach(function(u){ us[u.id]=((u.prenom||'')+' '+(u.nom||'')).trim(); });
+  var l=R[0].data||[], bas=l.filter(function(s){ return Number(s.seuil)>0 && Number(s.quantite)<=Number(s.seuil); });
+  var h="<div style='max-width:900px'>";
+  if(bas.length) h+="<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left;border-left:4px solid #e5484d'><b>⚠️ "+bas.length+" article"+(bas.length>1?'s':'')+" au seuil ou en dessous</b><div style='font-size:13px;margin-top:5px'>"+bas.map(function(s){ return esc(s.nom||'')+" ("+esc(String(s.quantite))+" / seuil "+esc(String(s.seuil))+")"; }).join(' · ')+"</div></div>";
+  if(!l.length) h+="<div class='empty'>Le stock n'est pas encore saisi dans SSS OS.</div>";
+  else { var cat=null; h+="<div class='card' style='padding:6px 12px;text-align:left;overflow-x:auto'><table style='width:100%;font-size:13px;border-collapse:collapse'>";
+    l.forEach(function(s){ if(s.categorie!==cat){ cat=s.categorie; h+="<tr><td colspan='3' style='padding:10px 4px 4px;font-weight:800;color:var(--text-3);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em'>"+esc(cat||'Sans catégorie')+"</td></tr>"; }
+      var alerte=Number(s.seuil)>0 && Number(s.quantite)<=Number(s.seuil);
+      h+="<tr style='border-top:1px solid var(--line)'><td style='padding:6px 4px'>"+esc(s.nom||'')+"</td><td style='padding:6px 4px;text-align:right;font-weight:700;color:"+(alerte?'#e5484d':'inherit')+"'>"+esc(String(s.quantite))+"</td><td style='padding:6px 4px;text-align:right;color:var(--text-3);font-size:12px'>seuil "+esc(String(s.seuil||0))+"</td></tr>"; });
+    h+="</table></div>"; }
+  var so=R[1].data||[];
+  h+="<h3 style='margin:18px 0 8px;font-size:15px'>Dernières sorties de stock</h3>";
+  h+=so.length?so.map(function(x){ var li=Array.isArray(x.lignes)?x.lignes:[]; return "<div class='card' style='padding:10px 14px;margin-bottom:7px;text-align:left;font-size:13px'><b>"+esc(x.nom||x.kind||'Sortie')+"</b> <span style='color:var(--text-3);font-size:12px'>"+sssScDate(x.created_at)+(us[x.created_by]?" · "+esc(us[x.created_by]):"")+"</span>"
+      +(li.length?"<div style='margin-top:4px'>"+li.map(function(y){ return esc((y.quantite!=null?y.quantite+' × ':'')+(y.nom||y.designation||'')); }).join(' · ')+"</div>":"")+"</div>"; }).join(''):"<div class='empty'>Aucune sortie enregistrée.</div>";
+  box.innerHTML=h+"</div>";
+}
+
+/* ------------------------------------------------------------------ demandes de matériel des installateurs */
+var SSS_SC_CMD={demande:['Demandée','#e0a52b'],validee:['Validée','#3b82f6'],commande:['Commandée','#3b82f6'],commandee:['Commandée','#3b82f6'],livree:['Livrée','#22a06b'],recue:['Reçue','#22a06b'],refusee:['Refusée','#e5484d'],annulee:['Annulée','#8a8f98']};
+async function renderScDemandes(){
+  var m=document.getElementById('main'); if(!m) return;
+  m.innerHTML=sssScTete('Demandes de matériel')+sssScBandeau()+"<div id='sscd-list' class='loading'>Chargement…</div>";
+  var r=await db.from('commandes').select('id,created_by_nom,statut,categorie,note,lignes,num_commande,fournisseur,created_at').order('created_at',{ascending:false}).limit(300);
+  var box=document.getElementById('sscd-list'); if(!box||VIEW!=='sc_demandes') return; box.className='';
+  if(r.error){ box.innerHTML="<div class='empty'>Lecture impossible : "+esc(r.error.message)+"</div>"; return; }
+  var l=r.data||[]; if(!l.length){ box.innerHTML="<div class='empty' style='max-width:900px'>Aucune demande de matériel pour le moment.</div>"; return; }
+  box.innerHTML="<div style='max-width:900px'>"+l.map(function(c){ var st=SSS_SC_CMD[c.statut]||[c.statut||'—','#8a8f98']; var li=Array.isArray(c.lignes)?c.lignes:[];
+    return "<div class='card' style='padding:12px 15px;margin-bottom:8px;text-align:left'><div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'><b>"+esc(c.created_by_nom||'Installateur')+"</b><span style='font-size:12px;color:var(--text-3)'>"+sssScDate(c.created_at)+(c.categorie?" · "+esc(c.categorie):"")+"</span><div class='spacer' style='flex:1'></div>"+sssScPastille(st[0],st[1])+"</div>"
+      +(li.length?"<div style='font-size:13px;margin-top:6px'>"+li.map(function(y){ return esc((y.quantite!=null?y.quantite+' × ':(y.qte!=null?y.qte+' × ':''))+(y.nom||y.designation||y.article||'')); }).join(' · ')+"</div>":"")
+      +(c.note?"<div style='font-size:12.5px;margin-top:4px;color:var(--text-3)'>"+esc(c.note)+"</div>":"")
+      +(c.num_commande||c.fournisseur?"<div style='font-size:12px;margin-top:4px'>"+esc([c.fournisseur,c.num_commande?'n° '+c.num_commande:''].filter(Boolean).join(' '))+"</div>":"")+"</div>"; }).join('')+"</div>";
+}
+
+/* ------------------------------------------------------------------ branchement (sans modifier le code d'origine) */
+(function(){
+  var R=['superadmin','direction','supply_chain'];
+  try{ ['sc_chantiers','sc_achats','sc_stock','sc_demandes'].forEach(function(k){ VUE_ROLES[k]=R; VUE_SERVICES[k]=['technique']; }); }catch(e){}
+  // Mon espace : les mêmes écrans que les salariés (chacun les siens, la base le garantit)
+  try{ ['pointage','tech_quittances','tech_conges','mes_demandes','vehicule'].forEach(function(k){ var r=VUE_ROLES[k]; if(Array.isArray(r) && r.indexOf('supply_chain')<0) r.push('supply_chain'); }); }catch(e){}
+  try{ var _go=go; go=function(v){ if(sssSupply() && v==='techdash') v='sc_chantiers'; var r=_go.apply(this,[v].concat([].slice.call(arguments,1))); try{
+      if(VIEW==='sc_chantiers') renderScChantiers(); else if(VIEW==='sc_achats') renderScAchats(); else if(VIEW==='sc_stock') renderScStock(); else if(VIEW==='sc_demandes') renderScDemandes();
+    }catch(e){ console.error(e); } return r; }; }catch(e){}
+  try{ var _sd=serviceDefault; serviceDefault=function(s){ if(s==='technique' && sssSupply()) return 'sc_chantiers'; return _sd.apply(this,arguments); }; }catch(e){}
+  try{ var _tc=tabsChoix; tabsChoix=function(){ try{ var perso=(ME&&ME.prefs&&ME.prefs.tabs&&ME.prefs.tabs[SERVICE])||null;
+      if(sssSupply() && SERVICE==='technique' && !(perso&&perso.length)){ var d={}; tabsRubriques().forEach(function(it){ d[it[0]]=it; }); var l=['sc_chantiers','sc_achats','pointage','tech_quittances'].filter(function(k){ return d[k]; }).map(function(k){ return d[k]; }); if(l.length) return l; } }catch(e){} return _tc.apply(this,arguments); }; }catch(e){}
+  // pas de boîte e-mail ni de recherche technique pour l'approvisionnement (la base les refuse de toute façon)
+  try{ var _ac=applyServiceChrome; applyServiceChrome=function(){ var r=_ac.apply(this,arguments); try{ if(sssSupply()){ var mb=document.getElementById('mailBtn'); if(mb) mb.style.display='none'; var tw=document.getElementById('techsearch-wrap'); if(tw) tw.style.display='none'; } }catch(e){} return r; }; }catch(e){}
+})();
+
+/* SSS-SUPPLY-FIN */
+
+/* SSS-BANQUE-DEBUT */
+/* ==========================================================================
+   SSS OS — lecture des relevés e-banking dans le navigateur (aucun envoi du fichier brut) :
+   CAMT.053 (XML ISO 20022, toutes les banques suisses) et CSV (colonnes reconnues automatiquement).
+   Sortie commune : { compte, lignes: [{ date_compta, date_valeur, montant (débit < 0), devise,
+   contrepartie, iban_contrepartie, reference, libelle, ref_banque }], avertissements: [] }.
+   Fonctions pures : testées dans Node par tools/test-assistant.cjs.
+   ========================================================================== */
+function sssXmlLire(texte){
+  var ent=function(s){ return s.replace(/&#x([0-9a-f]+);/gi,function(_,h){ return String.fromCharCode(parseInt(h,16)); }).replace(/&#(\d+);/g,function(_,d){ return String.fromCharCode(+d); })
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'); };
+  var racine={n:'#',a:{},c:[],t:''}, pile=[racine], re=/<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!DOCTYPE[^>]*>|<\/([^>\s]+)\s*>|<([^>\s\/!?]+)([^>]*?)(\/?)>|([^<]+)/g, m;
+  while((m=re.exec(texte))){
+    var haut=pile[pile.length-1];
+    if(m[1]!==undefined){ haut.t+=m[1]; }
+    else if(m[2]){ if(pile.length>1) pile.pop(); }
+    else if(m[3]){ var nom=m[3].replace(/^.*:/,''), a={}; (m[4]||'').replace(/([^\s=]+)\s*=\s*("([^"]*)"|'([^']*)')/g,function(_,k,__,v1,v2){ a[k.replace(/^.*:/,'')]=ent(v1!==undefined?v1:v2); return ''; });
+      var n={n:nom,a:a,c:[],t:''}; haut.c.push(n); if(!m[5]) pile.push(n); }
+    else if(m[6]){ haut.t+=ent(m[6]); }
+  }
+  return racine;
+}
+function sssXmlTous(n,chemin){ var res=[n]; chemin.split('/').forEach(function(p){ var s=[]; res.forEach(function(x){ x.c.forEach(function(y){ if(y.n===p) s.push(y); }); }); res=s; }); return res; }
+function sssXmlUn(n,chemin){ return sssXmlTous(n,chemin)[0]||null; }
+function sssXmlTxt(n,chemin){ var x=chemin?sssXmlUn(n,chemin):n; return x?String(x.t||'').replace(/\s+/g,' ').trim():''; }
+function sssXmlPremier(n,chemins){ for(var i=0;i<chemins.length;i++){ var v=sssXmlTxt(n,chemins[i]); if(v) return v; } return ''; }
+function sssXmlChercher(n,nom,res){ res=res||[]; if(n.n===nom) res.push(n); n.c.forEach(function(x){ sssXmlChercher(x,nom,res); }); return res; }
+
+function sssCamt053(texte){
+  var doc=sssXmlLire(String(texte||'')), out={compte:'',lignes:[],avertissements:[]};
+  var stmts=sssXmlChercher(doc,'Stmt'); if(!stmts.length) stmts=sssXmlChercher(doc,'Ntfctn').concat(sssXmlChercher(doc,'Rpt'));
+  if(!stmts.length){ out.avertissements.push('Aucun relevé CAMT trouvé dans ce fichier.'); return out; }
+  stmts.forEach(function(st){
+    var compte=sssXmlPremier(st,['Acct/Id/IBAN','Acct/Id/Othr/Id']); if(compte && !out.compte) out.compte=compte;
+    sssXmlTous(st,'Ntry').forEach(function(e,ie){
+      var sens=sssXmlTxt(e,'CdtDbtInd')==='DBIT'?-1:1, amtE=sssXmlUn(e,'Amt');
+      var dc=(sssXmlPremier(e,['BookgDt/Dt','BookgDt/DtTm'])||'').slice(0,10), dv=(sssXmlPremier(e,['ValDt/Dt','ValDt/DtTm'])||'').slice(0,10);
+      var refE=sssXmlTxt(e,'AcctSvcrRef'), infoE=sssXmlTxt(e,'AddtlNtryInf');
+      var txs=[]; sssXmlTous(e,'NtryDtls').forEach(function(d){ txs=txs.concat(sssXmlTous(d,'TxDtls')); });
+      var une=function(tx,montant,devise,s,k){
+        var deb=s<0;
+        var cp=tx?sssXmlPremier(tx,deb?['RltdPties/Cdtr/Nm','RltdPties/Cdtr/Pty/Nm','RltdPties/UltmtCdtr/Nm','RltdPties/UltmtCdtr/Pty/Nm']:['RltdPties/Dbtr/Nm','RltdPties/Dbtr/Pty/Nm','RltdPties/UltmtDbtr/Nm','RltdPties/UltmtDbtr/Pty/Nm']):'';
+        var iban=tx?sssXmlPremier(tx,deb?['RltdPties/CdtrAcct/Id/IBAN']:['RltdPties/DbtrAcct/Id/IBAN']):'';
+        var ref=tx?sssXmlPremier(tx,['RmtInf/Strd/CdtrRefInf/Ref','Refs/EndToEndId']):''; if(ref==='NOTPROVIDED') ref='';
+        var lib=[]; if(tx){ sssXmlTous(tx,'RmtInf/Ustrd').forEach(function(u){ if(u.t.trim()) lib.push(u.t.trim()); }); var ad=sssXmlTxt(tx,'AddtlTxInf'); if(ad) lib.push(ad); }
+        if(infoE && lib.indexOf(infoE)<0) lib.push(infoE);
+        out.lignes.push({compte:compte, date_compta:dc, date_valeur:dv||null, montant:Math.round(s*montant*100)/100, devise:devise||'CHF', contrepartie:cp||null,
+          iban_contrepartie:iban?iban.replace(/\s+/g,'').toUpperCase():null, reference:ref||null, libelle:lib.join(' — ').replace(/\s+/g,' ').trim()||null,
+          ref_banque:((tx&&sssXmlTxt(tx,'Refs/AcctSvcrRef'))||refE||('E'+ie))+(k!=null?'#'+k:'')});
+      };
+      if(txs.length<=1){ une(txs[0]||null, parseFloat(sssXmlTxt(amtE))||0, amtE&&amtE.a.Ccy, sens, null); }
+      else txs.forEach(function(tx,k){ var a=sssXmlUn(tx,'Amt')||sssXmlUn(tx,'AmtDtls/TxAmt/Amt')||sssXmlUn(tx,'AmtDtls/InstdAmt/Amt'); var s2=sssXmlTxt(tx,'CdtDbtInd'); une(tx, parseFloat(sssXmlTxt(a))||0, (a&&a.a.Ccy)||(amtE&&amtE.a.Ccy), s2?(s2==='DBIT'?-1:1):sens, k); });
+    });
+  });
+  if(!out.lignes.length) out.avertissements.push('Relevé lu mais sans mouvement.');
+  return out;
+}
+
+/* ------------------------------------------------------------------ CSV */
+function sssMontantLire(s){
+  s=String(s==null?'':s).trim().replace(/[ \s'’]/g,'').replace(/^CHF|CHF$/i,''); if(!s) return null;
+  var neg=/^-|^\(.*\)$|-$/.test(s); s=s.replace(/[()+-]/g,'');
+  var iv=s.lastIndexOf(','), ip=s.lastIndexOf('.');
+  if(iv>=0&&ip>=0){ if(iv>ip) s=s.replace(/\./g,'').replace(',','.'); else s=s.replace(/,/g,''); }
+  else if(iv>=0){ s=/,\d{1,2}$/.test(s)?s.replace(/,/g,'.'):s.replace(/,/g,''); }
+  var n=parseFloat(s); if(!isFinite(n)) return null; return Math.round((neg?-n:n)*100)/100;
+}
+function sssDateLire(s){
+  s=String(s||'').trim(); var m;
+  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return m[1]+'-'+m[2]+'-'+m[3];
+  if((m=s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/))){ var a=m[3].length===2?'20'+m[3]:m[3]; return a+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2); }
+  return null;
+}
+function sssCsvLignes(texte,sep){
+  var l=[], ligne=[], champ='', q=false, t=String(texte||'').replace(/^﻿/,'');
+  for(var i=0;i<t.length;i++){ var c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){ champ+='"'; i++; } else q=false; } else champ+=c; }
+    else if(c==='"') q=true; else if(c===sep){ ligne.push(champ); champ=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&t[i+1]==='\n') i++; ligne.push(champ); l.push(ligne); ligne=[]; champ=''; }
+    else champ+=c; }
+  if(champ!==''||ligne.length){ ligne.push(champ); l.push(ligne); }
+  return l.filter(function(x){ return x.some(function(v){ return String(v).trim(); }); });
+}
+function sssCsvBanque(texte){
+  var out={compte:'',lignes:[],avertissements:[],colonnes:{}};
+  var debut=String(texte||'').split(/\r?\n/).slice(0,40).join('\n');
+  var seps=[';',',','\t'], sep=seps.map(function(s){ return [s,(debut.match(new RegExp(s==='\t'?'\t':'\\'+s,'g'))||[]).length]; }).sort(function(a,b){ return b[1]-a[1]; })[0][0];
+  var iban=(debut.replace(/\s/g,'').match(/CH\d{2}[0-9A-Z]{17}/)||[])[0]; if(iban) out.compte=iban;
+  var L=sssCsvLignes(texte,sep), norm=function(h){ return String(h||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); };
+  var R={date:/^(date|datum|buchungsdatum|buchungstag|date de comptabilisation|date comptable|date de transaction|date transaction|booking date|transaction date)\b/,
+         valeur:/(valeur|valuta|value date)/, montant:/^(montant|betrag|amount|montant en chf|betrag in chf)\b/, debit:/(debit|belastung|lastschrift|sortie)/, credit:/(credit|gutschrift|entree)/,
+         libelle:/(libelle|texte|text|description|avisierungstext|buchungstext|motif|communication|details|notification|beschreibung|mitteilung)/, reference:/(reference|referenz)/, devise:/(devise|wahrung|currency|monnaie)/, contrepartie:/(beneficiaire|donneur|contrepartie|begunstigter|auftraggeber|empfanger|payee|counterparty)/};
+  var hi=-1, col={};
+  for(var i=0;i<Math.min(L.length,40);i++){ var h=L[i].map(norm), c={};
+    h.forEach(function(x,j){ Object.keys(R).forEach(function(k){ if(c[k]==null && R[k].test(x) && !(k==='date'&&R.valeur.test(x))) c[k]=j; }); });
+    if(c.date!=null && (c.montant!=null || c.debit!=null || c.credit!=null)){ hi=i; col=c; break; } }
+  if(hi<0){ out.avertissements.push("En-têtes non reconnus : il faut une colonne date et une colonne montant (ou débit / crédit). Préfère l'export CAMT.053 de ta banque."); return out; }
+  out.colonnes=col;
+  for(var r=hi+1;r<L.length;r++){ var x=L[r], d=sssDateLire(x[col.date]); if(!d) continue;
+    var mt=null;
+    if(col.montant!=null) mt=sssMontantLire(x[col.montant]);
+    if(mt==null && (col.debit!=null||col.credit!=null)){ var db=col.debit!=null?sssMontantLire(x[col.debit]):null, cr=col.credit!=null?sssMontantLire(x[col.credit]):null;
+      if(db) mt=-Math.abs(db); else if(cr) mt=Math.abs(cr); }
+    if(mt==null||mt===0) continue;
+    out.lignes.push({compte:out.compte||null, date_compta:d, date_valeur:col.valeur!=null?sssDateLire(x[col.valeur]):null, montant:mt, devise:col.devise!=null&&x[col.devise]?String(x[col.devise]).trim().toUpperCase().slice(0,3):'CHF',
+      contrepartie:col.contrepartie!=null?String(x[col.contrepartie]||'').trim()||null:null, iban_contrepartie:null,
+      reference:col.reference!=null?String(x[col.reference]||'').trim()||null:null, libelle:col.libelle!=null?String(x[col.libelle]||'').replace(/\s+/g,' ').trim()||null:null, ref_banque:null}); }
+  if(!out.lignes.length) out.avertissements.push('Aucun mouvement lisible sous les en-têtes.');
+  return out;
+}
+function sssReleveLire(nom,texte){ return (/^\s*<\?xml|<Document[\s>]/.test(String(texte||'').slice(0,800)) || /\.xml$/i.test(nom||'')) ? Object.assign(sssCamt053(texte),{format:'camt053'}) : Object.assign(sssCsvBanque(texte),{format:'csv'}); }
+
+/* SSS-BANQUE-FIN */
+
+/* SSS-FIN-DEBUT */
+/* ==========================================================================
+   SSS OS — Centre de contrôle : « Factures reçues » (fournisseurs, lues dans les PDF des e-mails)
+   et « Banque » (import des relevés e-banking CAMT.053 / CSV, lus dans le navigateur).
+   Super administrateur seul : la base (0016) refuse tout autre compte. Rien n'est payé ni envoyé :
+   le patron peut seulement trancher le statut d'une facture (payée / ouverte / à ignorer).
+   ========================================================================== */
+var SSSF={filtre:'ouvertes'};
+function sssFChf(n){ if(n==null||n==='') return '—'; return (Number(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+' CHF'; }
+function sssFDate(d){ if(!d) return '—'; try{ return new Date((''+d).length<=10?d+'T12:00:00':d).toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return ''+d; } }
+function sssFPast(t,c){ return "<span style='display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:"+c+"22;color:"+c+"'>"+esc(t)+"</span>"; }
+var SSSF_STATUT={ouverte:['Ouverte','#e5484d'],payee:['Payée','#22a06b'],a_verifier:['À vérifier','#e0a52b'],ignoree:['Ignorée','#8a8f98']};
+var SSSF_CONF={confirme:['Confirmé','#22a06b'],probable:['Probable','#3b82f6'],a_verifier:['À vérifier','#e0a52b']};
+
+async function sssFinancesBloc(){
+  var hote=document.getElementById('sss-finances'); if(!hote) return;
+  var R=await Promise.all([db.rpc('sss_ia_factures_fournisseurs',{p_statut:SSSF.filtre==='toutes'?'toutes':SSSF.filtre}), db.from('sync_etat').select('*').eq('service','factures').maybeSingle()]);
+  if(!document.getElementById('sss-finances')) return;
+  var r=R[0], f=(r.data)||{}, et=(R[1].data)||{};
+  if(r.error){ hote.innerHTML="<div class='card' style='padding:14px 16px'>Factures reçues : "+esc(r.error.message)+"</div>"; return; }
+  var st=f.sous_totaux||{}, rb=f.releves_bancaires||{}, l=f.factures||[];
+  var kpi=function(t,v,c){ return "<div><div style='font-size:11.5px;color:var(--text-3)'>"+t+"</div><b style='font-size:17px;color:"+(c||'inherit')+"'>"+sssFChf(v)+"</b></div>"; };
+  var h="<div class='card' style='padding:16px 18px;text-align:left'>"
+    +"<div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px'><h3 style='margin:0;font-size:15px'>🧾 Factures reçues (fournisseurs)</h3><div class='spacer' style='flex:1'></div>"
+    +"<button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick='sssFLire(this)'>📥 Lire les nouvelles factures</button>"
+    +"<label class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px;cursor:pointer'>🏦 Importer un relevé<input type='file' accept='.xml,.csv,.txt' style='display:none' onchange='sssFReleve(this)'></label></div>"
+    +"<div style='display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px'>"+kpi('Total à payer (ouvertes)',f.total_ouvert,'#e5484d')+kpi('dont échues',st.echues)+kpi('échéance ≤ 7 j',st.echeance_7_jours)+kpi('échéance ≤ 30 j',st.echeance_30_jours)+kpi('sans échéance',st.sans_echeance)+kpi('à vérifier',st.a_verifier,'#e0a52b')+"</div>"
+    +"<div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>"
+      +(rb.lignes?"Relevés bancaires importés : "+rb.lignes+" mouvements du "+sssFDate(rb.du)+" au "+sssFDate(rb.au)+".":"<b style='color:#e0a52b'>Aucun relevé bancaire importé</b> : sans lui, une facture ne peut pas être prouvée payée (statut « probable »). Exporte un relevé CAMT.053 depuis ton e-banking et importe-le ici.")
+      +" Dernière lecture de la boîte : "+(et.derniere_reussite?sssFDate(et.derniere_reussite):'jamais')+(et.message?" — "+esc(et.message):"")+"</div>"
+    +"<div style='display:flex;gap:6px;margin-bottom:8px'>"+[['ouvertes','Ouvertes + à vérifier'],['payee','Payées'],['toutes','Toutes']].map(function(x){ return "<button class='"+(SSSF.filtre===x[0]?'btn':'btn-out')+"' style='width:auto;padding:5px 11px;font-size:12px' onclick=\"SSSF.filtre='"+x[0]+"';sssFinancesBloc()\">"+x[1]+"</button>"; }).join('')+"</div>";
+  if(!l.length) h+="<div class='empty'>"+(SSSF.filtre==='ouvertes'?'Aucune facture ouverte trouvée dans les e-mails lus.':'Aucune facture.')+"</div>";
+  else h+="<div style='overflow-x:auto'><table style='width:100%;border-collapse:collapse;font-size:12.5px'><tr style='text-align:left;color:var(--text-3)'><th style='padding:4px'>Fournisseur</th><th>N°</th><th style='text-align:right'>Montant</th><th>Date</th><th>Échéance</th><th>Statut</th><th>Preuve</th><th></th></tr>"
+    +l.map(function(x){ var s=SSSF_STATUT[x.statut]||[x.statut,'#888'], c=SSSF_CONF[x.confiance]||[x.confiance,'#888'];
+      var pr=(x.paiement&&x.paiement.source)?(x.paiement.source==='banque'?'banque '+sssFDate(x.paiement.date):'e-mail '+sssFDate(x.paiement.date)):'';
+      return "<tr style='border-top:1px solid var(--line);vertical-align:top'><td style='padding:5px 4px'><b>"+esc(x.fournisseur||'?')+"</b>"+(x.objet?"<div style='color:var(--text-3);font-size:11.5px'>"+esc(x.objet)+"</div>":"")+"</td><td>"+esc(x.numero||'—')+"</td>"
+        +"<td style='text-align:right;white-space:nowrap'><b>"+sssFChf(x.montant_ttc)+"</b></td><td>"+sssFDate(x.date_facture)+"</td><td>"+sssFDate(x.echeance)+(x.retard_jours?"<div style='color:#e5484d;font-size:11px'>+"+x.retard_jours+" j</div>":"")+(x.rappel_recu?"<div style='color:#e5484d;font-size:11px'>rappel reçu</div>":"")+"</td>"
+        +"<td>"+sssFPast(s[0],s[1])+" "+sssFPast(c[0],c[1])+"<div style='font-size:11px;color:var(--text-3);max-width:260px'>"+esc((x.raisons||[]).join(' ; '))+"</div></td><td style='font-size:11.5px'>"+esc(pr)+"</td>"
+        +"<td style='white-space:nowrap'><button class='iconbtn' title='Marquer payée' onclick=\"sssFDecider('"+sssJsF(x.id)+"','payee')\">✅</button><button class='iconbtn' title='Marquer ouverte' onclick=\"sssFDecider('"+sssJsF(x.id)+"','ouverte')\">⏳</button><button class='iconbtn' title='Ignorer (pas une dette)' onclick=\"sssFDecider('"+sssJsF(x.id)+"','ignoree')\">🚫</button></td></tr>"; }).join('')+"</table></div>";
+  h+="<div style='font-size:11.5px;color:var(--text-3);margin-top:8px'>Lecture seule pour Bexio et la banque : rien n'est payé ni modifié depuis SSS OS. Tes décisions (✅ ⏳ 🚫) priment sur le rapprochement automatique.</div></div>";
+  hote.innerHTML=h;
+}
+function sssJsF(s){ return (''+(s==null?'':s)).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+async function sssFDecider(id,statut){
+  var note=statut==='ignoree'?(prompt('Pourquoi ignorer cette facture ? (doublon, déjà réglée par carte, pas pour nous…)')||null):null;
+  var r=await db.from('factures_recues').update({statut_manuel:statut,note:note}).eq('id',id).select('id'); if(r.error||!(r.data||[]).length){ alert('Décision non enregistrée'+(r.error?' : '+r.error.message:'')); return; }
+  await db.rpc('sss_rapprocher_factures'); sssFinancesBloc();
+}
+async function sssFLire(b){
+  b.disabled=true; var t=b.textContent; b.textContent='Lecture des PDF…';
+  try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'factures',max:12}}); var d=(r&&r.data)||{}; alert(d.ok===false?('Lecture impossible : '+(d.error||d.message||'erreur')):(d.message||'Lecture terminée')); }
+  catch(e){ alert('Lecture impossible : '+((e&&e.message)||e)); }
+  b.disabled=false; b.textContent=t; sssFinancesBloc();
+}
+async function sssFReleve(inp){
+  var f=inp.files&&inp.files[0]; inp.value=''; if(!f) return;
+  if(f.size>20*1024*1024){ alert('Fichier trop lourd (20 Mo au plus).'); return; }
+  var txt=await f.text(); var r=sssReleveLire(f.name,txt);
+  if(!r.lignes.length){ alert('Aucun mouvement lu.\n'+(r.avertissements||[]).join('\n')); return; }
+  var dates=r.lignes.map(function(x){ return x.date_compta; }).sort(), deb=r.lignes.filter(function(x){ return x.montant<0; }), cre=r.lignes.filter(function(x){ return x.montant>0; });
+  var s=function(l){ return l.reduce(function(a,x){ return a+x.montant; },0); };
+  if(!confirm('Relevé '+(r.format==='camt053'?'CAMT.053':'CSV')+(r.compte?' du compte '+r.compte:'')+'\n'+r.lignes.length+' mouvements du '+sssFDate(dates[0])+' au '+sssFDate(dates[dates.length-1])+'\nDébits : '+deb.length+' ('+sssFChf(s(deb))+')\nCrédits : '+cre.length+' ('+sssFChf(s(cre))+')\n'+((r.avertissements||[]).length?'\n'+r.avertissements.join('\n')+'\n':'')+'\nImporter dans SSS OS (les lignes déjà importées sont ignorées) ?')) return;
+  var lot=f.name+' '+new Date().toISOString().slice(0,16);
+  var res={importees:0,deja_presentes:0};
+  for(var i=0;i<r.lignes.length;i+=500){ var x=await db.rpc('sss_banque_importer',{p_lignes:r.lignes.slice(i,i+500),p_source:r.format,p_lot:lot}); if(x.error){ alert('Import interrompu : '+x.error.message); break; } res.importees+=x.data.importees; res.deja_presentes+=x.data.deja_presentes; }
+  var rp=await db.rpc('sss_rapprocher_factures'); var d=(rp&&rp.data)||{};
+  alert(res.importees+' mouvement(s) importé(s), '+res.deja_presentes+' déjà présent(s).\nRapprochement : '+(d.payees||0)+' facture(s) payée(s), '+(d.ouvertes||0)+' ouverte(s), '+(d.a_verifier||0)+' à vérifier.');
+  sssFinancesBloc();
+}
+(function(){
+  try{ var _rc=renderControle; renderControle=async function(){ var r=await _rc.apply(this,arguments); try{
+      if(VIEW!=='controle'||!sssPatron()) return r; var a=document.getElementById('sss-activite'); if(!a||document.getElementById('sss-finances')) return r;
+      a.insertAdjacentHTML('afterend',"<div id='sss-finances' style='grid-column:1/-1'><div class='loading'>Factures reçues…</div></div>"); sssFinancesBloc();
+    }catch(e){ console.error(e); } return r; }; }catch(e){}
+})();
+
+/* SSS-FIN-FIN */
+
+/* SSS-IA-DEBUT */
+/* ==========================================================================
+   SSS OS — assistant disponible partout : bouton fixe (tous les services, tous les écrans,
+   mobile compris) + panneau de conversation qui survit aux changements d'onglet.
+   La conversation vit côté serveur (agent_conv, une par personne) ; la page ouverte et la fiche
+   affichée sont envoyées avec chaque question (« combien il reste à payer ? » sur une fiche client).
+   Les droits sont ceux de la fonction « agent » et de la base : un salarié n'obtient que ses données.
+   ========================================================================== */
+var SSSIA={ouvert:false,conv:null,lignes:[],attente:false,charge:false};
+var SSSIA_SUGG_DIR=['Qu’est-ce que je dois faire en priorité aujourd’hui ?','Quelles factures fournisseurs sont ouvertes et non payées ?','Combien dois-je payer cette semaine ?','Quels clients me doivent encore de l’argent ?','Quelles offres envoyées depuis plus de 10 jours sont sans réponse ?','Quels chantiers ont un acompte payé mais ne sont pas planifiés ?','Combien ai-je encaissé ce mois-ci ?','Quel est le projet le plus rentable ?'];
+var SSSIA_SUGG_SAL=['Quel est mon planning ?','Où en sont mes demandes ?','Mes congés sont-ils acceptés ?'];
+function sssIaPatron(){ return !!(ME && ME.role==='superadmin'); }
+function sssIaCle(){ return 'sss-ia-conv-'+(ME&&ME.id||''); }
+function sssIaEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+/* rendu Markdown minimal et sûr (tout est échappé avant) : titres, gras, code, listes, tableaux */
+function sssIaMd(t){
+  var L=sssIaEsc(t).split('\n'), out=[], i=0;
+  var inl=function(s){ return s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<i>$2</i>'); };
+  while(i<L.length){ var l=L[i];
+    if(/^\s*\|.*\|\s*$/.test(l) && i+1<L.length && /^\s*\|?\s*:?-{2,}/.test(L[i+1])){
+      var cel=function(x){ return x.trim().replace(/^\||\|$/g,'').split('|').map(function(c){ return c.trim(); }); };
+      var h=cel(l), rows=[]; i+=2; while(i<L.length && /^\s*\|.*\|\s*$/.test(L[i])){ rows.push(cel(L[i])); i++; }
+      out.push("<div class='sssia-tab'><table><tr>"+h.map(function(c){ return '<th>'+inl(c)+'</th>'; }).join('')+'</tr>'+rows.map(function(r){ return '<tr>'+r.map(function(c){ return '<td>'+inl(c)+'</td>'; }).join('')+'</tr>'; }).join('')+'</table></div>'); continue; }
+    if(/^#{1,4}\s/.test(l)){ out.push('<div class="sssia-h">'+inl(l.replace(/^#+\s/,''))+'</div>'); i++; continue; }
+    if(/^\s*([-*•]|\d+[.)])\s+/.test(l)){ var items=[]; var num=/^\s*\d/.test(l); while(i<L.length && /^\s*([-*•]|\d+[.)])\s+/.test(L[i])){ items.push('<li>'+inl(L[i].replace(/^\s*([-*•]|\d+[.)])\s+/,''))+'</li>'); i++; } out.push((num?'<ol>':'<ul>')+items.join('')+(num?'</ol>':'</ul>')); continue; }
+    if(!l.trim()){ out.push('<div style="height:6px"></div>'); i++; continue; }
+    out.push('<div>'+inl(l)+'</div>'); i++; }
+  return out.join('');
+}
+function sssIaContexte(){
+  var page=''; try{ page=((window.__NAV_DEFLBL||{})[VIEW])||VIEW||''; var h2=document.querySelector('#main .page-head h2'); if(h2&&h2.textContent.trim()) page+=' — '+h2.textContent.trim(); }catch(e){}
+  var fiche=''; try{ var cand=document.querySelectorAll('[class*=modal] h2,[class*=modal] h3,[class*=sheet] h2,[class*=sheet] h3,[class*=drawer] h2,[class*=overlay] h2,[id*=modal] h2');
+    for(var k=0;k<cand.length;k++){ var e=cand[k]; if(e.offsetParent!==null && !e.closest('#sssia-panneau') && e.textContent.trim()){ fiche=e.textContent.trim().replace(/\s+/g,' ').slice(0,200); break; } } }catch(e){}
+  return {page:page.slice(0,120), fiche:fiche||null};
+}
+function sssIaStyle(){
+  if(document.getElementById('sssia-style')) return;
+  var s=document.createElement('style'); s.id='sssia-style';
+  s.textContent="#sssBubble{display:none!important}"
+   +"#sssia-btn{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:8999;width:54px;height:54px;border-radius:50%;border:0;background:linear-gradient(135deg,#ff4b47,#c7302c);color:#fff;font-size:22px;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer;display:flex;align-items:center;justify-content:center}"
+   +"#sssia-btn:active{transform:scale(.96)}"
+   +"@media (max-width:767px){#sssia-btn{bottom:calc(76px + env(safe-area-inset-bottom));right:12px;width:50px;height:50px}}"
+   +"#sssia-panneau{position:fixed;z-index:9000;right:18px;bottom:18px;width:min(460px,calc(100vw - 36px));height:min(720px,calc(100vh - 36px));background:var(--card,#16181d);color:var(--text,#eee);border:1px solid var(--line,#333);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.45);display:flex;flex-direction:column;overflow:hidden}"
+   +"@media (max-width:767px){#sssia-panneau{inset:0;width:auto;height:auto;border-radius:0;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}}"
+   +"#sssia-tete{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line,#333)}"
+   +"#sssia-fil{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}"
+   +".sssia-m{max-width:92%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.5;overflow-wrap:anywhere}"
+   +".sssia-u{align-self:flex-end;background:#ff4b4722;border:1px solid #ff4b4744}"
+   +".sssia-a{align-self:flex-start;background:var(--bg,#0f1115);border:1px solid var(--line,#333)}"
+   +".sssia-a ul,.sssia-a ol{margin:4px 0 4px 18px;padding:0}.sssia-h{font-weight:800;margin:6px 0 2px}.sssia-a code{font-size:12px;background:#ffffff12;padding:1px 4px;border-radius:4px}"
+   +".sssia-tab{overflow-x:auto;margin:6px 0}.sssia-tab table{border-collapse:collapse;font-size:12px;width:100%}.sssia-tab th,.sssia-tab td{border:1px solid var(--line,#333);padding:4px 6px;text-align:left;white-space:nowrap}.sssia-tab th{background:#ffffff0d}"
+   +".sssia-meta{font-size:11px;color:var(--text-3,#999);margin-top:4px}"
+   +"#sssia-saisie{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line,#333)}"
+   +"#sssia-q{flex:1;resize:none;min-height:42px;max-height:140px;padding:10px;border-radius:10px;border:1px solid var(--line,#333);background:var(--bg,#0f1115);color:inherit;font:inherit;font-size:16px}"
+   +".sssia-chip{display:inline-block;margin:3px;padding:6px 10px;border-radius:999px;border:1px solid var(--line,#333);font-size:12.5px;cursor:pointer;background:transparent;color:inherit;text-align:left}";
+  document.head.appendChild(s);
+}
+function sssIaBouton(){
+  if(!ME||!ME.id){ var b0=document.getElementById('sssia-btn'); if(b0) b0.remove(); return; }
+  sssIaStyle(); if(document.getElementById('sssia-btn')) return;
+  var b=document.createElement('button'); b.id='sssia-btn'; b.title='Assistant SSS — pose ta question'; b.setAttribute('aria-label','Assistant'); b.textContent='✦';
+  b.onclick=function(){ sssIaOuvrir(); }; document.body.appendChild(b);
+}
+function sssIaOuvrir(){
+  SSSIA.ouvert=true; var b=document.getElementById('sssia-btn'); if(b) b.style.display='none';
+  var p=document.getElementById('sssia-panneau');
+  if(!p){ p=document.createElement('div'); p.id='sssia-panneau'; p.setAttribute('role','dialog'); p.setAttribute('aria-label','Assistant SSS');
+    p.innerHTML="<div id='sssia-tete'><b style='font-size:14.5px'>✦ Assistant SSS</b><span style='font-size:11.5px;color:var(--text-3,#999)'>"+(sssIaPatron()?'toute l’entreprise':'mes données')+"</span><div style='flex:1'></div>"
+      +"<button class='iconbtn' title='Nouvelle conversation' onclick='sssIaNouvelle()'>＋</button><button class='iconbtn' title='Fermer' onclick='sssIaFermer()'>✕</button></div>"
+      +"<div id='sssia-fil'></div><div id='sssia-saisie'><textarea id='sssia-q' rows='1' placeholder='Pose ta question…' onkeydown='sssIaTouche(event)' oninput='this.style.height=\"auto\";this.style.height=Math.min(this.scrollHeight,140)+\"px\"'></textarea>"
+      +"<button class='btn' id='sssia-envoi' style='width:auto;padding:0 16px' onclick='sssIaEnvoyer()'>➤</button></div>";
+    document.body.appendChild(p); }
+  p.style.display='flex';
+  if(!SSSIA.charge){ SSSIA.charge=true; sssIaCharger(); } else sssIaPeindre();
+  setTimeout(function(){ var q=document.getElementById('sssia-q'); if(q && window.innerWidth>767) q.focus(); },60);
+}
+function sssIaFermer(){ SSSIA.ouvert=false; var p=document.getElementById('sssia-panneau'); if(p) p.style.display='none'; var b=document.getElementById('sssia-btn'); if(b) b.style.display='flex'; }
+function sssIaTouche(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sssIaEnvoyer(); } if(e.key==='Escape') sssIaFermer(); }
+async function sssIaCharger(){
+  var id=null; try{ id=localStorage.getItem(sssIaCle()); }catch(e){}
+  if(id){ try{ var r=await db.functions.invoke('agent',{body:{action:'conversation',conv_id:id}}); var c=r&&r.data&&r.data.conversation;
+      if(c&&c.affichage&&Array.isArray(c.affichage.lignes)){ SSSIA.conv=c.id; SSSIA.lignes=c.affichage.lignes; } }catch(e){} }
+  sssIaPeindre();
+}
+function sssIaNouvelle(){ SSSIA.conv=null; SSSIA.lignes=[]; try{ localStorage.removeItem(sssIaCle()); }catch(e){} sssIaPeindre(); }
+function sssIaPeindre(){
+  var f=document.getElementById('sssia-fil'); if(!f) return;
+  var h='';
+  if(!SSSIA.lignes.length) h+="<div class='sssia-m sssia-a'>"+(sssIaPatron()?"Bonjour Adson. Pose-moi n’importe quelle question sur l’entreprise : je cherche moi-même dans les projets, les e-mails et leurs PDF, Bexio, la banque importée, Sonepar et le planning, et je te dis d’où vient chaque chiffre.":"Bonjour"+(ME&&ME.prenom?' '+sssIaEsc(ME.prenom):'')+". Je peux répondre sur ton planning, tes chantiers, tes congés, tes demandes et tes justificatifs.")+"</div>"
+    +"<div>"+(sssIaPatron()?SSSIA_SUGG_DIR:SSSIA_SUGG_SAL).map(function(s){ return "<button class='sssia-chip' onclick=\"sssIaEnvoyer(this.textContent)\">"+sssIaEsc(s)+"</button>"; }).join('')+"</div>";
+  SSSIA.lignes.forEach(function(l){
+    if(l.role==='user') h+="<div class='sssia-m sssia-u'>"+sssIaEsc(l.texte).replace(/\n/g,'<br>')+"</div>";
+    else h+="<div class='sssia-m sssia-a'>"+sssIaMd(l.texte||'')+((l.outils&&l.outils.length)?"<div class='sssia-meta'>Sources consultées : "+sssIaEsc(l.outils.filter(function(x,i,a){ return a.indexOf(x)===i; }).join(', ').replace(/_/g,' '))+"</div>":"")+"</div>"; });
+  if(SSSIA.attente) h+="<div class='sssia-m sssia-a' id='sssia-attente'>Je cherche… <span id='sssia-sec'></span></div>";
+  f.innerHTML=h; f.scrollTop=f.scrollHeight;
+}
+async function sssIaEnvoyer(texte){
+  var q=document.getElementById('sssia-q'); var t=(texte||(q&&q.value)||'').trim(); if(!t||SSSIA.attente) return;
+  if(q){ q.value=''; q.style.height='auto'; }
+  SSSIA.lignes.push({role:'user',texte:t}); SSSIA.attente=true; sssIaPeindre();
+  var t0=Date.now(), tick=setInterval(function(){ var s=document.getElementById('sssia-sec'); if(s) s.textContent=Math.round((Date.now()-t0)/1000)+' s'; },1000);
+  try{
+    var r=await db.functions.invoke('agent',{body:{question:t,conv_id:SSSIA.conv,contexte:sssIaContexte()}}); var d=(r&&r.data)||{};
+    if(r&&r.error&&!d.texte){ var msg=''; try{ msg=(await r.error.context.json()).error; }catch(e){} throw new Error(msg||r.error.message||'erreur'); }
+    if(d.ok===false) throw new Error(d.error||'erreur');
+    if(d.conv_id){ SSSIA.conv=d.conv_id; try{ localStorage.setItem(sssIaCle(),d.conv_id); }catch(e){} }
+    SSSIA.lignes.push({role:'assistant',texte:d.texte||'(pas de réponse)',outils:(d.outils||[]).map(function(o){ return o.nom; })});
+  }catch(e){ var m=(e&&e.message)||String(e); if(/Failed to send|Failed to fetch|NetworkError|Load failed/i.test(m)) m="Assistant injoignable pour le moment (connexion, ou service pas encore mis en ligne). Réessaie dans un instant.";
+    SSSIA.lignes.push({role:'assistant',texte:'⚠️ '+m}); }
+  clearInterval(tick); SSSIA.attente=false; sssIaPeindre();
+}
+(function(){
+  try{ var _sa=showApp; showApp=function(){ var r=_sa.apply(this,arguments); try{ sssIaBouton(); }catch(e){} return r; }; }catch(e){}
+  try{ var _go=go; go=function(){ var r=_go.apply(this,arguments); try{ sssIaBouton(); }catch(e){} return r; }; }catch(e){}
+  document.addEventListener('keydown',function(e){ if((e.ctrlKey||e.metaKey) && (e.key==='k'||e.key==='K') && ME && ME.id){ e.preventDefault(); SSSIA.ouvert?sssIaFermer():sssIaOuvrir(); } });
+})();
+
+/* SSS-IA-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
