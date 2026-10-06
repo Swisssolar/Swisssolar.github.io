@@ -2343,7 +2343,7 @@ function renderNav(){
     ['sc_chantiers','Chantiers à approvisionner','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>',['superadmin','direction','supply_chain']],
     ['sc_achats','Achats fournisseurs','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>',['superadmin','direction','supply_chain']],
     ['sc_stock','Stock','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',['superadmin','direction','supply_chain']],
-    ['sc_demandes','Demandes de matériel','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>',['superadmin','direction','supply_chain']],
+    ['sc_demandes','Flux matériel','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>',['superadmin','direction','supply_chain']],
     ['tech_quittances','Justificatifs','<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_conges','Congés / absences','<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8.5 15.5h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['mon_planning','Mon planning','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M8 17.5h6"/></svg>',['superadmin','direction','technicien']],
@@ -4438,7 +4438,7 @@ function sssScMateriel(a){ var l=[];
   if(a.bat_type||a.capacite_kwh) l.push('batterie '+[a.bat_type,(a.capacite_kwh?a.capacite_kwh+' kWh':''),a.bat_phase].filter(Boolean).join(' '));
   return l.join(' · '); }
 function sssScTete(titre,droite){ return "<div class='page-head'><h2>"+titre+"</h2><div class='spacer'></div>"+(droite||'')+"</div>"; }
-function sssScBandeau(){ return sssSupply()?"<div style='max-width:900px;font-size:12.5px;color:var(--text-3);margin:-4px 0 12px'>Consultation seule. Pour une commande, une correction ou un besoin : <a href='#' onclick=\"go('mes_demandes');return false\">faire une demande à la direction</a>.</div>":""; }
+function sssScBandeau(){ return sssSupply()?"<div style='max-width:900px;font-size:12.5px;color:var(--text-3);margin:-4px 0 12px'>Chantiers, achats et stock en consultation ; le flux matériel se traite dans « Flux matériel ». Pour un autre besoin : <a href='#' onclick=\"go('mes_demandes');return false\">faire une demande à la direction</a>.</div>":""; }
 
 /* ------------------------------------------------------------------ chantiers à approvisionner */
 async function sssScChargerChantiers(force){
@@ -4545,18 +4545,85 @@ async function renderScStock(){
 
 /* ------------------------------------------------------------------ demandes de matériel des installateurs */
 var SSS_SC_CMD={demande:['Demandée','#e0a52b'],validee:['Validée','#3b82f6'],commande:['Commandée','#3b82f6'],commandee:['Commandée','#3b82f6'],livree:['Livrée','#22a06b'],recue:['Reçue','#22a06b'],refusee:['Refusée','#e5484d'],annulee:['Annulée','#8a8f98']};
+/* Flux matériel (0031) : demande → prise en charge → commande → réception → manque → attribution → RMA → clôture.
+   Chaque bouton appelle sss_appro_action() : la base vérifie le rôle, l'étape et les champs, et garde l'historique. */
+var SSS_SC_FILTRES=[['actives','En cours'],['demande','À prendre'],['commandee','Commandées'],['manque','Manques'],['rma','Retours (RMA)'],['toutes','Toutes']];
+var SSS_SC_RMA={ouvert:'ouvert',envoye:'renvoyé au fournisseur',remplace:'remplacé',rembourse:'remboursé',refuse:'refusé par le fournisseur'};
+SSSC.fd='actives';
+async function sssScAction(id,action,donnees){
+  var r=await db.rpc('sss_appro_action',{p_id:id,p_action:action,p_donnees:donnees||{}});
+  if(r.error){ alert('Impossible : '+r.error.message); return false; }
+  try{ closeModal(); }catch(e){} renderScDemandes(); return true;
+}
+function sssScForm(id,action){
+  var c=(SSSC.cmd||[]).find(function(x){ return x.id===id; })||{}; var li=Array.isArray(c.lignes)?c.lignes:[];
+  var f=function(lab,h){ return "<div class='field'><label>"+lab+"</label>"+h+"</div>"; };
+  var corps='', titre='';
+  if(action==='commander'){ titre='Commander chez le fournisseur';
+    corps=f('Fournisseur *',"<input id='scf-four' value='"+esc(c.fournisseur||'')+"' placeholder='Sonepar, Jeanbourquin…'>")+f('N° de commande',"<input id='scf-num' value='"+esc(c.num_commande||'')+"'>")+f('Livraison prévue',"<input id='scf-liv' type='date' value='"+esc(c.livraison_prevue||'')+"'>"); }
+  else if(action==='recevoir'){ titre='Réception — quantités reçues AU TOTAL (y compris les livraisons précédentes)';
+    corps=li.map(function(y,i){ var q=(y.quantite!=null?y.quantite:(y.qte!=null?y.qte:1)); return f(esc((y.nom||y.designation||y.article||('Article '+(i+1))))+' — commandé : '+esc(String(q)),"<input id='scf-r"+i+"' type='number' inputmode='decimal' min='0' step='1' value='"+esc(String(q))+"'>"); }).join('')||"<div class='empty'>Aucun article détaillé : la demande sera marquée reçue.</div>"; }
+  else if(action==='signaler_manque'){ titre='Signaler un manque'; corps=f('Qu’est-ce qui manque ? *',"<textarea id='scf-note' rows='3' maxlength='400'></textarea>"); }
+  else if(action==='attribuer'){ titre='Attribuer à un chantier';
+    var ch=(SSSC.chantiers||[]).filter(function(a){ return !sssScPosee(a); }); corps=f('Chantier vendu *',"<select id='scf-aff'><option value=''>— choisir —</option>"+ch.map(function(a){ return "<option value='"+a.id+"'"+(a.id===c.affaire_id?' selected':'')+">"+esc((a.client||'Chantier')+(a.localite?' — '+a.localite:''))+"</option>"; }).join('')+"</select>"); }
+  else if(action==='rma_ouvrir'){ titre='Retour fournisseur (RMA)'; corps=f('Motif *',"<textarea id='scf-motif' rows='2' maxlength='300' placeholder='Défectueux, erreur de référence, casse au transport…'></textarea>")+f('N° RMA du fournisseur',"<input id='scf-ref'>"); }
+  else if(action==='rma_maj'){ titre='Suivi du retour'; corps=f('Où en est le retour ?',"<select id='scf-rma'>"+Object.keys(SSS_SC_RMA).map(function(k){ return "<option value='"+k+"'"+(c.rma&&c.rma.statut===k?' selected':'')+">"+SSS_SC_RMA[k]+"</option>"; }).join('')+"</select>"); }
+  else if(action==='refuser'){ titre='Refuser la demande'; corps=f('Motif (envoyé au demandeur) *',"<textarea id='scf-note' rows='2' maxlength='300'></textarea>"); }
+  modal("<h3 style='margin:0 0 10px'>"+titre+"</h3>"+corps+"<div id='scf-msg'></div><div style='display:flex;gap:8px;margin-top:10px'><button class='btn' style='min-height:44px' onclick=\"sssScValider('"+id+"','"+action+"')\">Valider</button><button class='relbtn' onclick='closeModal()'>Annuler</button></div>");
+}
+function sssScValider(id,action){
+  var v=function(k){ var e=document.getElementById(k); return e?(''+(e.value||'')).trim():''; }; var d={};
+  if(action==='commander') d={fournisseur:v('scf-four'),num_commande:v('scf-num'),livraison_prevue:v('scf-liv')};
+  else if(action==='recevoir'){ var c=(SSSC.cmd||[]).find(function(x){ return x.id===id; })||{}; d={lignes:(Array.isArray(c.lignes)?c.lignes:[]).map(function(y,i){ return {index:i,recue:Number(v('scf-r'+i)||0)}; })}; }
+  else if(action==='signaler_manque'||action==='refuser') d={note:v('scf-note')};
+  else if(action==='attribuer') d={affaire_id:v('scf-aff')};
+  else if(action==='rma_ouvrir') d={motif:v('scf-motif'),ref:v('scf-ref')};
+  else if(action==='rma_maj') d={statut:v('scf-rma')};
+  return sssScAction(id,action,d);
+}
+function sssScBoutons(c){
+  var b=function(a,t,cl){ return "<button class='relbtn"+(cl?' '+cl:'')+"' style='min-height:38px' onclick=\"sssScForm('"+c.id+"','"+a+"')\">"+t+"</button>"; };
+  var d=function(a,t,conf){ return "<button class='relbtn win' style='min-height:38px' onclick=\"if(confirm('"+conf+"'))sssScAction('"+c.id+"','"+a+"')\">"+t+"</button>"; };
+  var s=c.statut||'demande', l=[];
+  if(s==='demande') l.push(d('prendre','Prendre en charge','Prendre cette demande en charge ?'),b('refuser','Refuser','danger'));
+  if(s==='validee') l.push(b('commander','Commander'),b('refuser','Refuser','danger'));
+  if(s==='commandee'||s==='commande') l.push(b('recevoir','Réception'),b('signaler_manque','Manque','danger'),b('attribuer','Attribuer'),b('rma_ouvrir','Retour (RMA)'));
+  if(s==='manque') l.push(b('commander','Recommander'),b('recevoir','Réception du reste'),b('attribuer','Attribuer'),b('rma_ouvrir','Retour (RMA)'));
+  if(s==='recue'||s==='attribuee') l.push(b('attribuer',s==='attribuee'?'Changer de chantier':'Attribuer'),b('signaler_manque','Manque','danger'),b('rma_ouvrir','Retour (RMA)'));
+  if(s==='rma') l.push(b('rma_maj','Suivi du retour'));
+  if(['recue','attribuee','manque','rma'].indexOf(s)>=0) l.push(d('cloturer','Clôturer','Clôturer cette demande ?'));
+  return l.length?"<div style='display:flex;gap:6px;flex-wrap:wrap;margin-top:9px'>"+l.join('')+"</div>":"";
+}
 async function renderScDemandes(){
   var m=document.getElementById('main'); if(!m) return;
-  m.innerHTML=sssScTete('Demandes de matériel')+sssScBandeau()+"<div id='sscd-list' class='loading'>Chargement…</div>";
-  var r=await db.from('commandes').select('id,created_by_nom,statut,categorie,note,lignes,num_commande,fournisseur,created_at').order('created_at',{ascending:false}).limit(300);
+  m.innerHTML=sssScTete('Flux matériel','<button class=\'iconbtn\' onclick=\'renderScDemandes()\' title=\'Actualiser\'>↻</button>')
+    +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px'>"+SSS_SC_FILTRES.map(function(f){ return "<button class='relbtn"+(SSSC.fd===f[0]?' win':'')+"' onclick=\"SSSC.fd='"+f[0]+"';renderScDemandes()\">"+f[1]+"</button>"; }).join('')+"</div>"
+    +"<div id='sscd-list' class='loading'>Chargement…</div>";
+  var R=await Promise.all([db.from('commandes').select('id,created_by_nom,statut,categorie,note,lignes,num_commande,fournisseur,created_at,livraison_prevue,reception,rma,historique,affaire_id,note_direction').order('created_at',{ascending:false}).limit(300), sssScChargerChantiers()]);
+  var r=R[0];
+  // base pas encore migrée (0031 absente) : liste en lecture seule, sans les nouvelles colonnes ni les boutons
+  if(r.error && /column|colonne/i.test(r.error.message||'')){ r=await db.from('commandes').select('id,created_by_nom,statut,categorie,note,lignes,num_commande,fournisseur,created_at').order('created_at',{ascending:false}).limit(300); SSSC.v31=false; } else SSSC.v31=true;
   var box=document.getElementById('sscd-list'); if(!box||VIEW!=='sc_demandes') return; box.className='';
   if(r.error){ box.innerHTML="<div class='empty'>Lecture impossible : "+esc(r.error.message)+"</div>"; return; }
-  var l=r.data||[]; if(!l.length){ box.innerHTML="<div class='empty' style='max-width:900px'>Aucune demande de matériel pour le moment.</div>"; return; }
-  box.innerHTML="<div style='max-width:900px'>"+l.map(function(c){ var st=SSS_SC_CMD[c.statut]||[c.statut||'—','#8a8f98']; var li=Array.isArray(c.lignes)?c.lignes:[];
-    return "<div class='card' style='padding:12px 15px;margin-bottom:8px;text-align:left'><div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'><b>"+esc(c.created_by_nom||'Installateur')+"</b><span style='font-size:12px;color:var(--text-3)'>"+sssScDate(c.created_at)+(c.categorie?" · "+esc(c.categorie):"")+"</span><div class='spacer' style='flex:1'></div>"+sssScPastille(st[0],st[1])+"</div>"
+  SSSC.cmd=r.data||[]; var ch={}; (SSSC.chantiers||[]).forEach(function(a){ ch[a.id]=a; });
+  var auj=new Date().toISOString().slice(0,10);
+  var l=SSSC.cmd.filter(function(c){ var s=c.statut||'demande'; if(SSSC.fd==='toutes') return true; if(SSSC.fd==='actives') return ['close','annulee','refusee','livree'].indexOf(s)<0; if(SSSC.fd==='commandee') return s==='commandee'||s==='commande'; return s===SSSC.fd; });
+  if(!l.length){ box.innerHTML="<div class='empty' style='max-width:900px'>Rien dans cette liste.</div>"; return; }
+  var ST=Object.assign({},SSS_SC_CMD,{validee:['Prise en charge','#3b82f6'],manque:['Manque','#e5484d'],attribuee:['Attribuée','#22a06b'],rma:['Retour fournisseur','#e0a52b'],close:['Clôturée','#8a8f98']});
+  box.innerHTML="<div style='max-width:900px'>"+l.map(function(c){ var st=ST[c.statut||'demande']||[c.statut||'—','#8a8f98']; var li=Array.isArray(c.lignes)?c.lignes:[];
+    var retard=c.livraison_prevue && c.livraison_prevue<auj && (c.statut==='commandee'||c.statut==='commande');
+    var man=(c.reception&&Array.isArray(c.reception.manquants))?c.reception.manquants:[]; var a=c.affaire_id?ch[c.affaire_id]:null; var h=Array.isArray(c.historique)?c.historique:[];
+    return "<div class='card' style='padding:12px 15px;margin-bottom:8px;text-align:left;"+(retard||c.statut==='manque'?'border-left:4px solid #e5484d':'')+"'><div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'><b>"+esc(c.created_by_nom||'Installateur')+"</b><span style='font-size:12px;color:var(--text-3)'>"+sssScDate(c.created_at)+(c.categorie?" · "+esc(c.categorie):"")+"</span><div class='spacer' style='flex:1'></div>"+sssScPastille(st[0],st[1])+"</div>"
       +(li.length?"<div style='font-size:13px;margin-top:6px'>"+li.map(function(y){ return esc((y.quantite!=null?y.quantite+' × ':(y.qte!=null?y.qte+' × ':''))+(y.nom||y.designation||y.article||'')); }).join(' · ')+"</div>":"")
       +(c.note?"<div style='font-size:12.5px;margin-top:4px;color:var(--text-3)'>"+esc(c.note)+"</div>":"")
-      +(c.num_commande||c.fournisseur?"<div style='font-size:12px;margin-top:4px'>"+esc([c.fournisseur,c.num_commande?'n° '+c.num_commande:''].filter(Boolean).join(' '))+"</div>":"")+"</div>"; }).join('')+"</div>";
+      +(c.num_commande||c.fournisseur||c.livraison_prevue?"<div style='font-size:12px;margin-top:4px'>"+esc([c.fournisseur,c.num_commande?'n° '+c.num_commande:'',c.livraison_prevue?'livraison prévue '+sssScDate(c.livraison_prevue):''].filter(Boolean).join(' · '))+(retard?" <b style='color:#e5484d'>· en retard</b>":"")+"</div>":"")
+      +(man.length?"<div style='font-size:12.5px;margin-top:4px;color:#e5484d'>Manque : "+man.map(function(x){ return esc(x.manque+' × '+x.nom); }).join(', ')+"</div>":"")
+      +(a?"<div style='font-size:12.5px;margin-top:4px'>Chantier : <b>"+esc((a.client||'')+(a.localite?' — '+a.localite:''))+"</b></div>":"")
+      +(c.rma?"<div style='font-size:12.5px;margin-top:4px'>Retour fournisseur : "+esc(c.rma.motif||'')+(c.rma.ref?' (n° '+esc(c.rma.ref)+')':'')+" — <b>"+esc(SSS_SC_RMA[c.rma.statut]||c.rma.statut||'')+"</b></div>":"")
+      +(c.note_direction&&c.statut==='refusee'?"<div style='font-size:12.5px;margin-top:4px'>Motif du refus : "+esc(c.note_direction)+"</div>":"")
+      +(SSSC.v31?sssScBoutons(c):'')
+      +(h.length?"<details style='margin-top:8px'><summary style='font-size:12px;color:var(--text-3);cursor:pointer'>Historique ("+h.length+")</summary><div style='font-size:12px;color:var(--text-3);margin-top:4px'>"+h.map(function(x){ return sssScDate(x.at)+' '+esc((x.at||'').slice(11,16))+' — '+esc(x.par||'')+' : '+esc((ST[x.de]||[x.de])[0])+' → '+esc((ST[x.vers]||[x.vers])[0])+(x.note?' · '+esc(x.note):''); }).join('<br>')+"</div></details>":"")
+      +"</div>"; }).join('')+"</div>";
 }
 
 /* ------------------------------------------------------------------ branchement (sans modifier le code d'origine) */
@@ -5672,12 +5739,12 @@ async function renderUtilisation(jours){
       +"<td>"+sssQuand(x.last_sign_in_at)+"</td><td>"+sssQuand(x.derniere_activite)+"</td>"
       +"<td style='text-align:center'><b>"+(x.jours_7||0)+"</b>/7 · "+(x.jours_30||0)+"/"+jours+"</td>"
       +"<td style='text-align:center'>"+(x.sessions||0)+"</td><td style='font-size:12px'>"+ecr+"</td>"
-      +"<td style='text-align:center'>"+(x.chantiers_ouverts||0)+"</td><td style='text-align:center'>"+(x.rapports||0)+"</td><td style='text-align:center'>"+(x.documents_photos||0)+"</td>"
-      +"<td style='text-align:center'>"+(x.heures_pointees||0)+" h</td><td style='text-align:center'>"+(x.demandes||0)+"</td><td style='text-align:center'>"+(x.justificatifs||0)+"</td>"
+      +"<td style='text-align:center'>"+(x.chantiers_ouverts||0)+"</td><td style='text-align:center' title='démarrés / terminés / clôturés (parcours CHANTIER DU JOUR)'>"+(x.chantiers_demarres||0)+' / '+(x.chantiers_termines||0)+' / '+(x.chantiers_clotures||0)+"</td><td style='text-align:center'>"+(x.rapports||0)+"</td><td style='text-align:center'>"+(x.documents_photos||0)+"</td>"
+      +"<td style='text-align:center'>"+(x.heures_pointees||0)+" h</td><td style='text-align:center'>"+(x.heures_saisies||0)+"</td><td style='text-align:center'>"+(x.demandes||0)+"</td><td style='text-align:center'>"+(x.demandes_materiel||0)+"</td><td style='text-align:center'>"+(x.justificatifs||0)+"</td>"
       +"<td style='text-align:center'>"+(x.notifications_lues||0)+" / <span style='color:"+(x.notifications_non_lues?'#e0a52b':'inherit')+"'>"+(x.notifications_non_lues||0)+"</span></td>"
       +"<td style='text-align:center'>"+(x.taches_terminees||0)+"</td><td style='text-align:center'>"+(x.questions_assistant||0)+"</td></tr>"; };
-  h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Personne</th><th>Indicateur</th><th>Dernière connexion</th><th>Dernière activité</th><th>Jours actifs</th><th>Sessions</th><th>Écrans les plus ouverts</th><th>Chantiers ouverts</th><th>Rapports</th><th>Photos / docs</th><th>Heures pointées</th><th>Demandes</th><th>Justificatifs</th><th>Notif. lues / non lues</th><th>Tâches</th><th>Questions assistant</th></tr></thead><tbody>"
-    +(P.length?P.map(lig).join(''):"<tr><td colspan='16'>Aucun compte actif.</td></tr>")+"</tbody></table></div>";
+  h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Personne</th><th>Indicateur</th><th>Dernière connexion</th><th>Dernière activité</th><th>Jours actifs</th><th>Sessions</th><th>Écrans les plus ouverts</th><th>Chantiers ouverts</th><th>Démarrés / terminés / clôturés</th><th>Rapports</th><th>Photos / docs</th><th>Heures pointées</th><th>Heures saisies (chantier)</th><th>Demandes</th><th>Demandes matériel</th><th>Justificatifs</th><th>Notif. lues / non lues</th><th>Tâches</th><th>Questions assistant</th></tr></thead><tbody>"
+    +(P.length?P.map(lig).join(''):"<tr><td colspan='19'>Aucun compte actif.</td></tr>")+"</tbody></table></div>";
   var top=(eq.ecrans_les_plus_utilises||[]).map(function(e){ return esc(e.ecran)+' ('+e.n+')'; }).join(' · ')||'pas encore de données (mesure depuis le 06.10.2026)';
   h+="<div class='card' style='padding:12px 14px;margin-top:12px;text-align:left'><div style='font-weight:700;margin-bottom:4px'>Écrans les plus utilisés par l’équipe</div><div style='font-size:13px'>"+top+"</div></div>";
   h+="<div style='font-size:12px;color:var(--text-3);margin-top:10px;text-align:left'>"+esc(d.regle||'')+"</div>";
@@ -5699,6 +5766,132 @@ async function renderSante(){
 }
 
 /* SSS-PILOTAGE-FIN */
+
+/* SSS-SYNC-OFF-DEBUT */
+/* ==========================================================================
+   SSS OS — fin des anciennes synchronisations Bexio « navigateur » héritées de My Solar Battery (06.10.2026).
+   Décision de la direction : la synchronisation SERVEUR (tâche sss-sync-bexio, toutes les heures, copie en lecture dans
+   bexio_*) devient la seule source. À l'ouverture de l'application, plus aucun navigateur ne modifie un projet :
+     • syncBexioSales       — passait des affaires en « vendu » / les faisait revenir en arrière selon le statut du devis ;
+     • syncBexioRdv         — marquait des rendez-vous « Signé » selon Bexio (aucun rendez-vous commercial dans SSS OS) ;
+     • reconcileBexioContacts — rattachait des devis confirmés aux clients par nom et changeait l'étape ;
+     • dedupSignesSweep     — réécrivait des rendez-vous « Signé » en double ;
+     • FIN_ITEMS_LIVE       — ANNULAIT automatiquement un dossier (suivi._annule / _to_delete) quand le devis Bexio
+                              redevenait brouillon : remplacé par la même liste, SANS aucune écriture.
+   Rien n'est supprimé du code d'origine (il reste dans index.html) ; on le neutralise ici, sans changer les écrans.
+   ========================================================================== */
+var SSS_SYNC_OFF_MSG = "La synchronisation Bexio est faite par le serveur, toutes les heures (Centre de contrôle → Bexio).\nL'application ne modifie plus les projets à partir de Bexio : l'étape d'un projet se change à la main.";
+var SSS_SYNC_OFF_VU = false;
+function sssSyncOff(){ return async function(silent){ if(silent===false && !SSS_SYNC_OFF_VU){ SSS_SYNC_OFF_VU = true; alert(SSS_SYNC_OFF_MSG); setTimeout(function(){ SSS_SYNC_OFF_VU = false; }, 2000); } }; }
+try{ syncBexioSales = sssSyncOff(); }catch(e){}
+try{ syncBexioRdv = sssSyncOff(); }catch(e){}
+try{ reconcileBexioContacts = sssSyncOff(); }catch(e){}
+try{ dedupSignesSweep = async function(){}; }catch(e){}
+/* même liste de libellés que l'original, sans appel Bexio et sans annulation automatique */
+try{ FIN_ITEMS_LIVE = async function(list){ return FIN_ITEMS(list).map(function(x){ return x.label; }); }; }catch(e){}
+
+/* SSS-SYNC-OFF-FIN */
+
+/* SSS-PARCOURS-DEBUT */
+/* ==========================================================================
+   SSS OS — parcours « CHANTIER DU JOUR » du technicien (décision de la direction du 06.10.2026).
+   En tête de « Mon planning », pour chaque chantier du jour, un seul fil à suivre au téléphone :
+     Ouvrir → Démarrer → adresse / contact / matériel / documents → Photos → Problème / manquant → Terminer
+     → Heures → Compte rendu → Clôturer.
+   Avant la clôture, ce qui manque est montré en rouge (pas démarré, aucune photo, heures, compte rendu) ; RIEN n'est
+   bloquant : « Clôturer quand même » reste possible. Activé seulement si le paramètre « parcours_chantier » vaut
+   {"actif": true} (staging d'abord ; en production quand la direction le décide) — sinon l'écran ne change pas.
+   Données : suivi.parcours[<id du technicien>] = { demarre_at, termine_at, heures, cr, cr_at, cloture_at, manquait }
+   écrit par la vue chantiers_terrain (RLS : SES chantiers ; les clés financières du suivi sont préservées par la base).
+   Photos : dossier existant du chantier (voix/vtph/<chantier>/). Problème : signalement existant (direction alertée).
+   Usage noté (liste fermée 0030) : site_started, photo_added, site_finished, hours_added, report_sent, site_closed.
+   ========================================================================== */
+var SSSPC = { actif: null, ph: {} };
+async function sssPcActif(){
+  if(SSSPC.actif!==null) return SSSPC.actif;
+  try{ var r=await db.from('parametres').select('valeur').eq('cle','parcours_chantier').maybeSingle(); var v=r&&r.data&&r.data.valeur; SSSPC.actif=!!(v&&(v.actif===true||v.actif==='true')); }catch(e){ SSSPC.actif=false; }
+  return SSSPC.actif;
+}
+function sssPcU(t,o){ try{ if(typeof sssUsage==='function') sssUsage(t,'chantier_du_jour',o); }catch(e){} }
+function sssPcEtat(a){ var p=((a&&a.suivi)||{}).parcours||{}; return (ME&&p[ME.id])||{}; }
+async function sssPcEcrire(id, maj){
+  var r=await db.from('chantiers_terrain').select('suivi').eq('id',id).maybeSingle();
+  if(r.error||!r.data){ alert('Chantier introuvable ou non affecté.'); return null; }
+  var sv=Object.assign({},r.data.suivi||{}); var p=Object.assign({},sv.parcours||{}); p[ME.id]=Object.assign({},p[ME.id]||{},maj,{par:((ME.prenom||'')+' '+(ME.nom||'')).trim()}); sv.parcours=p;
+  var u=await db.from('chantiers_terrain').update({suivi:sv}).eq('id',id).select('id');
+  if(u.error||!(u.data&&u.data.length)){ alert('Enregistrement impossible : '+((u.error&&u.error.message)||'chantier non affecté')); return null; }
+  try{ var a=(SSSP.aff||[]).find(function(x){ return x.id===id; }); if(a) a.suivi=sv; }catch(e){}
+  return p[ME.id];
+}
+async function sssPcPhotos(id){
+  try{ var l=await db.storage.from('voix').list('vtph/'+id,{limit:200}); SSSPC.ph[id]=((l&&l.data)||[]).filter(function(o){ return o.name && o.name.charAt(0)!=='.'; }).length; }catch(e){ SSSPC.ph[id]=SSSPC.ph[id]||0; }
+  return SSSPC.ph[id];
+}
+function sssPcManque(id, st){
+  var m=[]; if(!st.demarre_at) m.push('chantier pas démarré'); if(!(SSSPC.ph[id]>0)) m.push('aucune photo'); if(!(Number(st.heures)>0)) m.push('heures non saisies');
+  if(!st.cr) m.push('compte rendu non envoyé'); if(!st.termine_at) m.push('chantier pas marqué terminé'); return m;
+}
+function sssPcCarte(e){
+  var a=(SSSP.aff||[]).find(function(x){ return x.id===e.id; })||{}; var st=sssPcEtat(a); var id=e.id; var nb=SSSPC.ph[id]; var manque=sssPcManque(id,st);
+  var etape=function(n,fait,titre,corps){ return "<div style='display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--border,#2a2a2a)'><div style='flex:0 0 26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;"+(fait?"background:#16a34a;color:#fff":"background:var(--bg-3,#333);color:var(--text-2)")+"'>"+(fait?'✓':n)+"</div><div style='flex:1;min-width:0'><div style='font-weight:700;font-size:14px'>"+titre+"</div>"+(corps||'')+"</div></div>"; };
+  var hm=function(iso){ return iso?(typeof sssHeure==='function'?sssHeure(iso):iso.slice(11,16)):''; };
+  var liens=(e.adr?("<a href='"+techWazeUrl(e.adr)+"' target='_blank' rel='noopener' class='relbtn' style='text-decoration:none'>🧭 Waze</a>"):"")+(e.tel?("<a href='"+telHref(e.tel)+"' class='relbtn' style='text-decoration:none'>📞 "+esc(e.tel)+"</a>"):"");
+  var clos=!!st.cloture_at;
+  return "<div class='card' id='sspc-"+id+"' style='padding:14px 16px;border:2px solid "+(clos?'#16a34a':'#f59e0b')+";max-width:760px;margin-bottom:12px'>"
+    +"<div style='font-size:12px;font-weight:800;letter-spacing:.08em;color:"+(clos?'#16a34a':'#f59e0b')+"'>CHANTIER DU JOUR"+(clos?' · CLÔTURÉ':'')+" · "+esc(e.lib)+(e.h1?(' · '+esc(e.h1)+(e.h2?'–'+esc(e.h2):'')):'')+"</div>"
+    +"<div style='font-weight:800;font-size:17px;margin:3px 0 2px'>"+esc(e.nom)+"</div>"
+    +(e.adr?"<div style='font-size:13.5px;color:var(--text-2)'>📍 "+esc(e.adr)+"</div>":"")
+    +(e.mat?"<div style='font-size:13px;color:var(--text-2)'>🔧 "+esc(e.mat)+"</div>":"")
+    +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px'>"+liens+"</div>"
+    +etape(1,false,"Ouvrir la fiche","<div style='font-size:12.5px;color:var(--text-3)'>Contact, matériel, plans et documents du chantier.</div><button class='relbtn win' style='margin-top:6px;min-height:42px' onclick=\"installOpen('"+id+"')\">Ouvrir</button>")
+    +etape(2,!!st.demarre_at,"Démarrer",st.demarre_at?("<div style='font-size:12.5px;color:var(--text-3)'>Démarré à "+esc(hm(st.demarre_at))+"</div>"):("<button class='btn' style='margin-top:6px;min-height:46px;background:#16a34a;color:#fff' onclick=\"sssPcDemarrer('"+id+"')\">▶ Démarrer le chantier</button>"))
+    +etape(3,nb>0,"Photos","<div style='font-size:12.5px;color:var(--text-3)'>"+(nb==null?'…':(nb+' photo'+(nb>1?'s':'')+' sur ce chantier'))+"</div><label class='relbtn' style='cursor:pointer;margin-top:6px;min-height:42px'>📷 Ajouter des photos<input type='file' accept='image/*' capture='environment' multiple style='display:none' onchange=\"sssPcPhoto('"+id+"',this)\"></label>")
+    +etape(4,false,"Problème ou matériel manquant","<button class='relbtn danger' style='margin-top:6px;min-height:42px' onclick=\"sssSignaler('"+id+"',null,'"+sssJs(e.nom)+"')\">⚠️ Signaler</button>")
+    +etape(5,!!st.termine_at,"Terminer",st.termine_at?("<div style='font-size:12.5px;color:var(--text-3)'>Terminé à "+esc(hm(st.termine_at))+"</div>"):("<button class='btn' style='margin-top:6px;min-height:46px' onclick=\"sssPcTerminer('"+id+"')\">■ Travaux terminés</button>"))
+    +etape(6,Number(st.heures)>0,"Heures sur ce chantier","<div style='display:flex;gap:6px;align-items:center;margin-top:6px'><input id='sspc-h-"+id+"' type='number' inputmode='decimal' min='0' max='24' step='0.25' value='"+(st.heures!=null?esc(String(st.heures)):'')+"' placeholder='ex. 7.5' style='max-width:110px;min-height:42px'><span style='font-size:13px'>heures</span><button class='relbtn' style='min-height:42px' onclick=\"sssPcHeures('"+id+"')\">Enregistrer</button></div>")
+    +etape(7,!!st.cr,"Compte rendu","<textarea id='sspc-cr-"+id+"' rows='3' maxlength='2000' placeholder='Travaux faits, matériel posé, mesures, problèmes, ce qui reste à faire' style='margin-top:6px'>"+esc(st.cr||'')+"</textarea><button class='relbtn' style='margin-top:6px;min-height:42px' onclick=\"sssPcCr('"+id+"')\">"+(st.cr?'Mettre à jour':'Envoyer le compte rendu')+"</button>")
+    +etape(8,clos,"Clôturer",clos?("<div style='font-size:12.5px;color:var(--text-3)'>Clôturé à "+esc(hm(st.cloture_at))+(st.manquait&&st.manquait.length?(' — manquait : '+esc(st.manquait.join(', '))):'')+"</div>")
+         :((manque.length?("<div style='font-size:13px;color:#e5484d;margin-top:4px'>Il manque : <b>"+esc(manque.join(' · '))+"</b></div>"):("<div style='font-size:13px;color:#16a34a;margin-top:4px'>Tout est complet.</div>"))
+           +"<button class='btn' style='margin-top:6px;min-height:46px;"+(manque.length?'':'background:#16a34a;color:#fff')+"' onclick=\"sssPcCloturer('"+id+"')\">"+(manque.length?'Clôturer quand même':'✔ Clôturer le chantier')+"</button>"))
+    +"</div>";
+}
+async function sssPcBloc(){
+  if(typeof sssTech!=='function' || !sssTech()) return; if(!(await sssPcActif())) return;
+  var main=document.getElementById('main'); var pt=document.getElementById('sssp-point'); if(!main||!pt) return;
+  var P=await sssCharger(); var t0=sssJourPlus(0); var vus={};
+  var ev=sssEvenements(P).filter(function(e){ if(e.kind!=='aff'||e.jour!==t0||vus[e.id]) return false; vus[e.id]=1; return true; });
+  var box=document.getElementById('sspc-bloc'); if(!box){ box=document.createElement('div'); box.id='sspc-bloc'; pt.parentNode.insertBefore(box,pt); }
+  if(!ev.length){ box.innerHTML="<div class='card' style='padding:12px 14px;max-width:760px;margin-bottom:12px;color:var(--text-3)'>CHANTIER DU JOUR — aucun chantier prévu pour toi aujourd’hui.</div>"; return; }
+  await Promise.all(ev.map(function(e){ return sssPcPhotos(e.id); }));
+  box.innerHTML=ev.map(sssPcCarte).join('');
+}
+async function sssPcRafraichir(id){ await sssPcPhotos(id); var e=sssEvenements(SSSP).find(function(x){ return x.id===id && x.kind==='aff'; }); var c=document.getElementById('sspc-'+id); if(e&&c){ var d=document.createElement('div'); d.innerHTML=sssPcCarte(e); c.replaceWith(d.firstChild); } }
+async function sssPcDemarrer(id){ var st=await sssPcEcrire(id,{demarre_at:new Date().toISOString(),jour:sssJourPlus(0)}); if(!st) return; sssPcU('site_started',id); sssPcRafraichir(id); }
+async function sssPcTerminer(id){ var st=await sssPcEcrire(id,{termine_at:new Date().toISOString()}); if(!st) return; sssPcU('site_finished',id); sssPcRafraichir(id); }
+async function sssPcHeures(id){
+  var v=Number(String((document.getElementById('sspc-h-'+id)||{}).value||'').replace(',','.'));
+  if(!(v>0&&v<=24)){ alert('Indique un nombre d’heures entre 0.25 et 24.'); return; }
+  var st=await sssPcEcrire(id,{heures:Math.round(v*4)/4,heures_at:new Date().toISOString()}); if(!st) return; sssPcU('hours_added',id); sssPcRafraichir(id);
+}
+async function sssPcCr(id){
+  var t=String((document.getElementById('sspc-cr-'+id)||{}).value||'').trim(); if(t.length<5){ alert('Écris quelques mots sur ce qui a été fait.'); return; }
+  var st=await sssPcEcrire(id,{cr:t.slice(0,2000),cr_at:new Date().toISOString()}); if(!st) return; sssPcU('report_sent',id); sssPcRafraichir(id);
+}
+async function sssPcPhoto(id,inp){
+  var fs=Array.prototype.slice.call((inp&&inp.files)||[]); if(!fs.length) return; var ok=0;
+  for(var i=0;i<fs.length;i++){ var f=fs[i]; try{ if(typeof sssQReduire==='function' && /^image\//.test(f.type||'')) f=await sssQReduire(f); }catch(e){}
+    var r=await db.storage.from('voix').upload('vtph/'+id+'/pc_'+Date.now()+'_'+i+'.jpg', f, {upsert:false, contentType:f.type||'image/jpeg'}); if(!r.error) ok++; }
+  if(ok){ sssPcU('photo_added',id); } if(ok<fs.length) alert((fs.length-ok)+' photo(s) non envoyée(s) — réessaie avec du réseau.');
+  sssPcRafraichir(id);
+}
+async function sssPcCloturer(id){
+  var a=(SSSP.aff||[]).find(function(x){ return x.id===id; })||{}; var st=sssPcEtat(a); await sssPcPhotos(id); var m=sssPcManque(id,st);
+  if(m.length && !confirm('Il manque : '+m.join(', ')+'.\n\nClôturer quand même ? La direction verra ce qui manquait.')) return;
+  var r=await sssPcEcrire(id,{cloture_at:new Date().toISOString(),manquait:m}); if(!r) return; sssPcU('site_closed',id); sssPcRafraichir(id);
+}
+try{ var _sssPcRmp=renderMonPlanning; renderMonPlanning=async function(){ var r=await _sssPcRmp.apply(this,arguments); try{ await sssPcBloc(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+
+/* SSS-PARCOURS-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
