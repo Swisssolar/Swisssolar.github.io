@@ -34,7 +34,7 @@ window.addEventListener('error',function(e){ if(!window.__SSS_ERR&&e) window.__S
       try{
         el=document.createElement('div');
         el.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483647;background:#7a1f1f;color:#ffe3e3;padding:14px 16px;border-radius:12px;font:14px/1.55 Roboto,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5)';
-        el.innerHTML="<b>L'appli n'arrive pas à démarrer sur ce navigateur.</b><br>Ouvre <b>sss-os.netlify.app</b> dans <b>Google Chrome</b> (pas le navigateur Xiaomi / Mi Browser), puis menu ⋮ → « Installer l'application »."+(window.__SSS_ERR?"<br><span style='opacity:.65;font-size:11px'>Détail technique : "+String(window.__SSS_ERR).slice(0,140)+"</span>":"");
+        el.innerHTML="<b>L'appli n'arrive pas à démarrer sur ce navigateur.</b><br>Ouvre <b>swisssolar.github.io</b> dans <b>Google Chrome</b> (pas le navigateur Xiaomi / Mi Browser), puis menu ⋮ → « Installer l'application »."+(window.__SSS_ERR?"<br><span style='opacity:.65;font-size:11px'>Détail technique : "+String(window.__SSS_ERR).slice(0,140)+"</span>":"");
         document.body.appendChild(el);
       }catch(_e){}
     }
@@ -1203,7 +1203,7 @@ async function versionGuard(){
 /* ======================= NAV ======================= */
 /* ===== Bulle : notifications · notes perso · assistant ===== */
 let BUBBLE_TAB='notif', BUBBLE_NOTES=[], NOTES_LOADED=false, EDIT_NOTE=null;
-const BOT_FAQ=[
+const BOT_FAQ=[]; /* aide et procédures MSB archivées (historique) */ const BOT_FAQ_MSB=[
   {q:['parcours','process','déroule','etapes','étapes','comment ça marche'],a:"Parcours commercial : 1) le RDV arrive dans l’Agenda → 2) tu le fais et tu saisis le DÉBOUCHÉ + le type (PV/Batterie/PAC/Mixte) + compte-rendu → 3) si intéressé, tu crées le DEVIS (Bexio) → 4) le client accepte le devis dans Bexio → il passe en SIGNÉ → 5) tu TRANSMETS le dossier à l’admin (sous 48 h) → 6) suivi des relances dans « Suivi »."},
   {q:['débouché','debouche','résultat','statut rdv','issue'],a:"Dans une fiche RDV (Agenda), choisis le débouché : R2 à positionner · Devis à envoyer · Devis délivré · Signé · Hors cible · Ne veut pas du RDV · Absent. Pense à renseigner le type de produit (PV/Batterie/PAC/Mixte), le nb de panneaux et la capacité kWh, et le compte-rendu.",go:"go('agenda')"},
   {q:['score','chaleur','bant','budget','décideur','timing'],a:"Le score de chaleur (BANT) se remplit dans le compte-rendu du RDV : Budget, Intérêt, Décideur, Timing + ton appréciation. Ça donne un % de chaleur du prospect."},
@@ -2338,6 +2338,8 @@ function renderNav(){
     ['tech_materiel','Outillage','<svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
     ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
+    ['marges','Coûts & Marges SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/></svg>',['superadmin']],
+    ['prix_sss','Prix d’achat SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',['superadmin']],
     ['sc_chantiers','Chantiers à approvisionner','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>',['superadmin','direction','supply_chain']],
     ['sc_achats','Achats fournisseurs','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>',['superadmin','direction','supply_chain']],
     ['sc_stock','Stock','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',['superadmin','direction','supply_chain']],
@@ -2356,7 +2358,7 @@ function renderNav(){
     ['fin_charges','Charges','<svg viewBox="0 0 24 24" fill="none"><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'],
     ['fin_quittances','Quittances carte société','<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7h8M8 11h8M8 15h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'],
     ['fin_remb','Remboursements','<svg viewBox="0 0 24 24" fill="none"><path d="M3 10h13a5 5 0 0 1 0 10H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6l-4 4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',['superadmin','direction','admin']],
-    ['fin_marge','Marge','<svg viewBox="0 0 24 24" fill="none"><path d="M4 19l6-6 4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10V6h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'],
+    ['fin_marge','Marge (modèle MSB)','<svg viewBox="0 0 24 24" fill="none"><path d="M4 19l6-6 4 4 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10V6h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'],
     ['fin_treso','Trésorerie','<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="14.5" r="1.5" fill="currentColor"/></svg>'],
     ['fin_prev','Prévisionnel','<svg viewBox="0 0 24 24" fill="none"><path d="M4 19h16M6 16l4-5 3 3 5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'],
     ['agenda','Agenda',I.agenda],
@@ -2439,7 +2441,7 @@ function renderNav(){
   let GROUPS_TECH= techExterne()
     ? [ {id:'gtech',title:'Mes chantiers',keys:['tech_today','tech_pv','tech_bat','tech_sav','repasser','tech_termines']}, {id:'gtbo',title:'Mon back-office',keys:['commandes','st_remb']} ]
     : [ {id:'gtech',title:'Technique',keys:['techdash','tech_today','tech_search','tech_pv','tech_bat','tech_sav','repasser','tech_termines','tech_materiel']}, {id:'gtstk',title:'Stock & fournitures',keys:['stock','commandes']}, {id:'gtequipe',title:'Équipe terrain',keys:['mon_planning','mes_chantiers','tech_quittances','tech_conges','mes_demandes','signalements_t','vehicule','pointage']} ].concat( ME.role==='technicien' ? [] : [{id:'gtst',title:'Sous-traitants',keys:['stmissions','st_remb']}] ); if(ME.role==='technicien' && !techExterne()) GROUPS_TECH=SSS_MENU_TECH.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(ME.role==='supply_chain' && typeof SSS_MENU_SUPPLY!=='undefined') GROUPS_TECH=SSS_MENU_SUPPLY.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(['superadmin','direction'].indexOf(ME.role)>=0) GROUPS_TECH.forEach(function(g){ if(g.id==='gtstk'){ ['sc_chantiers','sc_achats'].forEach(function(k){ if(g.keys.indexOf(k)<0) g.keys.push(k); }); } });
-  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
+  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','marges','prix_sss','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
   const GROUPS_BACK=[ {id:'gback',title:'Mes tâches',keys:['botaches']} ];
   const avail=servicesAvail();
   if(avail.indexOf(SERVICE)<0) SERVICE=avail[0];
@@ -4274,6 +4276,8 @@ async function sssActivite(){
   var r=await db.from('affaires').select('id,type,etape,montant_ttc,suivi,contact:contact_id(nom,prenom,localite,email,telephone)').not('suivi->>_fin_cle','is',null).limit(2000);
   if(r.error){ box.innerHTML=sssBloc('Activité commerciale',"<div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>"); return; }
   SSS_ACT.liste=(r.data||[]).filter(function(a){ return !(a.suivi&&a.suivi._fin_exclu); }).map(function(a){ var s=a.suivi||{}; var c=a.contact||{}; return {id:a.id, etat:s._fin_etat, conf:s._fin_confiance, b2b:!!s._fin_b2b, nom:[c.nom,c.prenom].filter(Boolean).join(' ')||'(sans nom)', lieu:c.localite||'', libelle:s._fin_libelle||'', t:s._fin_totaux||{}, action:s._fin_prochaine_action, jours:s._fin_jours_sans_interaction, raisons:s._fin_raisons||[], montant:a.montant_ttc}; });
+  // nature commerciale réelle (0020 : partenaires, agenda MSB…) au lieu du seul drapeau B2B du rangement
+  try{ if(typeof sssHNatures==='function'){ var nat=await sssHNatures(true); SSS_ACT.liste.forEach(function(x){ if(nat&&nat[x.id]){ x.nature=nat[x.id]; x.b2b=nat[x.id]!=='direct_sss'; } }); } }catch(e){}
   sssActivitePeindre();
 }
 function sssActivitePeindre(){
@@ -4293,7 +4297,8 @@ function sssActivitePeindre(){
     ['Chantiers à planifier',n(dir,['Acompte payé','À planifier']),'#e0a52b'],
     ['Chantiers en cours',n(dir,['Chantier planifié','Chantier en cours']),''],
     ['Terminés, pas totalement facturés',n(dir,['Chantier terminé','Mise en service / administratif à terminer','Facture finale à envoyer']),'#e5484d'],
-    ['Soldes à encaisser',sssChf(s(L,function(x){ return x.t.reste; })),'#e0a52b'],
+    ['Soldes à encaisser (direct SSS)',sssChf(s(dir,function(x){ return x.t.reste; })),'#e0a52b'],
+    ['Soldes sous-traitance (à part)',sssChf(s(b2b,function(x){ return x.t.reste; })),'#8a5cf6'],
     ['Dossiers terminés / payés',n(dir,['Terminé / payé']),'']
   ];
   var h="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px'>"+k.map(function(x){ return "<div style='border:1px solid var(--line);border-radius:10px;padding:9px 11px'><div style='font-size:11.5px;color:var(--text-3)'>"+x[0]+"</div><div style='font-weight:800;font-size:17px;"+(x[2]?'color:'+x[2]:'')+"'>"+x[1]+"</div></div>"; }).join('')+"</div>";
@@ -4815,19 +4820,60 @@ async function sssFLire(b){
 var SSSF_IMP=null;
 function sssFReleve(inp){ var l=Array.prototype.slice.call(inp.files||[]); inp.value=''; if(l.length) sssFAnalyser(l); }
 function sssFB64(u8){ var s=''; for(var i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
-function sssFFenetre(html){
-  var f=document.getElementById('sssf-fen'); if(!f){ f=document.createElement('div'); f.id='sssf-fen'; f.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px'; document.body.appendChild(f); }
-  f.innerHTML="<div class='card' style='max-width:640px;width:100%;max-height:90vh;overflow:auto;padding:18px 20px;text-align:left'>"+html+"</div>"; f.style.display='flex'; return f;
+/* Fenêtre de l'import : panneau OPAQUE (fond de carte du thème, jamais transparent), en-tête fixe, contenu qui défile,
+   pied fixe avec les boutons ; plein écran sur téléphone. La classe « card » n'a pas de fond hors de la zone principale :
+   c'est ce qui rendait l'ancienne fenêtre transparente. */
+var SSSF_CSS=""
+  +"#sssf-fen{position:fixed;inset:0;z-index:9500;background:rgba(6,7,9,.78);display:flex;align-items:center;justify-content:center;padding:16px}"
+  +"#sssf-fen .sssf-pan{background:var(--card,#fff);background-color:var(--card,#fff);color:var(--text,#111);border:1px solid var(--line,#ddd);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.5);width:min(720px,100%);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;overflow:hidden;text-align:left;opacity:1}"
+  +"#sssf-fen .sssf-tete{display:flex;align-items:flex-start;gap:12px;padding:16px 20px 12px;border-bottom:1px solid var(--line,#ddd);flex:0 0 auto}"
+  +"#sssf-fen .sssf-tete h3{margin:0;font-size:18px;line-height:1.3;color:var(--text,#111)}"
+  +"#sssf-fen .sssf-sous{font-size:12.5px;color:var(--text-2,#555);margin-top:3px;overflow-wrap:anywhere}"
+  +"#sssf-fen .sssf-x{margin-left:auto;flex:0 0 auto;width:38px;height:38px;border-radius:10px;border:1px solid var(--line,#ddd);background:transparent;color:var(--text,#111);font-size:18px;cursor:pointer;line-height:1}"
+  +"#sssf-fen .sssf-corps{padding:16px 20px;overflow:auto;flex:1 1 auto;-webkit-overflow-scrolling:touch;font-size:13.5px;color:var(--text,#111)}"
+  +"#sssf-fen .sssf-pied{display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line,#ddd);flex:0 0 auto;background:var(--card,#fff)}"
+  +"#sssf-fen .sssf-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}"
+  +"#sssf-fen .sssf-kpi{border:1px solid var(--line,#ddd);border-radius:10px;padding:9px 11px;min-width:0}"
+  +"#sssf-fen .sssf-kpi span{display:block;font-size:11.5px;color:var(--text-2,#555);margin-bottom:2px}"
+  +"#sssf-fen .sssf-kpi b{font-size:15px;overflow-wrap:anywhere}"
+  +"#sssf-fen .sssf-etat{border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13.5px;line-height:1.5}"
+  +"#sssf-fen .sssf-tab{width:100%;border-collapse:collapse;font-size:12.5px}"
+  +"#sssf-fen .sssf-tab th{position:sticky;top:0;background:var(--card,#fff);text-align:left;color:var(--text-2,#555);font-weight:600;padding:6px 6px;border-bottom:1px solid var(--line,#ddd)}"
+  +"#sssf-fen .sssf-tab td{padding:6px 6px;border-top:1px solid var(--line,#ddd);vertical-align:top}"
+  +"#sssf-fen .sssf-defile{max-height:300px;overflow:auto;border:1px solid var(--line,#ddd);border-radius:10px}"
+  +"#sssf-fen .sssf-go{width:auto;min-height:46px;padding:11px 22px;font-size:15px;font-weight:800;border-radius:999px;border:0;background:#22a06b;color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(34,160,107,.35)}"
+  +"#sssf-fen .sssf-go[disabled]{background:#8a8f98;box-shadow:none;cursor:default}"
+  +"#sssf-fen .sssf-non{width:auto;min-height:46px;padding:11px 20px;font-size:14.5px;font-weight:600;border-radius:999px;border:1px solid var(--line,#ccc);background:transparent;color:var(--text,#111);cursor:pointer}"
+  +"#sssf-fen details{margin-top:12px}#sssf-fen summary{cursor:pointer;font-weight:700;font-size:13px;padding:4px 0}"
+  +"#sssf-fen ul{margin:6px 0 0 18px;padding:0}#sssf-fen li{margin:3px 0;overflow-wrap:anywhere}"
+  +"@media (max-width:600px){#sssf-fen{padding:0;align-items:stretch}#sssf-fen .sssf-pan{width:100%;max-height:none;height:100%;height:100dvh;border-radius:0;border:0}"
+  +"#sssf-fen .sssf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#sssf-fen .sssf-tete,#sssf-fen .sssf-corps{padding-left:16px;padding-right:16px}"
+  +"#sssf-fen .sssf-pied{padding-left:16px;padding-right:16px;flex-direction:column-reverse;align-items:stretch}#sssf-fen .sssf-go,#sssf-fen .sssf-non{width:100%}#sssf-fen .sssf-defile{max-height:none}}";
+function sssFEscape(e){ if(e.key==='Escape' && document.getElementById('sssf-fen') && !(SSSF_IMP&&SSSF_IMP.enCours)) sssFFermer(); }
+/* titre, corps (HTML), pied (HTML des boutons ; par défaut « Fermer »), sous-titre */
+function sssFFenetre(titre,corps,pied,sous){
+  if(!document.getElementById('sssf-style')){ var st=document.createElement('style'); st.id='sssf-style'; st.textContent=SSSF_CSS; (document.head||document.body).appendChild(st); }
+  var f=document.getElementById('sssf-fen');
+  if(!f){ f=document.createElement('div'); f.id='sssf-fen'; f.setAttribute('role','dialog'); f.setAttribute('aria-modal','true'); document.body.appendChild(f);
+    try{ SSSF_BODY=document.body.style.overflow; document.body.style.overflow='hidden'; document.addEventListener('keydown',sssFEscape); }catch(e){} }
+  f.innerHTML="<div class='sssf-pan'><div class='sssf-tete'><div style='min-width:0'><h3>"+titre+"</h3>"+(sous?"<div class='sssf-sous'>"+sous+"</div>":"")+"</div>"
+    +"<button class='sssf-x' title='Fermer' aria-label='Fermer' onclick='sssFFermer()'>✕</button></div>"
+    +"<div class='sssf-corps'>"+corps+"</div>"
+    +"<div class='sssf-pied'>"+(pied==null?"<button class='sssf-non' onclick='sssFFermer()'>Fermer</button>":pied)+"</div></div>";
+  return f;
 }
-function sssFFermer(){ var f=document.getElementById('sssf-fen'); if(f) f.remove(); SSSF_IMP=null; }
+var SSSF_BODY='';
+function sssFFermer(){ var f=document.getElementById('sssf-fen'); if(f) f.remove(); SSSF_IMP=null; try{ document.body.style.overflow=SSSF_BODY||''; document.removeEventListener('keydown',sssFEscape); }catch(e){} }
 async function sssFAnalyser(fichiers){
   fichiers=Array.prototype.slice.call(fichiers||[]); if(!fichiers.length) return;
-  var trop=fichiers.filter(function(f){ return f.size>40*1024*1024; }); if(trop.length){ sssFFenetre("<h3 style='margin-top:0'>Fichier trop lourd</h3><div>"+esc(trop[0].name)+" dépasse 40 Mo.</div><div style='margin-top:12px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer()'>Fermer</button></div>"); return; }
-  sssFFenetre("<h3 style='margin-top:0'>Lecture du relevé…</h3><div id='sssf-etape' style='font-size:13px;color:var(--text-3)'>Ouverture du fichier</div>");
-  var r; try{ r=await sssRelevesDepuisFichiers(fichiers); }catch(e){ sssFFenetre("<h3 style='margin-top:0'>Fichier illisible</h3><div>"+esc((e&&e.message)||e)+"</div><div style='margin-top:12px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer()'>Fermer</button></div>"); return; }
+  var noms=esc(fichiers.map(function(f){ return f.name; }).join(', '));
+  var trop=fichiers.filter(function(f){ return f.size>40*1024*1024; }); if(trop.length){ sssFFenetre('Fichier trop lourd',"<div>"+esc(trop[0].name)+" dépasse 40 Mo.</div>"); return; }
+  sssFFenetre('Lecture du relevé…',"<div id='sssf-etape' style='color:var(--text-2)'>Ouverture du fichier</div>","<button class='sssf-non' onclick='sssFFermer()'>Annuler</button>",noms);
+  var r; try{ r=await sssRelevesDepuisFichiers(fichiers); }catch(e){ sssFFenetre('Fichier illisible',"<div>"+esc((e&&e.message)||e)+"</div>",null,noms); return; }
   // relevés PDF : lecture par l'IA + contrôle des totaux (rien n'est gardé si les totaux ne retombent pas juste)
   r.lignesPdf=[]; r.pdfLus=[];
   for(var i=0;i<r.pdfs.length;i++){
+    if(!document.getElementById('sssf-fen')) return;   // fenêtre fermée pendant la lecture : on abandonne sans rien importer
     var p=r.pdfs[i], et=document.getElementById('sssf-etape'); if(et) et.textContent='Lecture du relevé PDF « '+p.nom+' » ('+(i+1)+'/'+r.pdfs.length+') — environ une minute par relevé…';
     try{
       var x=await db.functions.invoke('agent',{body:{action:'releve_pdf',nom:p.nom,b64:sssFB64(p.octets)}}); var d=(x&&x.data)||{};
@@ -4840,43 +4886,72 @@ async function sssFAnalyser(fichiers){
       r.lignesPdf=r.lignesPdf.concat(lp);
     }catch(e){ r.ignores.push(p.nom+' : '+((e&&e.message)||e)); }
   }
+  if(!document.getElementById('sssf-fen')) return;
   // un mouvement présent dans un CAMT et dans un PDF (même jour, même montant) : la version CAMT, plus détaillée, est gardée
   var cle=function(x){ return x.date_compta+'|'+x.montant; }, camt={}; r.lignes.forEach(function(x){ camt[cle(x)]=(camt[cle(x)]||0)+1; });
   r.lignesPdf=r.lignesPdf.filter(function(x){ if(camt[cle(x)]){ camt[cle(x)]--; return false; } return true; });
   var tout=r.lignes.concat(r.lignesPdf);
-  if(!tout.length){ sssFFenetre("<h3 style='margin-top:0'>Ce fichier n’est pas importable</h3><div style='white-space:pre-wrap;font-size:13px'>"+esc(r.erreur||('Aucun mouvement lisible.\n'+r.ignores.join('\n')))+"</div><div style='margin-top:12px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer()'>Fermer</button></div>"); return; }
+  if(!tout.length){ sssFFenetre('Ce fichier n’est pas importable',"<div style='white-space:pre-wrap'>"+esc(r.erreur||('Aucun mouvement lisible.\n'+r.ignores.join('\n')))+"</div>",null,noms); return; }
+  var et2=document.getElementById('sssf-etape'); if(et2) et2.textContent='Comparaison avec les écritures déjà importées…';
+  // ce qui est DÉJÀ en base : calculé par la base avec exactement la règle anti-doublon de l'import (rien n'est écrit)
+  var ap={nouvelles:null,deja_presentes:null,completees:null}, apErr=null;
+  try{
+    var add=function(o){ ['nouvelles','deja_presentes','completees'].forEach(function(k){ ap[k]=(ap[k]||0)+(o[k]||0); }); };
+    var cmp=async function(l,src){ for(var i=0;i<l.length&&!apErr;i+=400){ var y=await db.rpc('sss_banque_apercu',{p_lignes:l.slice(i,i+400),p_source:src}); if(y.error){ apErr=y.error.message; break; } add(y.data||{}); } };
+    ap={nouvelles:0,deja_presentes:0,completees:0};
+    await cmp(r.lignes, r.format==='csv'?'csv':'camt053'); if(!apErr) await cmp(r.lignesPdf,'pdf');
+  }catch(e){ apErr=(e&&e.message)||String(e); }
+  if(apErr) ap={nouvelles:null,deja_presentes:null,completees:null};
+  if(!document.getElementById('sssf-fen')) return;
   var dts=tout.map(function(x){ return x.date_compta; }).sort(), deb=tout.filter(function(x){ return x.montant<0; }), cre=tout.filter(function(x){ return x.montant>0; });
   var som=function(l){ return Math.round(l.reduce(function(a,x){ return a+x.montant; },0)*100)/100; };
   SSSF_IMP={camt:r.lignes, pdf:r.lignesPdf, format:r.format||'camt053', lot:fichiers.map(function(f){ return f.name; }).join(', ').slice(0,120)+' '+new Date().toISOString().slice(0,16)};
-  var li=function(t){ return "<li style='margin:2px 0'>"+t+"</li>"; };
-  sssFFenetre("<h3 style='margin-top:0'>Aperçu du relevé</h3>"
-    +"<div style='display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13.5px'>"
-    +"<span style='color:var(--text-3)'>Compte</span><b>"+esc(r.comptes.join(', ')||'non indiqué')+"</b>"
-    +"<span style='color:var(--text-3)'>Période</span><b>"+sssFDate(dts[0])+" → "+sssFDate(dts[dts.length-1])+"</b>"
-    +"<span style='color:var(--text-3)'>Mouvements</span><b>"+tout.length+"</b>"
-    +"<span style='color:var(--text-3)'>Débits</span><b style='color:#e5484d'>"+deb.length+" · "+sssFChf(som(deb))+"</b>"
-    +"<span style='color:var(--text-3)'>Crédits</span><b style='color:#22a06b'>"+cre.length+" · "+sssFChf(som(cre))+"</b></div>"
-    +"<div style='margin-top:12px;font-size:12.5px'><b>Fichiers lus</b><ul style='margin:4px 0 0 18px;padding:0'>"
-      +r.fichiers.map(function(f){ return li(esc(f.nom)+" — "+(f.format==='csv'?'CSV':'CAMT')+", "+f.lignes+" mouvement(s)"); }).join('')
-      +r.pdfLus.map(function(f){ return li(esc(f.nom)+" — relevé PDF du "+sssFDate(f.du)+" au "+sssFDate(f.au)+", "+f.lignes+" mouvement(s) ✔ totaux de la banque vérifiés"); }).join('')+"</ul>"
-    +(r.pdfLus.length?"<div style='color:var(--text-3)'>(les mouvements des PDF déjà présents dans les CAMT ne sont comptés qu’une fois)</div>":"")
-    +(r.ignores.length?"<div style='margin-top:8px'><b>Écartés</b><ul style='margin:4px 0 0 18px;padding:0;color:var(--text-3)'>"+r.ignores.map(function(x){ return li(esc(x)); }).join('')+"</ul></div>":"")
-    +(r.avertissements.length?"<div style='margin-top:8px;color:#e0a52b'>"+r.avertissements.map(esc).join('<br>')+"</div>":"")+"</div>"
-    +"<div style='font-size:12px;color:var(--text-3);margin-top:10px'>Les mouvements déjà importés ne sont jamais ajoutés deux fois. Rien n’est modifié à la banque.</div>"
-    +"<div style='display:flex;gap:8px;margin-top:14px'><button class='btn' style='width:auto;padding:9px 18px' onclick='sssFImporter(this)'>Importer "+tout.length+" mouvement(s)</button><button class='btn-out' style='width:auto;padding:9px 18px' onclick='sssFFermer()'>Annuler</button></div>");
+  var li=function(t){ return "<li>"+t+"</li>"; };
+  var kpi=function(t,v,c){ return "<div class='sssf-kpi'><span>"+t+"</span><b"+(c?" style='color:"+c+"'":"")+">"+v+"</b></div>"; };
+  var cpt=r.comptes.map(function(c){ return c.replace(/(.{4})/g,'$1 ').trim(); }).join(', ');
+  var nbLus=r.fichiers.length+r.pdfLus.length, nbIgn=r.ignores.length;
+  var aFaire=ap.nouvelles==null?tout.length:(ap.nouvelles+ap.completees);
+  var etat;
+  if(ap.nouvelles==null) etat="<div class='sssf-etat' style='background:#e0a52b1f;border:1px solid #e0a52b66'>Impossible de vérifier à l’avance ce qui est déjà importé ("+esc(apErr||'')+"). L’import reste sans risque : une écriture déjà présente n’est jamais ajoutée deux fois.</div>";
+  else if(!aFaire) etat="<div class='sssf-etat' style='background:#22a06b1f;border:1px solid #22a06b66'><b>Tout est déjà dans SSS OS.</b> Les "+tout.length+" écritures de ce fichier ont déjà été importées : il n’y a rien de nouveau à ajouter.</div>";
+  else etat="<div class='sssf-etat' style='background:#3b82f61a;border:1px solid #3b82f655'><b>"+ap.nouvelles+"</b> nouvelle(s) écriture(s) à ajouter"+(ap.completees?", <b>"+ap.completees+"</b> déjà connue(s) par le relevé PDF qui seront complétée(s)":"")+(ap.deja_presentes?" · <b>"+ap.deja_presentes+"</b> déjà importée(s), ignorée(s)":"")+".</div>";
+  var lignesTab=tout.slice().sort(function(a,b){ return a.date_compta<b.date_compta?-1:a.date_compta>b.date_compta?1:0; });
+  var tab="<div class='sssf-defile'><table class='sssf-tab'><thead><tr><th>Date</th><th>Libellé</th><th style='text-align:right'>Montant</th></tr></thead><tbody>"
+    +lignesTab.map(function(x){ return "<tr><td style='white-space:nowrap'>"+sssFDate(x.date_compta)+"</td><td>"+esc(x.contrepartie||x.libelle||'—')+"</td><td style='text-align:right;white-space:nowrap;font-weight:700;color:"+(x.montant<0?'#e5484d':'#22a06b')+"'>"+(x.montant>0?'+':'')+sssFChf(x.montant)+"</td></tr>"; }).join('')+"</tbody></table></div>";
+  var corps=etat
+    +"<div class='sssf-kpis'>"
+      +kpi('Compte',esc(cpt||'non indiqué'))
+      +kpi('Période',sssFDate(dts[0])+" → "+sssFDate(dts[dts.length-1]))
+      +kpi('Écritures',String(tout.length))
+      +kpi('Débits',deb.length+" · "+sssFChf(som(deb)),'#e5484d')
+      +kpi('Crédits',cre.length+" · "+sssFChf(som(cre)),'#22a06b')
+      +kpi('Fichiers lus / ignorés',nbLus+" lu(s) · "+nbIgn+" ignoré(s)",nbIgn?'#b7791f':null)
+    +"</div>"
+    +"<details"+(nbIgn?" open":"")+"><summary>Fichiers lus ("+nbLus+")"+(nbIgn?" et ignorés ("+nbIgn+")":"")+"</summary><ul>"
+      +r.fichiers.map(function(f){ return li(esc(f.nom)+" — "+(f.format==='csv'?'CSV':'CAMT')+", "+f.lignes+" écriture(s)"); }).join('')
+      +r.pdfLus.map(function(f){ return li(esc(f.nom)+" — relevé PDF du "+sssFDate(f.du)+" au "+sssFDate(f.au)+", "+f.lignes+" écriture(s) ✔ totaux de la banque vérifiés"); }).join('')+"</ul>"
+      +(r.pdfLus.length?"<div style='color:var(--text-2);font-size:12.5px;margin-top:4px'>Les écritures d’un PDF déjà présentes dans un fichier CAMT ne sont comptées qu’une fois.</div>":"")
+      +(nbIgn?"<div style='margin-top:8px;font-weight:700'>Ignorés</div><ul style='color:var(--text-2)'>"+r.ignores.map(function(x){ return li(esc(x)); }).join('')+"</ul>":"")+"</details>"
+    +(r.avertissements.length?"<div style='margin-top:10px;color:#b7791f'>"+r.avertissements.map(esc).join('<br>')+"</div>":"")
+    +"<details><summary>Voir les "+tout.length+" écritures</summary>"+tab+"</details>"
+    +"<div style='font-size:12.5px;color:var(--text-2);margin-top:12px'>Une écriture déjà importée n’est jamais ajoutée deux fois. Rien n’est modifié à la banque.</div>";
+  var pied="<button class='sssf-non' onclick='sssFFermer()'>Annuler</button>"
+    +(aFaire?"<button class='sssf-go' onclick='sssFImporter(this)'>Importer "+aFaire+" écriture(s)</button>":"<button class='sssf-go' disabled>Rien de nouveau à importer</button>");
+  sssFFenetre('Aperçu du relevé bancaire',corps,pied,noms);
 }
 async function sssFImporter(b){
-  if(!SSSF_IMP) return; b.disabled=true; b.textContent='Import en cours…';
+  var imp=SSSF_IMP; if(!imp||imp.enCours) return; imp.enCours=true; b.disabled=true; b.textContent='Import en cours…';
   var res={importees:0,deja_presentes:0,completees:0}, err=null;
-  var envoyer=async function(lignes,source){ for(var i=0;i<lignes.length&&!err;i+=400){ var x=await db.rpc('sss_banque_importer',{p_lignes:lignes.slice(i,i+400),p_source:source,p_lot:SSSF_IMP.lot}); if(x.error){ err=x.error.message; break; } res.importees+=x.data.importees||0; res.deja_presentes+=x.data.deja_presentes||0; res.completees+=x.data.completees||0; } };
-  await envoyer(SSSF_IMP.camt, SSSF_IMP.format==='csv'?'csv':'camt053');
-  if(!err) await envoyer(SSSF_IMP.pdf,'pdf');
+  var envoyer=async function(lignes,source){ for(var i=0;i<lignes.length&&!err;i+=400){ var x=await db.rpc('sss_banque_importer',{p_lignes:lignes.slice(i,i+400),p_source:source,p_lot:imp.lot}); if(x.error){ err=x.error.message; break; } res.importees+=x.data.importees||0; res.deja_presentes+=x.data.deja_presentes||0; res.completees+=x.data.completees||0; } };
+  await envoyer(imp.camt, imp.format==='csv'?'csv':'camt053');
+  if(!err) await envoyer(imp.pdf,'pdf');
   var rp=await db.rpc('sss_rapprocher_factures'); var d=(rp&&rp.data)||{};
-  sssFFenetre("<h3 style='margin-top:0'>"+(err?'Import interrompu':'Relevé importé')+"</h3>"
-    +(err?"<div style='color:#e5484d'>"+esc(err)+"</div>":"")
-    +"<div style='font-size:13.5px;line-height:1.7'>"+res.importees+" mouvement(s) ajouté(s)"+(res.completees?", "+res.completees+" complété(s)":"")+", "+res.deja_presentes+" déjà présent(s).</div>"
-    +"<div style='font-size:13.5px;line-height:1.7'>Rapprochement des factures reçues : <b>"+(d.payees||0)+"</b> payée(s), <b>"+(d.ouvertes||0)+"</b> ouverte(s), <b>"+(d.a_verifier||0)+"</b> à vérifier"+(d.releves_du?" (relevés du "+sssFDate(d.releves_du)+" au "+sssFDate(d.releves_au)+")":"")+".</div>"
-    +"<div style='margin-top:14px'><button class='btn' style='width:auto;padding:8px 16px' onclick='sssFFermer();sssFinancesBloc()'>Fermer</button></div>");
+  SSSF_IMP=null;
+  sssFFenetre(err?'Import interrompu':'Relevé importé',
+    (err?"<div class='sssf-etat' style='background:#e5484d1a;border:1px solid #e5484d66;color:#e5484d'>"+esc(err)+"</div>":"")
+    +"<div style='line-height:1.7'><b>"+res.importees+"</b> écriture(s) ajoutée(s)"+(res.completees?", <b>"+res.completees+"</b> complétée(s)":"")+", "+res.deja_presentes+" déjà présente(s).</div>"
+    +"<div style='line-height:1.7'>Rapprochement des factures reçues : <b>"+(d.payees||0)+"</b> payée(s), <b>"+(d.ouvertes||0)+"</b> ouverte(s), <b>"+(d.a_verifier||0)+"</b> à vérifier"+(d.releves_du?" (relevés du "+sssFDate(d.releves_du)+" au "+sssFDate(d.releves_au)+")":"")+".</div>",
+    "<button class='sssf-go' onclick='sssFFermer();sssFinancesBloc()'>Fermer</button>");
 }
 (function(){
   try{ var _rc=renderControle; renderControle=async function(){ var r=await _rc.apply(this,arguments); try{
@@ -5005,6 +5080,447 @@ async function sssIaEnvoyer(texte){
 })();
 
 /* SSS-IA-FIN */
+
+/* SSS-MARGES-DEBUT */
+/* ==========================================================================
+   SSS OS — « Prix d'achat SSS » et « Coûts & Marges SSS » (super administrateur seul, migration 0018).
+   • Prix SSS et prix MSB / sous-traitance dans deux espaces séparés ; un prix MSB n'entre JAMAIS dans la marge
+     d'un projet vendu directement par SSS (la base le refuse).
+   • Chaque ligne de coût d'un projet garde la PHOTO du prix (prix, devise, date, source, taux EUR/CHF) au moment
+     de l'ajout : un changement du catalogue ne modifie jamais un ancien projet.
+   • Tout est HT ; un poste ni renseigné ni confirmé « aucun coût » → « marge incomplète », jamais de marge inventée.
+   Fenêtres : sssFFenetre / sssFFermer (module sss-finances.js, fenêtre opaque).
+   ========================================================================== */
+var SSSM={filtre:'vendus', q:'', sel:null, data:null, prixTab:'sss', pq:'', pcat:'', inactifs:false};
+var SSSM_POSTES=[['materiel','Matériel'],['transport','Transport / douane'],['main_oeuvre','Main-d’œuvre interne'],['sous_traitance','Sous-traitance'],['echafaudage','Échafaudage'],['admin','Démarches / admin'],['autre','Autres coûts']];
+var SSSM_NATURE={direct_sss:['Direct SSS','#22a06b'],sous_traitance_msb:['Sous-traitance MSB','#8a5cf6'],energy_leman:['Energy Léman','#8a5cf6'],autre_partenaire:['Autre partenaire','#8a5cf6'],a_verifier:['Nature à vérifier','#e0a52b']};
+var SSSM_ETAPE={vendu:'Vendu',rdv_honore:'Offre en cours',lead:'Prospect',perdu:'Perdu'};
+var SSSM_MARGES=[10,20,25,30,35,40];
+function sssMChf(n,dev){ if(n==null||n===''||isNaN(Number(n))) return '—'; return (dev||'CHF')+' '+Number(n).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function sssMNum(s){ if(s==null) return NaN; s=String(s).replace(/[’'\s]/g,'').replace(',','.'); return s===''?NaN:Number(s); }
+function sssMDate(d){ if(!d) return '—'; try{ return new Date((''+d).length<=10?d+'T12:00:00':d).toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return ''+d; } }
+function sssMPast(t,c){ return "<span class='sssm-past' style='background:"+c+"22;color:"+c+"'>"+esc(t)+"</span>"; }
+function sssMJs(s){ return (''+(s==null?'':s)).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function sssMTaux(t){ return t?("1 EUR = "+Number(t.taux_chf).toLocaleString('de-CH',{minimumFractionDigits:4,maximumFractionDigits:5})+" CHF ("+(t.date?'taux du '+sssMDate(t.date):'')+")"):'aucun taux EUR/CHF défini'; }
+var SSSM_CSS=""
+  +".sssm{max-width:1100px;text-align:left}.sssm .card{text-align:left}"
+  +".sssm-past{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}"
+  +".sssm-bloc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}"
+  +".sssm-bloc h3{margin:0 0 10px;font-size:15px}"
+  +".sssm-in{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg-2,transparent);color:var(--text);font-size:14px;min-width:0;box-sizing:border-box}"
+  +".sssm-filtres{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}"
+  +".sssm-filtres button{width:auto;padding:6px 12px;font-size:12.5px;min-height:36px}"
+  +".sssm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}"
+  +".sssm-kpi{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--card)}.sssm-kpi span{display:block;font-size:11.5px;color:var(--text-3)}.sssm-kpi b{font-size:16px}"
+  +".sssm-row{display:grid;grid-template-columns:minmax(0,2.4fr) repeat(5,minmax(0,1fr)) minmax(0,1.3fr);gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);cursor:pointer;font-size:13px}"
+  +".sssm-row:hover{background:rgba(127,127,127,.07)}.sssm-row.tete{cursor:default;font-size:11.5px;color:var(--text-3);font-weight:600;background:none}"
+  +".sssm-row .n{text-align:right;white-space:nowrap}.sssm-row small{color:var(--text-3)}"
+  +".sssm-art{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.1fr) minmax(0,1.2fr) minmax(0,1.2fr) auto;gap:8px;align-items:center;padding:9px 10px;border-top:1px solid var(--line);font-size:13px}"
+  +".sssm-art.off{opacity:.55}.sssm-art small{color:var(--text-3);display:block}"
+  +".sssm-calc{width:100%;border-collapse:collapse;font-size:13px}.sssm-calc td{padding:6px 6px;border-top:1px solid var(--line)}.sssm-calc td.n{text-align:right;white-space:nowrap;font-weight:700}"
+  +".sssm-ligne{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,2fr) minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}"
+  +".sssm-ligne small{color:var(--text-3);display:block}"
+  +".sssm-ajout{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}"
+  +".sssm-ajout .sssm-in{flex:1 1 140px}"
+  +".sssm-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}"
+  +".sssm-grille label{font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:4px}"
+  +".sssm-warn{border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13.5px;background:#e0a52b1f;border:1px solid #e0a52b66}"
+  +".sssm-ok{border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13.5px;background:#22a06b1a;border:1px solid #22a06b55}"
+  +"@media (max-width:760px){.sssm-row{grid-template-columns:repeat(2,minmax(0,1fr))}.sssm-row>div:first-child{grid-column:1/-1}.sssm-row.tete{display:none}"
+  +".sssm-row .n{text-align:left}.sssm-row .n:before{content:attr(data-l);display:block;font-size:11px;color:var(--text-3);font-weight:400}"
+  +".sssm-art{grid-template-columns:1fr 1fr}.sssm-art>div:first-child{grid-column:1/-1}.sssm-ligne{grid-template-columns:1fr auto}.sssm-ligne>div:nth-child(2),.sssm-ligne>div:nth-child(3){grid-column:1/2}"
+  +".sssm-grille{grid-template-columns:1fr}}";
+function sssMStyle(){ if(document.getElementById('sssm-style')) return; var s=document.createElement('style'); s.id='sssm-style'; s.textContent=SSSM_CSS; document.head.appendChild(s); }
+
+/* ------------------------------------------------------------------ calculateur (HT) */
+function sssMCalc(cout,pv){
+  cout=Number(cout); pv=(pv==null||pv==='')?null:Number(pv);
+  if(!(cout>0)) return "<div style='color:var(--text-3);font-size:13px'>Indique un coût total HT pour obtenir les prix.</div>";
+  var h="<table class='sssm-calc'><tr><td>Prix minimum pour ne pas perdre d’argent (marge 0 %)</td><td class='n'>"+sssMChf(cout)+"</td><td class='n' style='color:var(--text-3);font-weight:400'>coef 1.00</td></tr>";
+  SSSM_MARGES.forEach(function(m){ var p=cout/(1-m/100); h+="<tr><td>Prix de vente HT pour <b>"+m+" %</b> de marge</td><td class='n'>"+sssMChf(Math.ceil(p*100)/100)+"</td><td class='n' style='color:var(--text-3);font-weight:400'>coef "+(1/(1-m/100)).toFixed(2)+"</td></tr>"; });
+  h+="</table>";
+  if(pv!=null && pv>0){ var mg=pv-cout, pct=mg/pv*100, c=mg<0?'#e5484d':(pct<20?'#e0a52b':'#22a06b');
+    h+="<div style='margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid "+c+"66;background:"+c+"14;font-size:14px'>Avec ton prix actuel de <b>"+sssMChf(pv)+"</b> HT : marge réelle <b style='color:"+c+"'>"+sssMChf(mg)+" · "+pct.toFixed(1)+" %</b> · coefficient <b>"+(pv/cout).toFixed(2)+"</b>"+(mg<0?" — <b style='color:#e5484d'>tu perds de l’argent</b>":"")+"</div>"; }
+  return h+"<div style='font-size:11.5px;color:var(--text-3);margin-top:6px'>Marge % = marge brute ÷ prix de vente HT. Coefficient = prix de vente HT ÷ coût HT. Tout est hors TVA : la TVA n’est pas du bénéfice.</div>";
+}
+function sssMCalcLibre(){ var c=sssMNum((document.getElementById('sssm-cc')||{}).value), p=sssMNum((document.getElementById('sssm-cp')||{}).value); var o=document.getElementById('sssm-cr'); if(o) o.innerHTML=sssMCalc(isNaN(c)?0:c,isNaN(p)?null:p); }
+
+/* ------------------------------------------------------------------ Coûts & Marges : liste */
+async function renderMarges(){
+  var m=document.getElementById('main'); if(!m) return; sssMStyle();
+  if(!sssPatron()){ go(serviceDefault(SERVICE)); return; }
+  if(SSSM.sel) return renderMargeProjet(SSSM.sel);
+  m.innerHTML="<div class='sssm'><div class='page-head'><h2>Coûts & Marges SSS</h2></div><div class='loading'>Chargement…</div></div>";
+  var R=await Promise.all([db.rpc('sss_marges_projets'), db.rpc('sss_perimetre_projets')]); if(VIEW!=='marges'||SSSM.sel) return;
+  var r=R[0]; if(r.error){ m.innerHTML="<div class='sssm'><div class='page-head'><h2>Coûts & Marges SSS</h2></div><div class='msg err' style='display:block'>"+esc(r.error.message)+"</div></div>"; return; }
+  SSSM.data=r.data||{}; SSSM.perim=R[1].data||null; sssMListe();
+}
+var SSSM_FILTRES={vendus:function(p){ return p.nature==='direct_sss'&&p.etape==='vendu'; }, offres:function(p){ return p.nature==='direct_sss'&&(p.etape==='rdv_honore'||p.etape==='lead'); },
+  directs:function(p){ return p.nature==='direct_sss'; }, verifier:function(p){ return p.nature==='a_verifier'; }, msb:function(p){ return p.nature==='sous_traitance_msb'; },
+  el:function(p){ return p.nature==='energy_leman'; }, autre:function(p){ return p.nature==='autre_partenaire'; }};
+function sssMFiltrer(l){
+  var f=SSSM_FILTRES[SSSM.filtre]||SSSM_FILTRES.vendus, q=(SSSM.q||'').toLowerCase();
+  return l.filter(function(p){ return f(p) && (!q || ((p.libelle||'')+' '+(p.client||'')+' '+(p.localite||'')+' '+(p.offre||'')).toLowerCase().indexOf(q)>=0); });
+}
+function sssMPerimetre(){
+  var P=SSSM.perim; if(!P) return '';
+  var n=P.actifs_par_nature||{}, v=function(k,c){ return ((n[k]||{})[c])||0; };
+  var ligne=function(k){ var x=n[k]; if(!x) return ''; return "<tr><td><b>"+esc((SSSM_NATURE[k]||[k])[0])+"</b></td><td class='n'>"+x.total+"</td><td class='n'>"+x.vendus+"</td><td class='n'>"+x.offres_en_cours+"</td><td class='n'>"+x.prospects+"</td><td class='n'>"+(x.perdus+x.autres)+"</td></tr>"; };
+  return "<details class='sssm-bloc'><summary style='cursor:pointer;font-weight:700'>Périmètre : "+P.total+" projets en base = "+P.actifs+" actifs + "+P.fusionnes+" fusionnés + "+P.hors_cible_archives+" hors cible (archivés)</summary>"
+    +"<table class='sssm-calc' style='margin-top:8px'><tr style='color:var(--text-3)'><td>Projets actifs</td><td class='n' style='font-weight:400'>total</td><td class='n' style='font-weight:400'>vendus</td><td class='n' style='font-weight:400'>offres en cours</td><td class='n' style='font-weight:400'>prospects</td><td class='n' style='font-weight:400'>perdus / autres</td></tr>"
+    +['direct_sss','sous_traitance_msb','energy_leman','autre_partenaire','a_verifier'].map(ligne).join('')+"</table>"
+    +"<div style='font-size:12px;color:var(--text-3);margin-top:6px'>Fusionnés = doublons rattachés à un autre dossier par tes décisions ; hors cible = sans échange depuis des mois ou écartés au rangement. Aucun projet n’est supprimé.</div></details>";
+}
+function sssMListe(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='marges') return;
+  var d=SSSM.data||{}, tous=d.projets||[], l=sssMFiltrer(tous), te=d.taux_eur, st=['msb','el','autre'].indexOf(SSSM.filtre)>=0;
+  var cpt=function(k){ return tous.filter(SSSM_FILTRES[k]).length; };
+  var F=[['vendus','Vendus (directs SSS)'],['offres','Offres en cours'],['directs','Tous les directs SSS'],['verifier','Nature à vérifier'],['msb','Sous-traitance MSB'],['el','Energy Léman'],['autre','Autre partenaire']]
+        .map(function(x){ return [x[0],x[1],cpt(x[0])]; }).filter(function(x){ return x[2]>0||['vendus','offres','directs'].indexOf(x[0])>=0||SSSM.filtre===x[0]; });
+  var comp=l.filter(function(p){ return p.complet; }), ca=comp.reduce(function(a,p){ return a+Number(p.prix_vente_ht||0); },0), ct=comp.reduce(function(a,p){ return a+Number(p.cout_total||0); },0);
+  var h="<div class='sssm'><div class='page-head'><h2>Coûts & Marges SSS</h2><div class='spacer'></div><button class='btn-out' style='width:auto;padding:7px 14px;font-size:13px' onclick=\"go('prix_sss')\">🏷 Prix d’achat SSS</button></div>"
+    +"<div style='font-size:12.5px;color:var(--text-3);margin:-4px 0 12px'>Montants HT, TVA exclue · "+esc(sssMTaux(te))+(te&&te.source?" — "+esc(te.source):"")+" · visible par toi seul</div>";
+  h+=sssMPerimetre();
+  h+="<div class='sssm-bloc'><h3>🧮 Calculateur rapide</h3><div class='sssm-ajout' style='margin:0 0 10px'><label style='flex:1 1 180px;font-size:12px;color:var(--text-2)'>Coût total HT (CHF)<input id='sssm-cc' class='sssm-in' style='width:100%' inputmode='decimal' placeholder='ex. 18 500' oninput='sssMCalcLibre()'></label>"
+    +"<label style='flex:1 1 180px;font-size:12px;color:var(--text-2)'>Prix de vente actuel HT (CHF, facultatif)<input id='sssm-cp' class='sssm-in' style='width:100%' inputmode='decimal' placeholder='ex. 26 000' oninput='sssMCalcLibre()'></label></div><div id='sssm-cr'>"+sssMCalc(0)+"</div></div>";
+  h+="<div class='sssm-filtres'>"+F.map(function(x){ return "<button class='"+(SSSM.filtre===x[0]?'btn':'btn-out')+"' onclick=\"SSSM.filtre='"+x[0]+"';sssMListe()\">"+x[1]+" ("+x[2]+")</button>"; }).join('')+"</div>";
+  if(st) h+="<div class='sssm-warn'>Sous-traitance (historique). Ces chantiers ne sont <b>pas</b> comptés dans les marges SSS ; « Facturé » = ce que SSS a facturé au donneur d’ordre (Bexio).</div>";
+  if(SSSM.filtre==='verifier') h+="<div class='sssm-warn'>Clients entreprise : direct SSS ou sous-traitance ? Ouvre la fiche et choisis la nature ; tant qu’elle n’est pas choisie, ils ne comptent nulle part.</div>";
+  h+="<div class='sssm-kpis'><div class='sssm-kpi'><span>Projets</span><b>"+l.length+"</b></div><div class='sssm-kpi'><span>Marge complète</span><b>"+comp.length+" / "+l.length+"</b></div>"
+    +"<div class='sssm-kpi'><span>Ventes HT (projets complets)</span><b>"+sssMChf(ca)+"</b></div><div class='sssm-kpi'><span>Coûts HT (projets complets)</span><b>"+sssMChf(ct)+"</b></div>"
+    +"<div class='sssm-kpi'><span>Marge brute (projets complets)</span><b style='color:"+(ca-ct<0?'#e5484d':'#22a06b')+"'>"+(comp.length?sssMChf(ca-ct)+(ca>0?" · "+((ca-ct)/ca*100).toFixed(1)+" %":""):'—')+"</b></div></div>";
+  var nPv=l.filter(function(p){ return p.prix_vente_certitude!=='certain'; }).length;
+  if(l.length>comp.length) h+="<div class='sssm-warn'><b>"+(l.length-comp.length)+" projet(s) avec marge incomplète</b> : poste de coût non renseigné"+(nPv?", ou prix de vente à vérifier / manquant ("+nPv+")":"")+". Ils ne sont pas comptés dans les totaux.</div>";
+  h+="<input class='sssm-in' style='width:100%;margin-bottom:8px' placeholder='Chercher un projet, un client, une offre…' value=\""+esc(SSSM.q)+"\" oninput=\"SSSM.q=this.value;clearTimeout(window._sssmT);window._sssmT=setTimeout(function(){ sssMListe(); var i=document.querySelector('.sssm input[placeholder^=Chercher]'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },250)\">";
+  h+="<div class='sssm-bloc' style='padding:0;overflow:hidden'><div class='sssm-row tete'><div>Projet</div><div class='n'>"+(st?'Facturé (Bexio)':'Vente HT')+"</div><div class='n'>Coût HT</div><div class='n'>Marge CHF</div><div class='n'>Marge %</div><div class='n'>Coef.</div><div>État</div></div>";
+  if(!l.length) h+="<div class='empty' style='padding:16px'>Aucun projet dans ce filtre.</div>";
+  h+=l.slice(0,400).map(function(p){
+    var et=p.complet?sssMPast('Complète','#22a06b'):sssMPast('Marge incomplète','#e0a52b');
+    var raisons=[]; if(p.prix_vente_certitude==='a_verifier') raisons.push('prix à vérifier'); else if(p.prix_vente_certitude!=='certain') raisons.push('prix de vente manquant'); if((p.manquants||[]).length) raisons.push(p.manquants.length+' poste(s) à renseigner');
+    var manq=!p.complet&&raisons.length?"<small style='display:block;margin-top:2px'>"+raisons.join(' · ')+"</small>":'';
+    if(p.complet&&p.taux_estime) manq="<small style='display:block;margin-top:2px'>EUR au taux du catalogue (estimation)</small>";
+    var pc=p.marge_pct, c=pc==null?'inherit':(pc<0?'#e5484d':(pc<20?'#e0a52b':'#22a06b'));
+    return "<div class='sssm-row' onclick=\"SSSM.sel='"+sssMJs(p.id)+"';renderMarges()\"><div><b>"+esc(p.libelle||'Projet')+"</b><small style='display:block'>"+esc([p.client,p.localite,SSSM_ETAPE[p.etape]||p.etape,p.offre].filter(Boolean).join(' · '))+"</small>"
+      +(p.nature!=='direct_sss'?sssMPast((SSSM_NATURE[p.nature]||[p.nature])[0],(SSSM_NATURE[p.nature]||[0,'#888'])[1]):'')+"</div>"
+      +"<div class='n' data-l='"+(st?'Facturé (Bexio)':'Vente HT')+"'>"+(st?sssMChf(p.facture_total):sssMChf(p.prix_vente_ht)+(p.prix_vente_ht!=null&&p.prix_vente_certitude!=='certain'?" <span title='prix à vérifier' style='color:#e0a52b'>?</span>":""))+"</div><div class='n' data-l='Coût HT'>"+(p.nb_lignes?sssMChf(p.cout_total):'—')+"</div>"
+      +"<div class='n' data-l='Marge CHF' style='color:"+c+"'>"+(p.marge!=null?sssMChf(p.marge):'—')+"</div><div class='n' data-l='Marge %' style='color:"+c+";font-weight:700'>"+(pc!=null?pc.toFixed(1)+' %':'—')+"</div>"
+      +"<div class='n' data-l='Coef.'>"+(p.coefficient!=null?Number(p.coefficient).toFixed(2):'—')+"</div><div>"+et+manq+"</div></div>"; }).join('');
+  m.innerHTML=h+"</div></div>";
+}
+
+/* ------------------------------------------------------------------ Coûts & Marges : fiche d'un projet */
+var SSSM_TAUXSRC={banque:['taux réel de la banque','#22a06b'],catalogue:['estimation : taux du catalogue','#e0a52b'],saisi:['taux saisi','#3b82f6']};
+async function renderMargeProjet(id){
+  var m=document.getElementById('main'); if(!m) return; sssMStyle();
+  if(!m.querySelector('#sssm-fiche')) m.innerHTML="<div class='sssm'><div class='page-head'><h2>Coûts & Marges SSS</h2></div><div class='loading'>Chargement…</div></div>";
+  var R=await Promise.all([db.rpc('sss_marge_projet',{p_id:id}), db.from('projet_cout_lignes').select('*').eq('affaire_id',id).order('created_at'), db.from('projet_couts').select('*').eq('affaire_id',id).maybeSingle(),
+                           db.from('prix_articles').select('id,espace,categorie,marque,modele,designation,fournisseur,unite,prix_ht,devise,date_prix,eco_participation,actif').eq('actif',true).order('categorie').order('marque').order('modele'),
+                           db.rpc('sss_prix_vente',{p_id:id}), db.from('taux_change').select('*').order('date_taux',{ascending:false}).limit(1)]);
+  if(VIEW!=='marges'||SSSM.sel!==id) return;
+  var err=R.map(function(x){ return x.error&&x.error.message; }).filter(Boolean)[0]; if(err){ m.innerHTML="<div class='sssm'><div class='msg err' style='display:block'>"+esc(err)+"</div></div>"; return; }
+  var p=R[0].data; if(!p){ SSSM.sel=null; return renderMarges(); }
+  var lignes=R[1].data||[], pc=R[2].data||{}, arts=R[3].data||[], pv0=(Array.isArray(R[4].data)?R[4].data[0]:R[4].data)||{}, t0=(R[5].data||[])[0], te=t0?{taux_chf:t0.taux_chf,date:t0.date_taux}:null;
+  var st=['sous_traitance_msb','energy_leman','autre_partenaire'].indexOf(p.nature)>=0;
+  SSSM.arts=arts; SSSM.fiche={id:id,p:p,pv:pv0,lignes:lignes};
+  var h="<div class='sssm' id='sssm-fiche'><div class='page-head'><button class='btn-out' style='width:auto;padding:7px 12px;font-size:13px' onclick=\"SSSM.sel=null;renderMarges()\">← Tous les projets</button><div class='spacer'></div><span style='font-size:12px;color:var(--text-3)'>HT · TVA exclue</span></div>";
+  h+="<div class='sssm-bloc'><div style='display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start'><div style='flex:1 1 260px;min-width:0'><h3 style='margin-bottom:4px;font-size:18px'>"+esc(p.libelle||'Projet')+"</h3>"
+    +"<div style='font-size:13px;color:var(--text-2)'>"+esc([p.client,p.localite,SSSM_ETAPE[p.etape]||p.etape,p.offre?('offre '+p.offre):'',p.date_signature?('signé le '+sssMDate(p.date_signature)):''].filter(Boolean).join(' · '))+"</div></div>"
+    +"<label style='font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:4px;flex:0 1 280px'>Nature du projet<select class='sssm-in' onchange=\"sssMNature('"+id+"',this.value)\">"
+      +"<option value=''"+(!pc.nature?' selected':'')+">Automatique — "+esc((SSSM_NATURE[p.nature]||[p.nature])[0])+"</option>"
+      +[['direct_sss','Direct Swiss Solar System'],['sous_traitance_msb','Sous-traitance My Solar Battery'],['energy_leman','Sous-traitance Energy Léman'],['autre_partenaire','Autre partenaire']].map(function(o){ return "<option value='"+o[0]+"'"+(pc.nature===o[0]?' selected':'')+">"+o[1]+"</option>"; }).join('')
+    +"</select><span style='font-size:11.5px;color:var(--text-3)'>"+esc(p.nature_raison||'')+"</span></label></div>";
+  if(st) h+="<div class='sssm-warn' style='margin:10px 0 0'>Chantier de sous-traitance : il ne compte pas dans les marges SSS. Les prix MSB sont autorisés ici seulement.</div>";
+  if(p.avec_prix_msb && !st) h+="<div class='sssm-warn' style='margin:10px 0 0;border-color:#e5484d;color:#e5484d'>Ce projet contient une ligne au prix MSB alors qu’il est direct SSS : remplace-la par un prix SSS.</div>";
+  h+="</div>";
+  // résultat
+  var pv=p.prix_vente_ht, cert=p.prix_vente_certitude, manq=(p.manquants||[]).map(function(k){ return (SSSM_POSTES.filter(function(x){ return x[0]===k; })[0]||[k,k])[1]; });
+  var certP=cert==='certain'?sssMPast('certain','#22a06b'):(cert==='a_verifier'?sssMPast('à vérifier','#e0a52b'):sssMPast('manquant','#e5484d'));
+  h+="<div class='sssm-bloc'><h3>Résultat</h3><div class='sssm-kpis'>"
+    +"<div class='sssm-kpi'><span>Prix de vente HT "+certP+"</span><b>"+sssMChf(pv)+"</b><span>"+esc(p.prix_vente_source||'à saisir')+"</span></div>"
+    +"<div class='sssm-kpi'><span>Coût total HT"+(p.complet?'':' (saisi à ce jour)')+"</span><b>"+sssMChf(p.cout_total)+"</b>"+(p.taux_estime?"<span style='color:#e0a52b'>dont EUR au taux du catalogue (estimation)</span>":"")+"</div>"
+    +"<div class='sssm-kpi'><span>Marge brute</span><b style='color:"+(p.marge==null?'inherit':(p.marge<0?'#e5484d':'#22a06b'))+"'>"+(p.marge!=null?sssMChf(p.marge):'incomplète')+"</b></div>"
+    +"<div class='sssm-kpi'><span>Marge %</span><b>"+(p.marge_pct!=null?Number(p.marge_pct).toFixed(1)+' %':'—')+"</b></div>"
+    +"<div class='sssm-kpi'><span>Coefficient vente / achat</span><b>"+(p.coefficient!=null?Number(p.coefficient).toFixed(2):'—')+"</b></div></div>";
+  if(!p.complet){ var r=[]; if(cert==='a_verifier') r.push('Prix de vente à vérifier : '+esc(p.prix_vente_source||'')); else if(cert!=='certain') r.push('Prix de vente manquant.');
+    if(manq.length) r.push('Postes non renseignés : '+esc(manq.join(', '))+'. Ajoute leurs coûts ou coche « aucun coût » si le poste ne s’applique pas.');
+    h+="<div class='sssm-warn'><b>Marge incomplète.</b> "+r.join('<br>')+"</div>"; }
+  // choix de l'offre signée quand plusieurs variantes ont été envoyées
+  var vars=(pv0.detail&&pv0.detail.variantes)||[];
+  if(cert==='a_verifier' && vars.length>1 && pc.prix_vente_ht==null){
+    h+="<div style='font-size:13px;margin:4px 0 6px'><b>Quelle offre a été signée ?</b> (prix de vente = montant HT de l’offre)</div><div class='sssm-ajout' style='margin-top:0'>"
+      +vars.map(function(o,i){ return "<button class='btn-out' style='width:auto;padding:7px 12px;font-size:12.5px' onclick='sssMOffreChoisie(\""+id+"\","+i+")'>"+esc(o.numero||'offre')+" — "+sssMChf(o.ht)+(o.envoyee_le?" · envoyée le "+sssMDate((''+o.envoyee_le).slice(0,10)):"")+"</button>"; }).join('')+"</div>"; }
+  h+="<div class='sssm-ajout'><label style='font-size:12px;color:var(--text-2);flex:1 1 220px'>Prix de vente HT (offre signée, contrat…) — CHF<input id='sssm-pv' class='sssm-in' style='width:100%' inputmode='decimal' value=\""+(pc.prix_vente_ht!=null?pc.prix_vente_ht:'')+"\" placeholder='"+(pc.prix_vente_ht==null&&pv!=null?'automatique : '+pv:'ex. 24 500')+"'></label>"
+    +"<label style='font-size:12px;color:var(--text-2);flex:2 1 220px'>Source (n° d’offre, contrat…)<input id='sssm-pvs' class='sssm-in' style='width:100%' value=\""+esc(pc.prix_vente_ht!=null?(pc.prix_vente_source||''):'')+"\" placeholder='ex. offre AN-00354 signée le …'></label>"
+    +"<button class='btn' style='width:auto;padding:9px 16px;align-self:flex-end' onclick=\"sssMPv('"+id+"')\">Enregistrer</button>"
+    +(pc.prix_vente_ht!=null?"<button class='btn-out' style='width:auto;padding:9px 14px;align-self:flex-end' onclick=\"sssMPv('"+id+"',true)\">Revenir au prix automatique</button>":"")
+    +"<div style='flex:1 1 100%;font-size:11.5px;color:var(--text-3)'>Ordre suivi : offre acceptée ou confirmée par un acompte, dernière offre envoyée (PDF / e-mail), contrat ; les factures Bexio ne servent qu’en dernier recours et restent « à vérifier » (souvent des acomptes).</div></div></div>";
+  // calculateur sur ce projet
+  h+="<div class='sssm-bloc'><h3>🧮 Calculateur sur ce projet</h3>"+(p.complet?'':"<div class='sssm-warn'>Calcul sur les coûts saisis à ce jour : tant que la marge est incomplète, les prix ci-dessous sont trop bas.</div>")+sssMCalc(p.cout_total,pv)+"</div>";
+  // postes
+  var so=pc.postes_sans_objet||[];
+  SSSM_POSTES.forEach(function(ps){ var k=ps[0], li=lignes.filter(function(x){ return x.poste===k; }), tot=li.reduce(function(a,x){ return a+Number(x.montant_chf||0); },0), sans=so.indexOf(k)>=0;
+    var etat=li.length?sssMPast('renseigné','#22a06b'):(sans?sssMPast('aucun coût','#8a8f98'):sssMPast('à renseigner','#e0a52b'));
+    h+="<div class='sssm-bloc'><div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px'><h3 style='margin:0'>"+ps[1]+"</h3>"+etat+"<div class='spacer' style='flex:1'></div><b>"+sssMChf(tot)+"</b></div>";
+    h+=li.map(function(x){ var eur=x.devise==='EUR', ts=SSSM_TAUXSRC[x.taux_source]||SSSM_TAUXSRC.catalogue;
+      return "<div class='sssm-ligne'><div><b>"+esc(x.libelle)+"</b><small>"+esc(x.source_prix||'saisie manuelle')+(x.date_prix?' · prix du '+sssMDate(x.date_prix):'')+(x.espace_prix==='msb'?' · PRIX MSB':'')+"</small></div>"
+        +"<div>"+Number(x.quantite).toLocaleString('de-CH')+" × "+sssMChf(x.prix_unitaire,x.devise)+(Number(x.eco_participation)?" + éco "+sssMChf(x.eco_participation,x.devise):"")
+        +(eur?"<small>× "+Number(x.taux_chf).toFixed(4)+" CHF/EUR du "+sssMDate(x.taux_date)+" · <span style='color:"+ts[1]+"'>"+ts[0]+"</span>"+(x.taux_preuve&&x.taux_source==='banque'?"<br>"+esc(x.taux_preuve):"")+"</small>":"")+"</div>"
+        +"<div style='text-align:right;font-weight:700;white-space:nowrap'>"+sssMChf(x.montant_chf)+"</div>"
+        +"<div style='white-space:nowrap'>"+(eur?"<button class='iconbtn' title='Taux réel de la banque' onclick=\"sssMTauxReel('"+x.id+"','"+id+"')\">💱</button>":"")+"<button class='iconbtn' title='Modifier la quantité' onclick=\"sssMQte('"+x.id+"','"+id+"',"+Number(x.quantite)+")\">✏️</button><button class='iconbtn' title='Retirer' onclick=\"sssMSuppr('"+x.id+"','"+id+"')\">🗑</button></div></div>"; }).join('');
+    // ajout depuis le catalogue (matériel, transport) ou coût libre
+    var cat=arts.filter(function(a){ return (a.espace==='sss'||st) && (k==='transport'?a.categorie==='Transport / douane':(k==='materiel'?a.categorie!=='Transport / douane':false)); });
+    if(cat.length){ var grp={}; cat.forEach(function(a){ var g=(a.espace==='msb'?'Prix MSB (sous-traitance) — ':'')+a.categorie; (grp[g]=grp[g]||[]).push(a); });
+      h+="<div class='sssm-ajout'><select id='sssm-a-"+k+"' class='sssm-in' style='flex:3 1 260px'><option value=''>Ajouter depuis le catalogue SSS…</option>"
+        +Object.keys(grp).map(function(g){ return "<optgroup label=\""+esc(g)+"\">"+grp[g].map(function(a){ return "<option value='"+a.id+"'>"+esc([a.marque,a.modele].filter(Boolean).join(' '))+" — "+sssMChf(a.prix_ht,a.devise)+(a.unite&&a.unite!=='pce'?' / '+esc(a.unite):'')+"</option>"; }).join('')+"</optgroup>"; }).join('')
+        +"</select><input id='sssm-q-"+k+"' class='sssm-in' style='flex:0 1 90px' inputmode='decimal' value='1' aria-label='Quantité'><button class='btn' style='width:auto;padding:8px 14px' onclick=\"sssMAjoutCat('"+id+"','"+k+"')\">Ajouter</button></div>"; }
+    h+="<div class='sssm-ajout'><input id='sssm-l-"+k+"' class='sssm-in' style='flex:3 1 200px' placeholder='"+(k==='main_oeuvre'?'ex. Pose 2 personnes × 2 jours (heures)':k==='echafaudage'?'ex. Échafaudage façade sud':'Coût libre (libellé)')+"'>"
+      +"<input id='sssm-lq-"+k+"' class='sssm-in' style='flex:0 1 80px' inputmode='decimal' value='1' aria-label='Quantité'>"
+      +"<input id='sssm-lp-"+k+"' class='sssm-in' style='flex:1 1 110px' inputmode='decimal' placeholder='Prix unitaire HT'>"
+      +"<select id='sssm-ld-"+k+"' class='sssm-in' style='flex:0 1 80px'><option>CHF</option><option>EUR</option></select>"
+      +"<button class='btn-out' style='width:auto;padding:8px 14px' onclick=\"sssMAjoutLibre('"+id+"','"+k+"')\">Ajouter</button></div>";
+    if(!li.length) h+="<label style='display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;cursor:pointer'><input type='checkbox' "+(sans?'checked':'')+" onchange=\"sssMSansObjet('"+id+"','"+k+"',this.checked)\"> Aucun coût pour ce poste sur ce projet</label>";
+    h+="</div>"; });
+  if(lignes.some(function(x){ return x.devise==='EUR'; })) h+="<div class='sssm-bloc' style='font-size:13px'>EUR : chaque ligne garde le taux de son ajout. Le <b>taux réel de la banque</b> (💱 sur la ligne) remplace l’estimation du catalogue dès que le paiement est connu. Taux du catalogue actuel : "+esc(sssMTaux(te))+". <button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px;margin-left:6px' onclick=\"sssMRetaux('"+id+"')\">Estimations : recalculer au taux du catalogue actuel</button></div>";
+  m.innerHTML=h+"</div>";
+}
+async function sssMFiche(id,q){ var r=await q; if(r&&r.error){ alert(r.error.message); } renderMargeProjet(id); return r; }
+async function sssMCouts(id,patch){ var r=await db.from('projet_couts').upsert(Object.assign({affaire_id:id},patch),{onConflict:'affaire_id'}).select('affaire_id'); return r; }
+function sssMNature(id,v){ sssMFiche(id,sssMCouts(id,{nature:v||null})); }
+function sssMPv(id,reset){ var v=reset?null:sssMNum((document.getElementById('sssm-pv')||{}).value); if(!reset && (isNaN(v)||v<0)){ alert('Prix de vente HT invalide'); return; }
+  var s=reset?null:(((document.getElementById('sssm-pvs')||{}).value||'').trim()||('saisi par toi le '+new Date().toLocaleDateString('fr-CH')));
+  sssMFiche(id,sssMCouts(id,{prix_vente_ht:v,prix_vente_source:s})); }
+function sssMOffreChoisie(id,i){ var f=SSSM.fiche||{}, o=(((f.pv||{}).detail||{}).variantes||[])[i]; if(!o) return;
+  sssMFiche(id,sssMCouts(id,{prix_vente_ht:Number(o.ht),prix_vente_source:'offre '+(o.numero||'')+' signée (choisie par toi le '+new Date().toLocaleDateString('fr-CH')+')'})); }
+async function sssMSansObjet(id,k,on){ var r=await db.from('projet_couts').select('postes_sans_objet').eq('affaire_id',id).maybeSingle(); var so=((r.data||{}).postes_sans_objet||[]).filter(function(x){ return x!==k; }); if(on) so.push(k); sssMFiche(id,sssMCouts(id,{postes_sans_objet:so})); }
+function sssMAjoutCat(id,k){ var a=(document.getElementById('sssm-a-'+k)||{}).value, q=sssMNum((document.getElementById('sssm-q-'+k)||{}).value); if(!a){ alert('Choisis un article'); return; } if(!(q>0)){ alert('Quantité invalide'); return; }
+  sssMFiche(id,db.from('projet_cout_lignes').insert({affaire_id:id,poste:k,article_id:a,quantite:q,libelle:''})); }   // le prix est photographié par la base
+function sssMAjoutLibre(id,k){ var l=((document.getElementById('sssm-l-'+k)||{}).value||'').trim(), q=sssMNum((document.getElementById('sssm-lq-'+k)||{}).value), p=sssMNum((document.getElementById('sssm-lp-'+k)||{}).value), d=(document.getElementById('sssm-ld-'+k)||{}).value||'CHF';
+  if(!l){ alert('Indique un libellé'); return; } if(!(q>0)){ alert('Quantité invalide'); return; } if(isNaN(p)||p<0){ alert('Prix unitaire HT invalide'); return; }
+  sssMFiche(id,db.from('projet_cout_lignes').insert({affaire_id:id,poste:k,libelle:l,quantite:q,prix_unitaire:p,devise:d,source_prix:'saisie manuelle le '+new Date().toLocaleDateString('fr-CH'),date_prix:new Date().toISOString().slice(0,10)})); }
+function sssMQte(lid,id,q){ var v=sssMNum(prompt('Nouvelle quantité',String(q))); if(isNaN(v)) return; if(!(v>0)){ alert('Quantité invalide'); return; } sssMFiche(id,db.from('projet_cout_lignes').update({quantite:v}).eq('id',lid)); }
+function sssMSuppr(lid,id){ if(!confirm('Retirer cette ligne de coût ?')) return; sssMFiche(id,db.from('projet_cout_lignes').delete().eq('id',lid)); }
+function sssMRetaux(id){ if(!confirm('Recalculer au taux du catalogue actuel les lignes EUR encore estimées ? (les lignes au taux réel de la banque ne bougent pas ; les prix d’achat photographiés non plus)')) return;
+  sssMFiche(id,db.from('projet_cout_lignes').update({taux_chf:null,taux_source:null,taux_preuve:null}).eq('affaire_id',id).eq('devise','EUR').neq('taux_source','banque')); }
+
+/* ---- taux réel de la banque pour une ligne EUR : CHF réellement débités ÷ EUR facturés ---- */
+async function sssMTauxReel(lid,id,q){
+  var f=SSSM.fiche||{}, x=(f.lignes||[]).filter(function(l){ return l.id===lid; })[0]; if(!x) return;
+  if(q==null) q=(x.libelle||'').split(' ')[0]||'';
+  var r=await db.rpc('sss_taux_reels',{p_q:q||null}); var d=r.data||{}; SSSM.tr={lid:lid,id:id,debits:d.debits_candidats||[],factures:d.factures_eur_payees||[]};
+  var deb=SSSM.tr.debits.map(function(b,i){ return "<label style='display:flex;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line);cursor:pointer'><input type='radio' name='sssm-deb' value='"+i+"' onchange='sssMTrCalc()'><span style='white-space:nowrap'>"+sssMDate(b.date)+"</span><b style='white-space:nowrap'>"+sssMChf(b.chf)+"</b><span style='font-size:12px;color:var(--text-2)'>"+esc(b.contrepartie||b.libelle||'')+"</span></label>"; }).join('');
+  var fac=SSSM.tr.factures.map(function(v){ return "<li>"+esc((v.fournisseur||'')+' '+(v.numero||''))+" : "+sssMChf(v.eur,'EUR')+" payés "+sssMChf(v.chf)+" → taux "+Number(v.taux).toFixed(5)+"</li>"; }).join('');
+  sssFFenetre('Taux réel de la banque',
+    "<div style='margin-bottom:10px'>Ligne : <b>"+esc(x.libelle)+"</b> — "+sssMChf(x.prix_unitaire,'EUR')+" × "+x.quantite+". Taux actuel "+Number(x.taux_chf).toFixed(4)+" ("+esc((SSSM_TAUXSRC[x.taux_source]||SSSM_TAUXSRC.catalogue)[0])+").</div>"
+    +(fac?"<div style='margin-bottom:10px'><b>Factures EUR déjà rapprochées d’un paiement</b><ul>"+fac+"</ul></div>":"")
+    +"<div class='sssm-ajout' style='margin:0 0 8px'><input id='sssm-trq' class='sssm-in' style='flex:1 1 200px' value=\""+esc(q)+"\" placeholder='Chercher le débit (fournisseur, Wise, Each…)'><button class='btn-out' style='width:auto;padding:7px 12px' onclick=\"sssMTauxReel('"+lid+"','"+id+"',document.getElementById('sssm-trq').value)\">Chercher</button></div>"
+    +"<div style='max-height:240px;overflow:auto;font-size:13px'>"+(deb||"<div style='color:var(--text-2)'>Aucun débit trouvé avec ce texte dans les relevés importés.</div>")+"</div>"
+    +"<div class='sssm-grille' style='margin-top:10px'><label>CHF débités (banque)<input id='sssm-trc' class='sssm-in' inputmode='decimal' oninput='sssMTrCalc()'></label><label>EUR payés par ce débit (montant de la facture)<input id='sssm-tre' class='sssm-in' inputmode='decimal' oninput='sssMTrCalc()'></label></div>"
+    +"<div id='sssm-trr' style='margin-top:8px;font-weight:700'></div>"
+    +"<label style='display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px'><input type='checkbox' id='sssm-trall' checked> appliquer à toutes les lignes EUR de ce projet encore estimées</label>",
+    "<button class='sssf-non' onclick='sssFFermer()'>Annuler</button><button class='sssf-go' onclick='sssMTrSave(this)'>Enregistrer le taux réel</button>");
+}
+function sssMTrCalc(){ var i=(document.querySelector('input[name=sssm-deb]:checked')||{}).value; var c=document.getElementById('sssm-trc');
+  if(i!=null&&SSSM.tr&&SSSM.tr.debits[i]&&c&&!c.dataset.manuel){ c.value=Math.abs(SSSM.tr.debits[i].chf); }
+  var ch=sssMNum((c||{}).value), eu=sssMNum((document.getElementById('sssm-tre')||{}).value), o=document.getElementById('sssm-trr');
+  if(o) o.textContent=(ch>0&&eu>0)?('Taux réel : 1 EUR = '+(ch/eu).toFixed(5)+' CHF'):''; }
+async function sssMTrSave(b){
+  var t=SSSM.tr||{}, i=(document.querySelector('input[name=sssm-deb]:checked')||{}).value, deb=i!=null?t.debits[i]:null;
+  var ch=sssMNum(document.getElementById('sssm-trc').value), eu=sssMNum(document.getElementById('sssm-tre').value);
+  if(!(ch>0&&eu>0)){ alert('Indique les CHF débités et les EUR payés'); return; } var taux=Math.round(ch/eu*100000)/100000; if(!(taux>0.5&&taux<2)){ alert('Taux improbable : '+taux); return; }
+  var preuve=(deb?('débit du '+sssMDate(deb.date)+' : '+Math.abs(deb.chf).toFixed(2)+' CHF'+(deb.contrepartie?' ('+deb.contrepartie+')':'')):(ch.toFixed(2)+' CHF'))+' pour '+eu.toFixed(2)+' EUR';
+  var patch={taux_chf:taux,taux_date:deb?String(deb.date).slice(0,10):new Date().toISOString().slice(0,10),taux_source:'banque',taux_preuve:preuve};
+  b.disabled=true; var q=db.from('projet_cout_lignes').update(patch);
+  q=document.getElementById('sssm-trall').checked?q.eq('affaire_id',t.id).eq('devise','EUR').neq('taux_source','banque'):q.eq('id',t.lid);
+  var r=await q.select('id'); if(r.error){ b.disabled=false; alert(r.error.message); return; }
+  if(document.getElementById('sssm-trall').checked){ await db.from('projet_cout_lignes').update(patch).eq('id',t.lid); }
+  sssFFermer(); renderMargeProjet(t.id);
+}
+
+/* ------------------------------------------------------------------ Prix d'achat SSS (catalogue) */
+async function renderPrixSss(){
+  var m=document.getElementById('main'); if(!m) return; sssMStyle();
+  if(!sssPatron()){ go(serviceDefault(SERVICE)); return; }
+  if(!document.getElementById('sssm-prix')) m.innerHTML="<div class='sssm'><div class='page-head'><h2>Prix d’achat</h2></div><div class='loading'>Chargement…</div></div>";
+  var R=await Promise.all([db.from('prix_articles').select('*').order('categorie').order('marque').order('modele'), db.from('taux_change').select('*').order('date_taux',{ascending:false}).limit(8), db.from('prix_historique').select('article_id')]);
+  if(VIEW!=='prix_sss') return;
+  var err=R.map(function(x){ return x.error&&x.error.message; }).filter(Boolean)[0]; if(err){ m.innerHTML="<div class='sssm'><div class='msg err' style='display:block'>"+esc(err)+"</div></div>"; return; }
+  SSSM.articles=R[0].data||[]; SSSM.taux=R[1].data||[]; SSSM.nbHist={}; (R[2].data||[]).forEach(function(x){ SSSM.nbHist[x.article_id]=(SSSM.nbHist[x.article_id]||0)+1; });
+  sssMPrixListe();
+}
+function sssMPrixListe(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='prix_sss') return;
+  var esp=SSSM.prixTab, toutes=SSSM.articles||[], t0=(SSSM.taux||[])[0], q=(SSSM.pq||'').toLowerCase();
+  var l=toutes.filter(function(a){ return a.espace===esp && (SSSM.inactifs||a.actif) && (!SSSM.pcat||a.categorie===SSSM.pcat) && (!q||[a.categorie,a.marque,a.modele,a.designation,a.fournisseur,a.notes].join(' ').toLowerCase().indexOf(q)>=0); });
+  var cats=[]; toutes.filter(function(a){ return a.espace===esp; }).forEach(function(a){ if(cats.indexOf(a.categorie)<0) cats.push(a.categorie); });
+  var nS=toutes.filter(function(a){ return a.espace==='sss'; }).length, nM=toutes.filter(function(a){ return a.espace==='msb'; }).length;
+  var h="<div class='sssm' id='sssm-prix'><div class='page-head'><h2>Prix d’achat</h2><div class='spacer'></div><button class='btn-out' style='width:auto;padding:7px 14px;font-size:13px' onclick=\"go('marges')\">📊 Coûts & Marges SSS</button></div>"
+    +"<div class='sssm-filtres'><button class='"+(esp==='sss'?'btn':'btn-out')+"' onclick=\"SSSM.prixTab='sss';SSSM.pcat='';sssMPrixListe()\">Prix SSS ("+nS+")</button><button class='"+(esp==='msb'?'btn':'btn-out')+"' onclick=\"SSSM.prixTab='msb';SSSM.pcat='';sssMPrixListe()\">Prix MSB / Sous-traitance ("+nM+")</button></div>";
+  if(esp==='msb') h+="<div class='sssm-warn'><b>Prix de My Solar Battery (Voltia) — historique de sous-traitance.</b> Ils sont gardés pour mémoire et ne sont <b>jamais</b> utilisés dans la marge d’un projet vendu directement par Swiss Solar System (la base le refuse). Pour reprendre un prix à ton compte, utilise « Copier vers les prix SSS » : tu pourras ensuite le corriger.</div>";
+  // taux EUR/CHF
+  h+="<div class='sssm-bloc'><div style='display:flex;gap:10px;align-items:center;flex-wrap:wrap'><h3 style='margin:0'>💱 Taux EUR / CHF</h3><b>"+esc(sssMTaux(t0?{taux_chf:t0.taux_chf,date:t0.date_taux}:null))+"</b><div class='spacer' style='flex:1'></div><button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick='sssMTauxForm()'>Nouveau taux</button></div>"
+    +"<div style='font-size:12px;color:var(--text-3);margin-top:4px'>"+esc((t0&&t0.source)||'')+" · le taux le plus récent sert aux nouvelles lignes de coût ; chaque ligne garde le taux de son ajout."+((SSSM.taux||[]).length>1?" Précédents : "+SSSM.taux.slice(1,5).map(function(x){ return Number(x.taux_chf).toFixed(4)+" ("+sssMDate(x.date_taux)+")"; }).join(', '):"")+"</div></div>";
+  h+="<div class='sssm-ajout' style='margin-bottom:10px'><input class='sssm-in' style='flex:2 1 220px' placeholder='Chercher (marque, modèle, fournisseur…)' value=\""+esc(SSSM.pq)+"\" oninput=\"SSSM.pq=this.value;clearTimeout(window._sssmT);window._sssmT=setTimeout(function(){ sssMPrixListe(); var i=document.querySelector('#sssm-prix input[placeholder^=Chercher]'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },250)\">"
+    +"<select class='sssm-in' style='flex:1 1 160px' onchange=\"SSSM.pcat=this.value;sssMPrixListe()\"><option value=''>Toutes les catégories</option>"+cats.map(function(c){ return "<option"+(SSSM.pcat===c?' selected':'')+">"+esc(c)+"</option>"; }).join('')+"</select>"
+    +"<label style='font-size:12.5px;display:flex;gap:6px;align-items:center'><input type='checkbox' "+(SSSM.inactifs?'checked':'')+" onchange=\"SSSM.inactifs=this.checked;sssMPrixListe()\"> inactifs</label>"
+    +(esp==='sss'?"<button class='btn' style='width:auto;padding:8px 16px' onclick=\"sssMArtForm(null)\">+ Ajouter un article</button>":"")+"</div>";
+  if(!l.length) h+="<div class='empty'>"+(esp==='msb'?'Aucun prix MSB enregistré.':'Aucun article.')+"</div>";
+  var g={}; l.forEach(function(a){ (g[a.categorie]=g[a.categorie]||[]).push(a); });
+  Object.keys(g).forEach(function(c){
+    h+="<div class='sssm-bloc' style='padding:6px 6px 2px'><h3 style='padding:6px 6px 2px'>"+esc(c)+" <span style='font-weight:400;font-size:12px;color:var(--text-3)'>("+g[c].length+")</span></h3>";
+    h+=g[c].map(function(a){ var eur=a.devise==='EUR', nh=(SSSM.nbHist||{})[a.id]||0;
+      return "<div class='sssm-art"+(a.actif?'':' off')+"'><div><b>"+esc([a.marque,a.modele].filter(Boolean).join(' '))+"</b>"+(a.designation?"<small>"+esc(a.designation)+"</small>":"")+(a.notes?"<small>📝 "+esc(a.notes)+"</small>":"")+(a.actif?'':"<small>inactif</small>")+"</div>"
+        +"<div>"+esc(a.fournisseur||'—')+"<small>"+esc(a.unite||'pce')+"</small></div>"
+        +"<div><b>"+sssMChf(a.prix_ht,a.devise)+"</b>"+(eur&&t0?"<small>≈ "+sssMChf(Math.round(a.prix_ht*t0.taux_chf*100)/100)+" au taux du "+sssMDate(t0.date_taux)+"</small>":"")+(Number(a.eco_participation)?"<small>+ éco "+sssMChf(a.eco_participation,a.devise)+"</small>":"")+"</div>"
+        +"<div><small style='color:inherit'>prix du "+sssMDate(a.date_prix)+"</small><small>"+esc(a.source||'')+"</small></div>"
+        +"<div style='white-space:nowrap'>"+(nh?"<button class='iconbtn' title='Historique des prix ("+nh+")' onclick=\"sssMHist('"+a.id+"')\">🕘<sup style='font-size:10px'>"+nh+"</sup></button>":"<button class='iconbtn' title='Historique des prix' onclick=\"sssMHist('"+a.id+"')\">🕘</button>")
+        +(a.espace==='sss'?"<button class='iconbtn' title='Modifier' onclick=\"sssMArtForm('"+a.id+"')\">✏️</button>":"<button class='btn-out' style='width:auto;padding:5px 10px;font-size:12px' onclick=\"sssMCopier('"+a.id+"')\">Copier vers les prix SSS</button>")+"</div></div>"; }).join('');
+    h+="</div>"; });
+  m.innerHTML=h+"</div>";
+}
+function sssMTauxForm(){
+  var t0=(SSSM.taux||[])[0]||{};
+  sssFFenetre('Nouveau taux EUR / CHF',"<div class='sssm-grille'><label>1 EUR = ? CHF<input id='sssm-tx' class='sssm-in' inputmode='decimal' value=\""+(t0.taux_chf||'')+"\"></label><label>Date du taux<input id='sssm-td' type='date' class='sssm-in' value='"+new Date().toISOString().slice(0,10)+"'></label></div>"
+    +"<label style='display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-2);margin-top:10px'>Source<input id='sssm-ts' class='sssm-in' placeholder='ex. taux de paiement BCV de la facture Each Energy'></label>"
+    +"<div style='font-size:12.5px;color:var(--text-2);margin-top:10px'>Les lignes de coût déjà enregistrées gardent leur taux : rien ne change dans les anciens projets.</div>",
+    "<button class='sssf-non' onclick='sssFFermer()'>Annuler</button><button class='sssf-go' onclick='sssMTauxSave(this)'>Enregistrer le taux</button>");
+}
+async function sssMTauxSave(b){ var t=sssMNum(document.getElementById('sssm-tx').value), d=document.getElementById('sssm-td').value, s=(document.getElementById('sssm-ts').value||'').trim();
+  if(!(t>0&&t<10)){ alert('Taux invalide (ex. 0.9311)'); return; } if(!d){ alert('Date manquante'); return; } b.disabled=true;
+  var r=await db.from('taux_change').upsert({devise:'EUR',taux_chf:t,date_taux:d,source:s||null},{onConflict:'devise,date_taux'}).select('id'); if(r.error){ b.disabled=false; alert(r.error.message); return; }
+  sssFFermer(); renderPrixSss(); }
+function sssMArtForm(id){
+  var a=id?(SSSM.articles||[]).filter(function(x){ return x.id===id; })[0]:{espace:'sss',devise:'CHF',unite:'pce',actif:true,date_prix:new Date().toISOString().slice(0,10),eco_participation:0};
+  if(!a) return; var cats=[]; (SSSM.articles||[]).forEach(function(x){ if(cats.indexOf(x.categorie)<0) cats.push(x.categorie); });
+  var ch=function(lab,k,attr){ return "<label>"+lab+"<input id='sssm-f-"+k+"' class='sssm-in' value=\""+esc(a[k]==null?'':a[k])+"\" "+(attr||'')+"></label>"; };
+  sssFFenetre(id?'Modifier le prix d’achat':'Nouvel article (prix SSS)',
+    "<div class='sssm-grille'>"+ch('Catégorie *','categorie',"list='sssm-cats'")+"<datalist id='sssm-cats'>"+cats.map(function(c){ return "<option value=\""+esc(c)+"\">"; }).join('')+"</datalist>"
+      +ch('Marque','marque')+ch('Modèle / référence *','modele')+ch('Désignation','designation')+ch('Fournisseur','fournisseur')+ch('Unité','unite',"placeholder='pce, m, forfait…'")
+      +ch('Prix d’achat unitaire HT *','prix_ht',"inputmode='decimal'")
+      +"<label>Devise<select id='sssm-f-devise' class='sssm-in'><option"+(a.devise==='CHF'?' selected':'')+">CHF</option><option"+(a.devise==='EUR'?' selected':'')+">EUR</option></select></label>"
+      +ch('Date du prix','date_prix',"type='date'")+ch('Éco-participation (par unité, HT)','eco_participation',"inputmode='decimal'")+"</div>"
+    +"<label style='display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-2);margin-top:10px'>Source / document<input id='sssm-f-source' class='sssm-in' value=\""+esc(a.source||'')+"\" placeholder='ex. facture Each Energy n° … du …'></label>"
+    +"<label style='display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-2);margin-top:10px'>Notes<textarea id='sssm-f-notes' class='sssm-in' rows='2'>"+esc(a.notes||'')+"</textarea></label>"
+    +"<label style='display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13.5px'><input type='checkbox' id='sssm-f-actif' "+(a.actif?'checked':'')+"> Article actif (proposé dans les projets)</label>"
+    +(id?"<div style='font-size:12.5px;color:var(--text-2);margin-top:10px'>Si tu changes le prix, l’ancien est gardé dans l’historique. Les projets déjà calculés gardent leur prix : rien ne change rétroactivement.</div>":""),
+    "<button class='sssf-non' onclick='sssFFermer()'>Annuler</button><button class='sssf-go' onclick=\"sssMArtSave(this,"+(id?"'"+id+"'":"null")+")\">Enregistrer</button>",
+    id?esc([a.marque,a.modele].filter(Boolean).join(' ')):'');
+}
+async function sssMArtSave(b,id){
+  var v=function(k){ var e=document.getElementById('sssm-f-'+k); return e?(''+e.value).trim():''; };
+  var o={categorie:v('categorie'),marque:v('marque')||null,modele:v('modele'),designation:v('designation')||null,fournisseur:v('fournisseur')||null,unite:v('unite')||'pce',prix_ht:sssMNum(v('prix_ht')),devise:v('devise')||'CHF',
+         date_prix:v('date_prix')||null,eco_participation:sssMNum(v('eco_participation')||'0'),source:v('source')||null,notes:v('notes')||null,actif:!!(document.getElementById('sssm-f-actif')||{}).checked};
+  if(!o.categorie||!o.modele){ alert('Catégorie et modèle / référence obligatoires'); return; } if(isNaN(o.prix_ht)||o.prix_ht<0){ alert('Prix HT invalide'); return; } if(isNaN(o.eco_participation)||o.eco_participation<0){ alert('Éco-participation invalide'); return; }
+  if(!o.date_prix) delete o.date_prix;
+  b.disabled=true; var r=id?await db.from('prix_articles').update(o).eq('id',id).select('id'):await db.from('prix_articles').insert(Object.assign({espace:'sss'},o)).select('id');
+  if(r.error||!(r.data||[]).length){ b.disabled=false; alert('Non enregistré : '+(r.error?(/unique|duplicate/i.test(r.error.message)?'cet article existe déjà (même marque, modèle et fournisseur)':r.error.message):'refusé')); return; }
+  sssFFermer(); renderPrixSss();
+}
+async function sssMHist(id){
+  var a=(SSSM.articles||[]).filter(function(x){ return x.id===id; })[0]; if(!a) return;
+  var r=await db.from('prix_historique').select('*').eq('article_id',id).order('date_prix',{ascending:false,nullsFirst:false}).order('archive_at',{ascending:false});
+  var l=r.data||[];
+  sssFFenetre('Historique des prix',"<table class='sssf-tab'><thead><tr><th>Date du prix</th><th style='text-align:right'>Prix HT</th><th>Source / note</th></tr></thead><tbody>"
+    +"<tr><td>"+sssMDate(a.date_prix)+" <b>(actuel)</b></td><td style='text-align:right;font-weight:700'>"+sssMChf(a.prix_ht,a.devise)+"</td><td>"+esc(a.source||'')+"</td></tr>"
+    +l.map(function(x){ return "<tr><td>"+sssMDate(x.date_prix)+"</td><td style='text-align:right'>"+sssMChf(x.prix_ht,x.devise)+"</td><td>"+esc([x.source,x.notes].filter(Boolean).join(' — '))+"</td></tr>"; }).join('')+"</tbody></table>"
+    +(l.length?"":"<div style='margin-top:10px;color:var(--text-2)'>Aucun ancien prix pour cet article.</div>"),null,esc([a.marque,a.modele].filter(Boolean).join(' ')));
+}
+async function sssMCopier(id){ if(!confirm('Copier ce prix MSB dans tes prix SSS ? Le prix MSB reste tel quel ; la copie SSS pourra être corrigée.')) return;
+  var r=await db.rpc('sss_prix_copier_vers_sss',{p_id:id}); if(r.error){ alert(/unique|duplicate/i.test(r.error.message)?'Cet article existe déjà dans tes prix SSS.':r.error.message); return; } SSSM.prixTab='sss'; renderPrixSss(); }
+
+function sssMBandeauMsb(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='fin_marge'||document.getElementById('sssm-msb-bandeau')) return;
+  var d=document.createElement('div'); d.id='sssm-msb-bandeau'; d.className='sssm-warn'; d.style.cssText='max-width:1100px;text-align:left';
+  d.innerHTML="<b>Modèle de marge hérité de My Solar Battery (historique).</b> Les coûts de cet écran (Voltia / Swiss-Green, forfaits par panneau, Sonepar, contrôles…) sont ceux de MSB : ils ne sont pas les coûts de Swiss Solar System. "
+    +(sssPatron()?"Pour la vraie marge de tes projets, utilise <a href='#' onclick=\"go('marges');return false\"><b>Coûts & Marges SSS</b></a> (prix dans <a href='#' onclick=\"go('prix_sss');return false\">Prix d’achat SSS</a> ; ces prix MSB y sont rangés à part).":"");
+  m.insertBefore(d,m.firstChild);
+}
+/* ------------------------------------------------------------------ branchement (sans modifier le code d'origine) */
+(function(){
+  var TOUS=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant'];
+  try{ ['marges','prix_sss'].forEach(function(k){ VUE_ROLES[k]=['superadmin']; VUE_SERVICES[k]=TOUS; }); }catch(e){}
+  try{ var _go=go; go=function(v){ if(v!=='marges'||VIEW!=='marges') SSSM.sel=null; var r=_go.apply(this,arguments); try{ if(VIEW==='marges') renderMarges(); else if(VIEW==='prix_sss') renderPrixSss(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+  // ancien écran Financier → « Marge » (hérité de My Solar Battery) : conservé tel quel, mais signalé comme modèle MSB
+  try{ var _rm=renderMarge; renderMarge=function(){ var r=_rm.apply(this,arguments); setTimeout(sssMBandeauMsb,0); setTimeout(sssMBandeauMsb,400); return r; }; }catch(e){}
+  // Centre de contrôle : accès direct en tête
+  try{ var _rc=renderControle; renderControle=async function(){ var r=await _rc.apply(this,arguments); try{
+      if(VIEW!=='controle'||!sssPatron()||document.getElementById('sssm-raccourcis')) return r; var a=document.getElementById('sss-activite'); if(!a) return r;
+      a.insertAdjacentHTML('beforebegin',"<div id='sssm-raccourcis' style='grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap'><button class='btn' style='width:auto;padding:10px 18px' onclick=\"go('marges')\">📊 Coûts & Marges SSS</button><button class='btn-out' style='width:auto;padding:10px 18px' onclick=\"go('prix_sss')\">🏷 Prix d’achat SSS</button></div>");
+    }catch(e){ console.error(e); } return r; }; }catch(e){}
+})();
+
+/* SSS-MARGES-FIN */
+
+/* SSS-HERITAGE-DEBUT */
+/* ==========================================================================
+   SSS OS — héritage My Solar Battery : frontière SSS / sous-traitance dans les vues actives (06.10.2026, 0020).
+   Rien n'est supprimé : les valeurs MSB restent dans le code sous le nom « …_MSB » (grilles de vente, aide) et en base.
+   • Tableau de bord financier : les chiffres Bexio = DIRECT Swiss Solar System ; la sous-traitance est affichée à part.
+   • Trésorerie : chantiers de sous-traitance retirés de « à poser » ; marge restante signalée comme modèle MSB.
+   • Grilles tarifaires : plus de prix de vente MSB par défaut ; les grilles MSB restent consultables (historique).
+   • VOLT (ancien assistant mort) : l'entrée « SSS — ton assistant » ouvre l'assistant SSS actuel.
+   ========================================================================== */
+var SSSH={natures:null, resume:null};
+var SSSH_NATLIB={direct_sss:'Direct Swiss Solar System',sous_traitance_msb:'Sous-traitance MSB',energy_leman:'Energy Léman',autre_partenaire:'Autre partenaire',a_verifier:'À vérifier'};
+function sssHChf(n){ return 'CHF '+(Number(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+async function sssHNatures(force){
+  if(SSSH.natures && !force) return SSSH.natures;
+  try{ var r=await db.rpc('sss_natures_affaires'); if(!r.error && r.data) SSSH.natures=r.data; }catch(e){}
+  return SSSH.natures||{};
+}
+function sssHAttendre(test,fn,essais){ essais=essais||40; var t=setInterval(function(){ var ok=false; try{ ok=test(); }catch(e){} if(ok||--essais<=0){ clearInterval(t); if(ok) try{ fn(); }catch(e){ console.error(e); } } },250); }
+
+/* ---- tableau de bord financier : bandeau « sous-traitance à part » ---- */
+function sssHBandeauFin(){
+  var b=document.getElementById('fin-dash-body'); if(!b||VIEW!=='fin_dash'||document.getElementById('sssh-fin-st')) return;
+  var r=SSSH.resume, p=r&&r.par_nature; var d=document.createElement('div'); d.id='sssh-fin-st';
+  d.style.cssText='border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:13px;text-align:left';
+  if(!p){ d.innerHTML="<b>Périmètre :</b> les chiffres Bexio ci-dessous ne distinguent pas encore le direct SSS de la sous-traitance (fonction Bexio à mettre à jour)."; b.insertBefore(d,b.firstChild); return; }
+  var lignes=['sous_traitance_msb','energy_leman','autre_partenaire','a_verifier'].filter(function(k){ var s=p[k]; return s&&(s.allPaid.n||s.allOpen.n); }).map(function(k){ var s=p[k];
+    return "<div style='display:flex;gap:10px;flex-wrap:wrap;padding:3px 0'><b style='min-width:150px'>"+SSSH_NATLIB[k]+"</b><span>encaissé "+sssHChf(s.allPaid.s)+" ("+s.allPaid.n+")</span><span>ouvert "+sssHChf(s.allOpen.s)+" ("+s.allOpen.n+")</span></div>"; }).join('');
+  d.innerHTML="<b>Chiffres Bexio de ce tableau = Direct Swiss Solar System uniquement.</b> La sous-traitance n'y est pas additionnée ; elle est donnée ici, à part, pour la même période :"
+    +(lignes||"<div style='color:var(--text-3);padding-top:4px'>aucune facture de sous-traitance sur la période.</div>");
+  b.insertBefore(d,b.firstChild);
+}
+
+/* ---- trésorerie : bandeau modèle MSB ---- */
+function sssHBandeauTreso(){
+  var el=document.getElementById('fin-chantiers'); if(!el||document.getElementById('sssh-treso')) return;
+  var d=document.createElement('div'); d.id='sssh-treso'; d.style.cssText='border:1px solid #e0a52b66;background:#e0a52b14;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;text-align:left';
+  d.innerHTML="Chantiers directs SSS seulement (la sous-traitance MSB / Energy Léman est retirée de cette liste). « Matériel à financer » et « Marge restante » sont des <b>estimations selon l'ancien modèle MSB</b> (ratios fixes) : la vraie marge est dans <a href='#' onclick=\"go('marges');return false\">Coûts & Marges SSS</a>.";
+  el.parentNode.insertBefore(d,el);
+}
+
+/* ---- grilles tarifaires : grilles de vente MSB archivées ---- */
+function sssHBandeauTarifs(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='tarifs'||document.getElementById('sssh-tarifs')) return;
+  var d=document.createElement('div'); d.id='sssh-tarifs'; d.style.cssText='border:1px solid #e0a52b66;background:#e0a52b14;border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:13px;text-align:left;max-width:1100px';
+  d.innerHTML="<b>Grilles de vente Swiss Solar System.</b> Les anciennes grilles de My Solar Battery (PV 6–30 panneaux, Voltia 10 999 / 12 999 / 14 999, options…) ne sont plus proposées par défaut : saisis ici tes propres prix de vente. "
+    +"<a href='#' onclick='sssHGrillesMsb();return false'>Voir les grilles MSB archivées (historique)</a>";
+  var h=m.querySelector('.page-head'); if(h&&h.nextSibling) m.insertBefore(d,h.nextSibling); else m.insertBefore(d,m.firstChild);
+}
+function sssHGrillesMsb(){
+  var t=function(l,cols){ return "<table class='sssf-tab'><thead><tr>"+cols.map(function(c){ return "<th>"+c+"</th>"; }).join('')+"</tr></thead><tbody>"+l.join('')+"</tbody></table>"; };
+  var pv=(typeof DEF_PV_MSB!=='undefined'?DEF_PV_MSB:[]).map(function(r){ return "<tr><td>"+r[0]+"</td><td>"+sssHChf(r[1])+"</td><td>"+sssHChf(r[2])+"</td><td>"+sssHChf(r[3])+"</td></tr>"; });
+  var bat=(typeof DEF_BAT_MSB!=='undefined'?DEF_BAT_MSB:[]).map(function(r){ return "<tr><td>"+esc(r.cat||'')+"</td><td>"+esc(r.modele||'')+"</td><td>"+sssHChf(r.prix)+"</td></tr>"; });
+  var opt=(typeof DEF_OPT_MSB!=='undefined'?DEF_OPT_MSB:[]).map(function(r){ return "<tr><td>"+esc(r.option||'')+"</td><td>"+esc(r.desc||'')+"</td><td>"+esc(String(r.prix||''))+"</td></tr>"; });
+  sssFFenetre('Grilles de vente My Solar Battery (historique)',"<div class='sssf-etat' style='background:#e0a52b1f;border:1px solid #e0a52b66'>Prix de vente TTC de My Solar Battery, conservés pour mémoire. Ils ne sont pas tes prix et ne sont utilisés nulle part.</div>"
+    +"<details open><summary>Photovoltaïque ("+pv.length+")</summary>"+t(pv,['Panneaux','Catalogue TTC','Témoin TTC','Témoin + constructeur'])+"</details>"
+    +"<details><summary>Batteries ("+bat.length+")</summary>"+t(bat,['Marque','Modèle','Prix TTC'])+"</details>"
+    +"<details><summary>Options ("+opt.length+")</summary>"+t(opt,['Option','Description','Prix'])+"</details>");
+}
+
+/* ---- branchement ---- */
+(function(){
+  // résumé financier Bexio : on garde la dernière réponse (elle contient par_nature) pour l'afficher à part
+  try{ var _inv=db.functions.invoke.bind(db.functions); db.functions.invoke=async function(nom,opts){ var r=await _inv(nom,opts); try{ if(nom==='bexio'&&opts&&opts.body&&opts.body.action==='fin_summary'&&r&&r.data&&r.data.ok) SSSH.resume=r.data; }catch(e){} return r; }; }catch(e){}
+  try{ var _fd=renderFinDash; renderFinDash=function(){ SSSH.resume=null; var r=_fd.apply(this,arguments); sssHAttendre(function(){ var b=document.getElementById('fin-dash-body'); return b && !b.classList.contains('loading') && b.innerHTML.length>200; }, sssHBandeauFin); return r; }; }catch(e){}
+  try{ var _tl=tClientsLoad; tClientsLoad=async function(){ await sssHNatures(); var r=await _tl.apply(this,arguments); sssHBandeauTreso(); return r; }; }catch(e){}
+  try{ var _rt=renderTarifs; renderTarifs=async function(){ var r=await _rt.apply(this,arguments); sssHBandeauTarifs(); return r; }; }catch(e){}
+  // ancien assistant VOLT (fonctions « volt » inexistantes) → assistant SSS actuel
+  try{ voltToggle=function(){ try{ if(typeof sssIaOuvrir==='function') sssIaOuvrir(); }catch(e){} }; }catch(e){}
+})();
+
+/* SSS-HERITAGE-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
@@ -7023,7 +7539,7 @@ async function reconcileBexioContacts(silent){
 
 /* ============ PERFORMANCES (calcul auto, direction) ============ */
 let PERF_TAB='com', PERF_COM='Tous', PERF_FROM='', PERF_TO='', PERF_RV=[], PERF_US=[], PERF_DEVIS=[], PERF_ETUDES=[];
-const PERF_CFG_DEF={commission:4, tva:8.1, caMode:'HT', objHebdo:19563, objMensuel:85000, objAnnuel:1020000, objCom:{}, coutLead:100};
+const PERF_CFG_DEF={commission:4, tva:8.1, caMode:'HT', objHebdo:0, objMensuel:0, objAnnuel:0 /* historique MSB : 19563 / 85000 / 1020000 */, objCom:{}, coutLead:100};
 const perfCout=r=>(r.cout!=null&&r.cout!=='')?Number(r.cout):(PERF_CFG.coutLead||0);
 let PERF_CFG=Object.assign({},PERF_CFG_DEF);
 /* Memes couleurs de donnees que Voltia Monitoring. */
@@ -7617,7 +8133,7 @@ async function rhFiche(uid){
   if(['commercial','superadmin','direction'].includes(u.role)){
     try{
       const _fa=((await db.from('affaires').select('id,montant_ttc,montant_ht,origine,origine_valide,acompte_sans,fin_acompte_paye,fin_acompte_paye_at,fin_solde_paye,fin_solde_paye_at,etape,admin_statut,sv_cv:suivi->comm_versee,sv_an:suivi->_annule,sv_td:suivi->_to_delete,contact:contact_id(nom,prenom)').eq('commercial_id',uid).eq('transfere_admin',true).then(r=>r,()=>({data:[]}))).data)||[];
-      const _giul=/giulian/i.test(u.prenom||'');
+      const _giul=false/* historique MSB : exception de commission « Giulian » retirée */;
       _fa.forEach(a=>{
         if(a.etape==='perdu') return;
         if(a.sv_an||a.sv_td||a.admin_statut==='annule') return; // vente annulée : plus rien à encaisser ni à afficher
@@ -9393,7 +9909,7 @@ async function renderSalaires(){
   var profByUid={}; profs.forEach(function(p){ profByUid[p.commercial_id]=p; });
   us.forEach(function(u){
     var c=team[u.id]||{}; var nm=((u.prenom||'')+' '+(u.nom||'')).trim()||'?';
-    var giul=/giulian/i.test(u.prenom||'');
+    var giul=false/* historique MSB : exception de commission « Giulian » retirée */;
     var _p=profByUid[u.id]||{};
     // essence : quittances (non remboursées) du mois sélectionné, sinon forfait de la fiche RH
     var _qs=quits.filter(function(q){ return q.commercial_id===u.id&&!q.rembourse&&((q.mois||(''+(q.date||'')).slice(0,7))===ym); });
@@ -9525,7 +10041,7 @@ async function salQuitRembourse(uids){
 function salMailCom(){
   var rows=SAL_ROWS.com.filter(function(r){return !r.exclu;});
   if(!rows.length){ alert('Aucun commercial inclus.'); return; }
-  var L=['Bonjour Monsieur Chaubert,','','Je vous transmets ci-dessous les renseignements pour l’établissement des fiches de salaire des commerciaux pour le mois de '+salMoisLab()+', si vous pouvez me les éditer s’il vous plaît.',''];
+  var L=['Bonjour,'/* historique MSB : fiduciaire de MSB (M. Chaubert) */,'','Je vous transmets ci-dessous les renseignements pour l’établissement des fiches de salaire des commerciaux pour le mois de '+salMoisLab()+', si vous pouvez me les éditer s’il vous plaît.',''];
   rows.forEach(function(r){
     L.push(r.nom+' :');
     L.push('• Salaire fixe : CHF '+salFmt(r.fixe||0)+'.–');
@@ -9554,7 +10070,7 @@ async function salAmendeRegler(uids){ try{ var obj=await amdLoad(); var n=0; (ui
 function salMailTech(){
   var rows=SAL_ROWS.tech.filter(function(r){return !r.exclu;});
   if(!rows.length){ alert('Personne d’inclus côté tech & bureau.'); return; }
-  var L=['Bonjour Monsieur Chaubert,','','J’espère que vous allez bien.','','Pourriez-vous, s’il vous plaît, établir les fiches de salaire de l’équipe technique et bureau pour le mois de '+salMoisLab()+' selon les informations suivantes :',''];
+  var L=['Bonjour,'/* historique MSB : fiduciaire de MSB (M. Chaubert) */,'','J’espère que vous allez bien.','','Pourriez-vous, s’il vous plaît, établir les fiches de salaire de l’équipe technique et bureau pour le mois de '+salMoisLab()+' selon les informations suivantes :',''];
   rows.forEach(function(r){
     L.push('• '+r.nom+' : salaire fixe de '+salFmt(r.fixe||0)+' CHF'+(r.treizieme?', avec 13e mois':'')+(Number(r.panier)?', ainsi que '+salFmt(r.panier)+' CHF de panier-repas':'')+(Number(r.dossierCom)?', commissions dossiers '+salFmt(r.dossierCom)+' CHF ('+(r._dossN||0)+' dossier'+((r._dossN||0)>1?'s':'')+' validé'+((r._dossN||0)>1?'s':'')+' × '+r._dossTaux+' CHF)':'')+(Number(r.amende)?', moins CHF '+salFmt(r.amende)+' de retenue amende(s)':'')+(Number(r.prime)?' + Prime de '+salFmt(r.prime)+' CHF':''));
   });
@@ -13873,7 +14389,7 @@ function perRange(){ var p=S._period||{mode:'month'}; var now=new Date();
 function inR(dt,a,b){ if(!dt) return false; var d=(''+dt).slice(0,10); return d>=a && d<=b; }
 function perScale(a,b){ var d=(new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000+1; return Math.max(1,d)/30.44; }
 function acqCfg(){ if(!S._acq) S._acq={cost:100,rdv:0}; if(S._acq.rdv==null) S._acq.rdv=0; return S._acq; }
-var PAID_CC=['zak','le touns','touns','jimmy','samir'];
+var PAID_CC=[];   /* historique MSB : call centers payés de MSB (zak, le touns, jimmy, samir) retirés */
 function isPaidCC(src){ var s=(''+(src||'')).toLowerCase(); return PAID_CC.some(function(n){return s.indexOf(n)>=0;}); }
 
 async function dash(){ load(); try{ await new Promise(function(_res){ finPullDB(_res); }); FIN_HYDRATED=true; }catch(_e){}
@@ -14226,7 +14742,7 @@ function tClients(){ setTimeout(function(){ try{ tClientsLoad(); }catch(e){} },1
 async function tClientsLoad(){
  var el=document.getElementById('fin-chantiers'); if(!el) return;
  var data=[];
- try{ var r=await db.from('affaires').select('id,type,montant_ttc,montant_ht,acompte_pct,acompte_sans,suivi,fin_acompte_paye,fin_solde_paye,avant_app,transfere_admin_at,admin_statut,contact:contact_id(nom,prenom)').eq('transfere_admin',true).order('montant_ttc',{ascending:false}); data=(r.data||[]).filter(function(a){return a.admin_statut!=='annule' && !(a.suivi&&(a.suivi._annule||a.suivi._a_valider));}); }catch(e){ el.innerHTML="<div class='empty'>Impossible de charger les chantiers.</div>"; return; }
+ try{ var r=await db.from('affaires').select('id,type,montant_ttc,montant_ht,acompte_pct,acompte_sans,suivi,fin_acompte_paye,fin_solde_paye,avant_app,transfere_admin_at,admin_statut,contact:contact_id(nom,prenom)').eq('transfere_admin',true).order('montant_ttc',{ascending:false}); data=(r.data||[]).filter(function(a){return a.admin_statut!=='annule' && !(a.suivi&&(a.suivi._annule||a.suivi._a_valider)) && ((typeof SSSH!=='undefined'&&SSSH.natures&&SSSH.natures[a.id]!==undefined)?SSSH.natures[a.id]==='direct_sss':!(a.suivi&&a.suivi._fin_b2b));}); }catch(e){ el.innerHTML="<div class='empty'>Impossible de charger les chantiers.</div>"; return; }
  function caht(a){ return (a.montant_ht!=null&&a.montant_ht!=='')?(+a.montant_ht||0):((+a.montant_ttc||0)/1.081); }
  function statut(a){ var sv=a.suivi||{}; if(a.fin_solde_paye) return 'solde'; if(sv.installe||sv.install_done||sv._install_notif) return 'pose'; return 'apose'; }
  var rows=data.map(function(a){ var ht=caht(a); var ttc=+a.montant_ttc||0; var pct=a.acompte_sans?0:(a.acompte_pct!=null?a.acompte_pct:50); var ac=ttc*pct/100; var pv=(a.type==='pv'); var mat=Math.round(ht*(pv?0.40:0.18)); var nm=((a.contact&&((a.contact.nom||'')+' '+(a.contact.prenom||'')))||'').trim()||'\u2014'; return {id:a.id, cli:nm, ht:Math.round(ht), ac:Math.round(ac), mat:mat, st:statut(a), pv:pv, sol:Math.round(ttc-ac)}; });
@@ -15361,7 +15877,7 @@ function trtSetSort(v){ TRT_SORT=v; paintTraitement(); }
 
 async function adminDropbox(enc){ var folder=decodeURIComponent(enc); var w=null; try{ w=window.open('about:blank','_blank'); }catch(_e){}
   var u=''; try{ var r=await db.functions.invoke('dropbox',{body:{action:'link',path:'/Clients/'+folder}}); u=(r&&r.data&&r.data.url)||''; }catch(e){}
-  if(!u) u='https://www.dropbox.com'+encodeURI('/home/joris Rabia/SwissSolarSystem/Clients/'+folder);
+  if(!u) u='https://www.dropbox.com/home';   /* historique MSB : dossier Dropbox du directeur de MSB retiré */
   if(w){ try{ w.location=u; return; }catch(_e){} }
   window.open(u,'_blank','noopener'); }
 let ADMIN_DBX_FOLDER='';
@@ -18836,9 +19352,9 @@ async function temDel(id){
 }
 
 /* ============ GRILLES TARIFAIRES ============ */
-const DEF_PV=[[6,15000,14500,13000,1058.40],[7,15500,15000,13500,1234.80],[8,16000,15500,14000,1411.20],[9,16500,16000,14500,1587.60],[10,17000,16500,15000,1764.00],[11,18000,17500,15500,1940.40],[12,18500,18000,16000,2116.80],[13,19000,18500,16500,2293.20],[14,19500,19000,17000,2469.60],[15,20000,19500,17500,2646.00],[16,20500,20000,18000,2822.40],[17,21000,20500,18500,2998.80],[18,21500,21000,19000,3175.20],[19,22000,21500,19500,3351.60],[20,22500,22000,20000,3528.00],[21,24000,23500,21000,3704.40],[22,25000,24500,22000,3880.80],[23,26000,25500,23000,4057.20],[24,27000,26500,24000,4233.60],[25,28000,27500,25000,4410.00],[26,29000,28500,26000,4586.40],[27,30000,29500,27000,4762.80],[28,31000,30500,28000,4939.20],[29,32000,31500,29000,5115.60],[30,33000,32500,30000,5292.00]];
-const DEF_BAT=[{cat:'Voltia',modele:'SMARTES Voltia 5 - 3M',prix:10999},{cat:'Voltia',modele:'SMARTES Voltia 10 - 3M',prix:12999},{cat:'Voltia',modele:'SMARTES Voltia 15 - 3M',prix:14999},{cat:'Enphase',modele:'Enphase 5P',prix:9900},{cat:'Pylontech Mono',modele:'Victron Pylontech Mono 5 kW',prix:9900},{cat:'Pylontech Mono',modele:'Victron Pylontech Mono 10 kW',prix:11900},{cat:'Pylontech Mono',modele:'Victron Pylontech Mono 15 kW',prix:13900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 15 kW',prix:18900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 20 kW',prix:20900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 25 kW',prix:22900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 30 kW',prix:24900}];
-const DEF_OPT=[{option:'RCP',desc:'Regroupement de consommation propre · habitat collectif',prix:'CHF 480'},{option:'Tranchée',desc:'Par mètre linéaire · selon devis terrain',prix:'CHF 95 / m'},{option:'Renforcement réseau',desc:'Augmentation ampérage / changement compteur · selon canton',prix:'Sur devis'}];
+const DEF_PV=[]; /* grilles de vente MSB archivées (historique) */ const DEF_PV_MSB=[[6,15000,14500,13000,1058.40],[7,15500,15000,13500,1234.80],[8,16000,15500,14000,1411.20],[9,16500,16000,14500,1587.60],[10,17000,16500,15000,1764.00],[11,18000,17500,15500,1940.40],[12,18500,18000,16000,2116.80],[13,19000,18500,16500,2293.20],[14,19500,19000,17000,2469.60],[15,20000,19500,17500,2646.00],[16,20500,20000,18000,2822.40],[17,21000,20500,18500,2998.80],[18,21500,21000,19000,3175.20],[19,22000,21500,19500,3351.60],[20,22500,22000,20000,3528.00],[21,24000,23500,21000,3704.40],[22,25000,24500,22000,3880.80],[23,26000,25500,23000,4057.20],[24,27000,26500,24000,4233.60],[25,28000,27500,25000,4410.00],[26,29000,28500,26000,4586.40],[27,30000,29500,27000,4762.80],[28,31000,30500,28000,4939.20],[29,32000,31500,29000,5115.60],[30,33000,32500,30000,5292.00]];
+const DEF_BAT=[]; const DEF_BAT_MSB=[{cat:'Voltia',modele:'SMARTES Voltia 5 - 3M',prix:10999},{cat:'Voltia',modele:'SMARTES Voltia 10 - 3M',prix:12999},{cat:'Voltia',modele:'SMARTES Voltia 15 - 3M',prix:14999},{cat:'Enphase',modele:'Enphase 5P',prix:9900},{cat:'Pylontech Mono',modele:'Victron Pylontech Mono 5 kW',prix:9900},{cat:'Pylontech Mono',modele:'Victron Pylontech Mono 10 kW',prix:11900},{cat:'Pylontech Mono',modele:'Victron Pylontech Mono 15 kW',prix:13900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 15 kW',prix:18900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 20 kW',prix:20900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 25 kW',prix:22900},{cat:'Pylontech Tri',modele:'Victron Pylontech Tri 30 kW',prix:24900}];
+const DEF_OPT=[]; const DEF_OPT_MSB=[{option:'RCP',desc:'Regroupement de consommation propre · habitat collectif',prix:'CHF 480'},{option:'Tranchée',desc:'Par mètre linéaire · selon devis terrain',prix:'CHF 95 / m'},{option:'Renforcement réseau',desc:'Augmentation ampérage / changement compteur · selon canton',prix:'Sur devis'}];
 const DEF_SUB={pronovo_kwc:360,
   pv_note:"Nouvelle installation : subvention Pronovo automatique (calculée sur la puissance installée). Extension d'une installation existante : subvention à calculer directement sur Pronovo (vérifier au cas par cas).",
   bat_cantons:['GE','NE'],
@@ -25123,7 +25639,7 @@ async function plnSavPlan(id,dateStr){
 async function plnSavOpen(id){ try{ savOpen(id); }catch(e){ plnSavPlan(id,''); } }
 /* ===================== COMMANDE DE MATÉRIEL (admin → direction) ===================== */
 var CMD_DRAFT=null, CMD_CUR=null, CMD_CAT='batterie'; var CMD_CLIRES=[];
-var CMD_FOURN=['Swiss-Green','Maviwatt','Digitec','Amazon','Brico','R\u00e9seaux','Autre'];
+var CMD_FOURN=['Mavisun','Each Energy','Sonepar','Digitec','Amazon','Brico','R\u00e9seaux','Autre'];   /* historique MSB : Swiss-Green, Maviwatt */
 var CMD_SHOP_SG='https://www.swiss-green.ch/shop/fr/?srsltid=AfmBOopJl0-LHgYZmwMWBYKHmjHQkqMe9P_a27CNxGaoPcm662MCvrKX';
 var CMD_SHOP_SONEPAR='https://www.sonepar.ch/fr';
 var CMD_BUREAU=["Feuilles","Stylo","Cartouche d'encre","Baguette pour dossier","Couverture avant pour dossier","Couverture arrière pour dossier","Flyers","Cartes de visite","Carnet","Fiche A4 pour dossier","Cahier","Agrafes","Post-it","Enveloppes","Chargeur"];
