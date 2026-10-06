@@ -5569,6 +5569,137 @@ function sssHGrillesMsb(){
 
 /* SSS-HERITAGE-FIN */
 
+/* SSS-PILOTAGE-DEBUT */
+/* ==========================================================================
+   SSS OS — pilotage du patron (06.10.2026) : accueil « Point du jour », écran « Utilisation de SSS OS »,
+   écran « Santé du système » ; mesure de l'usage PROFESSIONNEL de l'application (tous les comptes).
+   Lecture seule : tout passe par des fonctions de la base réservées au patron (double authentification) —
+   sss_ia_point_du_jour, sss_sante, sss_usage_resume, sss_marges_projets. Rien n'est écrit ici, sauf l'événement
+   d'usage de la personne connectée (sss_usage_noter : connexion, écran ouvert, chantier ouvert — jamais un contenu,
+   ni frappe, ni capture, ni localisation).
+   ========================================================================== */
+function sssUsage(type, ecran, objet){ try{ if(typeof ME==='undefined'||!ME||typeof db==='undefined') return; db.rpc('sss_usage_noter',{p_type:type,p_ecran:ecran?String(ecran).slice(0,60):null,p_objet:objet!=null?String(objet).slice(0,80):null}).then(function(){},function(){}); }catch(e){} }
+var SSS_ETAT_COUL={ok:['🟢','#22a06b','OK'],degrade:['🟠','#e0a52b','Dégradé'],action:['🔴','#e5484d','Action nécessaire'],vert:['🟢','#22a06b','Utilisation régulière'],orange:['🟠','#e0a52b','Utilisation occasionnelle'],rouge:['🔴','#e5484d','Quasiment pas utilisée']};
+/* rubriques de l'ancienne équipe de vente MSB, masquées du menu du patron (toujours ouvrables, rien n'est supprimé) */
+var SSS_RUB_MASQUEES=['perf','perfcc','temoins','retours','avalider','formation_com','recrut','fin_marge','tech_materiel'];
+
+(function(){
+  var TOUS=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant'];
+  try{ VUE_ROLES.utilisation=['superadmin']; VUE_SERVICES.utilisation=TOUS; VUE_ROLES.sante=['superadmin']; VUE_SERVICES.sante=TOUS; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ sssUsage('page_view', typeof VIEW!=='undefined'?VIEW:v); if(VIEW==='utilisation') renderUtilisation(); else if(VIEW==='sante') renderSante(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+  try{ var _sa=showApp; showApp=function(){ var r=_sa.apply(this,arguments); try{ var k='sss_login_'+((ME&&ME.id)||''); if(!sessionStorage.getItem(k)){ sessionStorage.setItem(k,'1'); sssUsage('login'); } }catch(e){ sssUsage('login'); } return r; }; }catch(e){}
+  try{ var _io=installOpen; installOpen=function(id){ sssUsage('project_open','installation',id); return _io.apply(this,arguments); }; }catch(e){}
+  try{ var _rh=renderHub; renderHub=function(){
+      try{ if(sssPatron() && !localStorage.getItem('hubMode')) localStorage.setItem('hubMode','fix'); }catch(e){}   /* grille : un clic pour entrer */
+      var r=_rh.apply(this,arguments); try{ if(sssPatron() && !SERVICE) setTimeout(sssPointDuJour,120); }catch(e){} return r; }; }catch(e){}
+  try{ var _rn=renderNav; renderNav=function(){ var r=_rn.apply(this,arguments); try{ sssNavNettoyer(); }catch(e){} return r; }; }catch(e){}
+  try{ SSS_MENU_TECH.forEach(function(g){ g.keys=g.keys.filter(function(k){ return k!=='tech_materiel'; }); }); }catch(e){}   /* page vide « Outillage » */
+  try{ var _rc=renderControle; renderControle=async function(){ var r=await _rc.apply(this,arguments); try{ sssCtrlLiens(); }catch(e){} return r; }; }catch(e){}
+})();
+
+function sssNavNettoyer(){
+  var cles=sssPatron()?SSS_RUB_MASQUEES:['tech_materiel'];
+  cles.forEach(function(k){ document.querySelectorAll("[onclick*=\"go('"+k+"')\"]").forEach(function(el){ var it=el.closest('.nav-item')||el; if(it && !it.closest('#main')) it.style.display='none'; }); });
+}
+function sssCtrlLiens(){
+  var m=document.getElementById('main'); if(!m||document.getElementById('sss-ctrl-liens')) return;
+  var h=m.querySelector('.page-head'); var html="<div id='sss-ctrl-liens' style='display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px'>"
+    +"<button class='relbtn' onclick=\"go('utilisation')\">👥 Utilisation de SSS OS</button><button class='relbtn' onclick=\"go('sante')\">🩺 Santé du système</button><button class='relbtn' onclick=\"go('marges')\">📊 Coûts & marges</button></div>";
+  if(h) h.insertAdjacentHTML('afterend',html); else m.insertAdjacentHTML('afterbegin',html);
+}
+function sssRpc(nom,args){ return db.rpc(nom,args||{}).then(function(r){ return r.error?null:r.data; },function(){ return null; }); }
+function sssCarte(titre,valeur,sous,couleur,vue){ return "<div class='card' "+(vue?"onclick=\"go('"+vue+"')\" style='cursor:pointer;":"style='")+"padding:12px 14px;text-align:left;min-width:0'><div style='font-size:11.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em'>"+titre+"</div><div style='font-size:21px;font-weight:800;margin:4px 0;color:"+(couleur||'var(--text)')+"'>"+valeur+"</div><div style='font-size:12px;color:var(--text-3)'>"+(sous||'')+"</div></div>"; }
+
+/* ------------------------------------------------------------------ ACCUEIL PATRON : POINT DU JOUR */
+async function sssPointDuJour(){
+  var m=document.getElementById('main'); if(!m||SERVICE||!sssPatron()) return;
+  var ancien=document.getElementById('sss-pdj'); if(ancien) ancien.remove();
+  m.insertAdjacentHTML('afterbegin',"<div id='sss-pdj' style='max-width:920px;margin:18px auto 14px;padding:0 4px;text-align:left'><div class='loading'>Point du jour…</div></div>");
+  var auj=new Date().toISOString().slice(0,10);
+  var R=await Promise.all([sssRpc('sss_ia_point_du_jour'), sssRpc('sss_sante'), sssRpc('sss_marges_projets'), sssRpc('sss_usage_resume',{p_jours:7}),
+    db.from('pointages').select('user_id,debut,fin').eq('jour',auj).is('annule_at',null).then(function(r){ return r.data||[]; },function(){ return []; }),
+    db.from('conges').select('commercial_id,du,au,statut').lte('du',auj).gte('au',auj).then(function(r){ return r.data||[]; },function(){ return []; })]);
+  var p=R[0]||{}, s=R[1]||{}, mg=R[2]||{}, u=R[3]||{}, poi=R[4], cg=R[5];
+  var hote=document.getElementById('sss-pdj'); if(!hote) return;
+  var cl=p.clients||{}, fo=p.fournisseurs||{}, sync=(s.etat_global||'ok'), E=SSS_ETAT_COUL[sync]||SSS_ETAT_COUL.ok;
+  var aPayer=fo.total_ouvert; var aPayerTxt=(aPayer&&typeof aPayer==='object')?Object.keys(aPayer).map(function(d){ return d+' '+Number(aPayer[d]||0).toLocaleString('fr-CH',{maximumFractionDigits:0}); }).join(' + '):sssChf(aPayer);
+  var projets=(mg.projets||[]).filter(function(x){ return x.nature==='direct_sss' && x.etape==='vendu' && !x.fusionne && !x.exclu; });
+  var nb=function(f){ return projets.filter(f).length; };
+  var retard=(cl.plus_en_retard||[]).length, brouillons=(cl.brouillons_non_envoyes||[]).length||Number(cl.brouillons_non_envoyes)||0;
+  var relances=Number(p.offres_sans_reponse_10j||0), attend=(p.client_attend_reponse||[]).length||0, aPlanifier=((p.chantiers||{}).chantiers_a_planifier||p.chantiers_a_planifier||[]).length||0;
+  var pers=(u.personnes||[]).filter(function(x){ return x.role!=='superadmin'; });
+  var h="<div style='display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px'><div style='font-weight:800;font-size:16px'>Point du jour</div>"
+    +"<button class='relbtn' onclick=\"go('sante')\" title='Santé du système'>"+E[0]+" Système : "+E[2]+"</button></div>";
+  h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:10px'>"
+    +sssCarte('À encaisser (direct SSS)',sssChf(cl.total_a_encaisser||0),(retard?retard+' facture(s) en retard':'aucune en retard'),retard?'#e5484d':null,'controle')
+    +sssCarte('Factures fournisseurs ouvertes',aPayerTxt||'—','⚠️ peut inclure des factures déjà payées par versements','#e0a52b','controle')
+    +sssCarte('Acomptes / factures à envoyer',String(brouillons),'brouillons Bexio non envoyés',brouillons?'#3b82f6':null,'controle')
+    +sssCarte('Clients à relancer',String(relances+attend),(attend?attend+' attendent NOTRE réponse':'offres sans réponse depuis 10 j'),(relances+attend)?'#e0a52b':null,'relances')
+    +sssCarte('Chantiers à planifier',String(aPlanifier),'vendus sans date de pose',aPlanifier?'#3b82f6':null,'planning')
+    +sssCarte('Équipe aujourd’hui',String(poi.length)+' pointé(s)',(cg.length?cg.length+' absent(s)':'personne absent')+' · '+pers.filter(function(x){ return x.indicateur==='vert'; }).length+'/'+pers.length+' utilisent SSS OS','',"utilisation")
+    +sssCarte('Marges (direct vendu)',nb(function(x){ return x.fiabilite==='certaine'; })+' certaine(s)',nb(function(x){ return x.fiabilite==='estimee'; })+' estimée(s) · '+nb(function(x){ return x.fiabilite==='plafond'; })+' plafond(s) · '+nb(function(x){ return x.strategique; })+' stratégique(s)','', 'marges')
+    +"</div>";
+  var urg=[];
+  (cl.plus_en_retard||[]).slice(0,3).forEach(function(f){ urg.push('💸 '+esc(f.client||f.contact||'client')+' — '+esc(f.numero||'')+' : '+sssChf(f.reste||0)+' ('+(f.retard_jours||'?')+' j de retard)'); });
+  (fo.plus_urgentes||[]).slice(0,3).forEach(function(f){ urg.push('🧾 '+esc(f.fournisseur||'fournisseur')+' — échéance '+sssDateC(f.echeance)+' : '+(f.devise||'CHF')+' '+Number(f.montant_ttc||0).toLocaleString('fr-CH',{minimumFractionDigits:2})); });
+  (s.items||[]).filter(function(i){ return i.etat==='action'; }).forEach(function(i){ urg.push('🔴 '+esc(i.libelle)); });
+  if(urg.length) h+="<div class='card' style='padding:12px 14px;text-align:left'><div style='font-weight:700;margin-bottom:6px'>À regarder en premier</div>"+urg.map(function(t){ return "<div style='font-size:13.5px;padding:3px 0'>"+t+"</div>"; }).join('')+"</div>";
+  hote.innerHTML=h;
+  /* le Point du jour reste en tête de l'accueil (le bloc « À traiter » de l'équipe arrive parfois après) */
+  var enTete=function(){ var mm=document.getElementById('main'), x=document.getElementById('sss-pdj'); if(mm&&x&&mm.firstElementChild!==x) mm.insertBefore(x, mm.firstElementChild); };
+  enTete(); setTimeout(enTete,800); setTimeout(enTete,2500);
+}
+
+/* ------------------------------------------------------------------ UTILISATION DE SSS OS (adoption professionnelle) */
+async function renderUtilisation(jours){
+  var m=document.getElementById('main'); if(!m) return; if(!sssPatron()){ go(serviceDefault(SERVICE)); return; }
+  jours=jours||30;
+  m.innerHTML="<div class='page-head'><h2>Utilisation de SSS OS</h2></div><div class='loading'>Chargement…</div>";
+  var r=await db.rpc('sss_usage_resume',{p_jours:jours});
+  if(r.error){ m.innerHTML="<div class='page-head'><h2>Utilisation de SSS OS</h2></div><div class='card' style='padding:16px'>"+esc(r.error.message)+"</div>"; return; }
+  var d=r.data||{}, eq=d.equipe||{}, P=(d.personnes||[]);
+  var per=[7,30,90].map(function(j){ return "<button class='relbtn' style='"+(j===jours?'border-color:var(--gold);color:var(--text)':'')+"' onclick='renderUtilisation("+j+")'>"+j+" jours</button>"; }).join(' ');
+  var h="<div class='page-head'><h2>Utilisation de SSS OS</h2></div><div style='display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap'>"+per+"</div>";
+  h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px'>"
+    +sssCarte('Actifs aujourd’hui',String(eq.actifs_aujourdhui||0))
+    +sssCarte('Actifs (7 jours)',String(eq.actifs_7_jours||0),'semaine précédente : '+(eq.actifs_semaine_precedente||0))
+    +sssCarte('Notifications ignorées',String(eq.notifications_ignorees||0),'non lues depuis plus de 3 jours',(eq.notifications_ignorees?'#e0a52b':null))
+    +"</div>";
+  var lig=function(x){ var E=SSS_ETAT_COUL[x.indicateur]||SSS_ETAT_COUL.rouge;
+    var ecr=(x.ecrans||[]).slice(0,3).map(function(e){ return esc(e.ecran)+' ('+e.n+')'; }).join(', ')||'—';
+    return "<tr><td style='white-space:nowrap'><b>"+esc((x.prenom||'')+' '+(x.nom||''))+"</b><div style='font-size:11.5px;color:var(--text-3)'>"+esc(x.role||'')+"</div></td>"
+      +"<td title='"+E[2]+"'>"+E[0]+" <span style='font-size:12px'>"+E[2]+"</span></td>"
+      +"<td>"+sssQuand(x.last_sign_in_at)+"</td><td>"+sssQuand(x.derniere_activite)+"</td>"
+      +"<td style='text-align:center'><b>"+(x.jours_7||0)+"</b>/7 · "+(x.jours_30||0)+"/"+jours+"</td>"
+      +"<td style='text-align:center'>"+(x.sessions||0)+"</td><td style='font-size:12px'>"+ecr+"</td>"
+      +"<td style='text-align:center'>"+(x.chantiers_ouverts||0)+"</td><td style='text-align:center'>"+(x.rapports||0)+"</td><td style='text-align:center'>"+(x.documents_photos||0)+"</td>"
+      +"<td style='text-align:center'>"+(x.heures_pointees||0)+" h</td><td style='text-align:center'>"+(x.demandes||0)+"</td><td style='text-align:center'>"+(x.justificatifs||0)+"</td>"
+      +"<td style='text-align:center'>"+(x.notifications_lues||0)+" / <span style='color:"+(x.notifications_non_lues?'#e0a52b':'inherit')+"'>"+(x.notifications_non_lues||0)+"</span></td>"
+      +"<td style='text-align:center'>"+(x.taches_terminees||0)+"</td><td style='text-align:center'>"+(x.questions_assistant||0)+"</td></tr>"; };
+  h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Personne</th><th>Indicateur</th><th>Dernière connexion</th><th>Dernière activité</th><th>Jours actifs</th><th>Sessions</th><th>Écrans les plus ouverts</th><th>Chantiers ouverts</th><th>Rapports</th><th>Photos / docs</th><th>Heures pointées</th><th>Demandes</th><th>Justificatifs</th><th>Notif. lues / non lues</th><th>Tâches</th><th>Questions assistant</th></tr></thead><tbody>"
+    +(P.length?P.map(lig).join(''):"<tr><td colspan='16'>Aucun compte actif.</td></tr>")+"</tbody></table></div>";
+  var top=(eq.ecrans_les_plus_utilises||[]).map(function(e){ return esc(e.ecran)+' ('+e.n+')'; }).join(' · ')||'pas encore de données (mesure depuis le 06.10.2026)';
+  h+="<div class='card' style='padding:12px 14px;margin-top:12px;text-align:left'><div style='font-weight:700;margin-bottom:4px'>Écrans les plus utilisés par l’équipe</div><div style='font-size:13px'>"+top+"</div></div>";
+  h+="<div style='font-size:12px;color:var(--text-3);margin-top:10px;text-align:left'>"+esc(d.regle||'')+"</div>";
+  m.innerHTML=h;
+}
+
+/* ------------------------------------------------------------------ SANTÉ DU SYSTÈME */
+async function renderSante(){
+  var m=document.getElementById('main'); if(!m) return; if(!sssPatron()){ go(serviceDefault(SERVICE)); return; }
+  m.innerHTML="<div class='page-head'><h2>Santé du système</h2></div><div class='loading'>Contrôle…</div>";
+  var r=await db.rpc('sss_sante');
+  if(r.error){ m.innerHTML="<div class='page-head'><h2>Santé du système</h2></div><div class='card' style='padding:16px'>"+esc(r.error.message)+"</div>"; return; }
+  var d=r.data||{}, G=SSS_ETAT_COUL[d.etat_global]||SSS_ETAT_COUL.ok;
+  var h="<div class='page-head'><h2>Santé du système</h2></div><div class='card' style='padding:14px 16px;margin-bottom:12px;text-align:left;border-left:4px solid "+G[1]+"'><div style='font-size:18px;font-weight:800'>"+G[0]+" "+G[2]+"</div><div style='font-size:12px;color:var(--text-3)'>contrôlé le "+sssQuand(d.calcule_le)+" · <a href='#' onclick='renderSante();return false'>recontrôler</a></div></div>";
+  h+=(d.items||[]).map(function(i){ var E=SSS_ETAT_COUL[i.etat]||SSS_ETAT_COUL.ok; var det=[];
+    if(i.derniere_reussite!==undefined) det.push('dernière réussite : '+sssQuand(i.derniere_reussite)); if(i.valeur!==undefined) det.push('valeur : '+i.valeur+(i.total!==undefined?' / '+i.total:'')); if(i.message) det.push(esc(String(i.message).slice(0,160)));
+    return "<div class='card' style='padding:10px 14px;margin-bottom:8px;text-align:left;display:flex;gap:12px;align-items:center'><div style='font-size:20px'>"+E[0]+"</div><div style='min-width:0'><div style='font-weight:700'>"+esc(i.libelle)+"</div><div style='font-size:12px;color:var(--text-3)'>"+det.join(' · ')+"</div></div></div>"; }).join('');
+  m.innerHTML=h;
+}
+
+/* SSS-PILOTAGE-FIN */
+
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
 function go(v){ try{ if(typeof gwClean==='function') gwClean(); }catch(_e){}
