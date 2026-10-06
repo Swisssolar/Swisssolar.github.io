@@ -5671,7 +5671,7 @@ function sssNavNettoyer(){
 function sssCtrlLiens(){
   var m=document.getElementById('main'); if(!m||document.getElementById('sss-ctrl-liens')) return;
   var h=m.querySelector('.page-head'); var html="<div id='sss-ctrl-liens' style='display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px'>"
-    +"<button class='relbtn' onclick=\"go('utilisation')\">👥 Utilisation de SSS OS</button><button class='relbtn' onclick=\"go('sante')\">🩺 Santé du système</button><button class='relbtn' onclick=\"go('marges')\">📊 Coûts & marges</button></div>";
+    +"<button class='relbtn' onclick=\"go('equipe_rh')\">🧑‍💼 Équipe & RH</button><button class='relbtn' onclick=\"go('utilisation')\">👥 Utilisation de SSS OS</button><button class='relbtn' onclick=\"go('sante')\">🩺 Santé du système</button><button class='relbtn' onclick=\"go('marges')\">📊 Coûts & marges</button></div>";
   if(h) h.insertAdjacentHTML('afterend',html); else m.insertAdjacentHTML('afterbegin',html);
 }
 function sssRpc(nom,args){ return db.rpc(nom,args||{}).then(function(r){ return r.error?null:r.data; },function(){ return null; }); }
@@ -5892,6 +5892,128 @@ async function sssPcCloturer(id){
 try{ var _sssPcRmp=renderMonPlanning; renderMonPlanning=async function(){ var r=await _sssPcRmp.apply(this,arguments); try{ await sssPcBloc(); }catch(e){ console.error(e); } return r; }; }catch(e){}
 
 /* SSS-PARCOURS-FIN */
+
+/* SSS-RH-DEBUT */
+/* ==========================================================================
+   SSS OS — « Équipe & RH » (patron seul, double authentification) — migration 0033, 07.10.2026.
+   Effectif, fonction, taux, salaire brut courant, coût employeur / h (B), absences, documents, utilisation, alertes ;
+   puis la fiche détaillée : contrat, paie mois par mois (PDF source), historique des salaires, coûts B / C datés,
+   congés, pointages, heures chantier, documents RH (visibilité salarié décidée ici), coordonnées masquées.
+   Toutes les données viennent de sss_rh_equipe / sss_rh_fiche (garde patron + double authentification dans la base).
+   ========================================================================== */
+var SSSRH = { sel: null, annee: new Date().getFullYear(), voir: false };
+var SSSRH_MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+function sssRhChf(n){ if(n==null||n==='') return '—'; return (Number(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function sssRhDate(d){ if(!d) return '—'; try{ return new Date((''+d).length<=10?d+'T12:00:00':d).toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return ''+d; } }
+function sssRhMasque(v){ if(!v) return '—'; if(SSSRH.voir) return esc(v); var s=''+v; return esc(s.slice(0,4))+' •••• '+esc(s.slice(-2)); }
+function sssRhPast(t,c){ return "<span style='display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:"+c+"22;color:"+c+"'>"+esc(t)+"</span>"; }
+var SSSRH_ROLE={superadmin:'Direction',technicien:'Technicien',supply_chain:'Approvisionnement',commercial:'Commercial',admin:'Administratif',backoffice:'Back-office',soustraitant:'Sous-traitant'};
+
+async function renderEquipeRh(){
+  var m=document.getElementById('main'); if(!m) return;
+  if(SSSRH.sel) return sssRhFiche(SSSRH.sel);
+  m.innerHTML="<div class='page-head'><h2>Équipe & RH</h2><div class='spacer'></div><button class='iconbtn' onclick='renderEquipeRh()' title='Actualiser'>↻</button></div>"
+    +"<div style='font-size:12.5px;color:var(--text-3);max-width:980px;margin:-4px 0 12px'>Données confidentielles (direction seule). Sources : fiches de salaire réelles &gt; contrat &gt; décision &gt; ancienne donnée. Les montants sensibles sont dans la fiche de chaque personne.</div>"
+    +"<div id='sssrh-l' class='loading'>Chargement…</div>";
+  var R=await Promise.all([db.rpc('sss_rh_equipe'), db.rpc('sss_usage_resume',{p_jours:30}).then(function(r){return r;},function(){return {data:null};})]);
+  var box=document.getElementById('sssrh-l'); if(!box||VIEW!=='equipe_rh') return; box.className='';
+  if(R[0].error){ box.innerHTML="<div class='empty'>"+esc(/double authentification/.test(R[0].error.message)?'Saisis ton code de double authentification pour ouvrir les données RH.':R[0].error.message)+"</div>"; return; }
+  var L=R[0].data||[]; var us={}; ((R[1].data&&R[1].data.personnes)||[]).forEach(function(p){ us[p.id]=p; });
+  var COUL={vert:['🟢','#22a06b'],orange:['🟠','#e0a52b'],rouge:['🔴','#e5484d']};
+  var actifs=L.filter(function(x){ return x.statut!=='inactif'; });
+  var h="<div style='display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px'>"
+    +"<div class='card' style='padding:10px 14px'><div style='font-size:12px;color:var(--text-3)'>Effectif actuel</div><div style='font-size:22px;font-weight:800'>"+actifs.length+"</div></div>"
+    +"<div class='card' style='padding:10px 14px'><div style='font-size:12px;color:var(--text-3)'>Alertes RH</div><div style='font-size:22px;font-weight:800;color:#e0a52b'>"+actifs.reduce(function(a,x){ return a+(x.a_confirmer||[]).length+(x.conges_en_attente||0); },0)+"</div></div>"
+    +"<div class='card' style='padding:10px 14px'><div style='font-size:12px;color:var(--text-3)'>Mois de paie sans PDF</div><div style='font-size:22px;font-weight:800'>"+actifs.reduce(function(a,x){ return a+(x.mois_sans_pdf||0); },0)+"</div></div></div>";
+  h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Personne</th><th>Fonction / service</th><th>Contrat</th><th>Taux</th><th>Brut courant</th><th>Coût employeur / h (B)</th><th>Vacances / an</th><th>Absences "+new Date().getFullYear()+"</th><th>Documents</th><th>Utilisation</th><th>Alertes</th></tr></thead><tbody>"
+    +actifs.map(function(x){ var u=us[x.id]||{}; var c=COUL[u.indicateur]||['—','#8a8f98']; var al=(x.a_confirmer||[]).length+(x.conges_en_attente||0);
+      return "<tr style='cursor:pointer' onclick=\"SSSRH.sel='"+x.id+"';sssRhFiche('"+x.id+"')\"><td><b>"+esc(x.nom)+"</b><div style='font-size:11.5px;color:var(--text-3)'>"+esc(SSSRH_ROLE[x.role]||x.role||'')+"</div></td>"
+        +"<td>"+esc(x.fonction||'—')+(x.service?"<div style='font-size:11.5px;color:var(--text-3)'>"+esc(x.service)+"</div>":"")+"</td>"
+        +"<td>"+esc(x.type_contrat||'—')+(x.date_fin?"<div style='font-size:11.5px;color:var(--text-3)'>jusqu’au "+sssRhDate(x.date_fin)+"</div>":"")+"</td>"
+        +"<td style='text-align:center'>"+(x.taux_activite!=null?esc(String(x.taux_activite))+' %':'—')+"</td>"
+        +"<td style='text-align:right'>"+(x.paie?sssRhChf(x.paie.brut)+"<div style='font-size:11px;color:var(--text-3)'>"+esc(SSSRH_MOIS[x.paie.mois-1]||'')+' '+x.paie.annee+(x.paie.statut==='declaree_sans_pdf'?' · sans PDF':'')+"</div>":'—')+"</td>"
+        +"<td style='text-align:right'>"+(x.cout_b?sssRhChf(x.cout_b.taux):'—')+"</td>"
+        +"<td style='text-align:center'>"+(x.vacances_jours!=null?esc(String(x.vacances_jours))+' j':'—')+"</td>"
+        +"<td style='text-align:center'>"+(x.absences_annee||0)+" j"+(x.conges_en_attente?" · <span style='color:#e0a52b'>"+x.conges_en_attente+" en attente</span>":"")+"</td>"
+        +"<td style='text-align:center'>"+(x.documents||0)+(x.mois_sans_pdf?"<div style='font-size:11px;color:#e0a52b'>"+x.mois_sans_pdf+" mois sans PDF</div>":"")+"</td>"
+        +"<td style='text-align:center' title='"+esc(u.indicateur||'')+"'>"+c[0]+"<div style='font-size:11px;color:var(--text-3)'>"+(x.derniere_connexion?sssRhDate(x.derniere_connexion):'jamais')+"</div></td>"
+        +"<td style='text-align:center'>"+(al?sssRhPast(al+' à voir','#e0a52b'):sssRhPast('OK','#22a06b'))+"</td></tr>"; }).join('')
+    +"</tbody></table></div>";
+  box.innerHTML=h;
+}
+
+async function sssRhFiche(id){
+  var m=document.getElementById('main'); if(!m) return;
+  m.innerHTML="<div class='page-head'><button class='iconbtn' onclick=\"SSSRH.sel=null;renderEquipeRh()\" title='Retour'>←</button><h2 id='sssrh-t'>Fiche RH</h2><div class='spacer'></div>"
+    +"<button class='relbtn' onclick=\"SSSRH.voir=!SSSRH.voir;sssRhFiche('"+id+"')\">"+(SSSRH.voir?'🙈 Masquer':'👁 Afficher')+" IBAN / AVS</button></div><div id='sssrh-f' class='loading'>Chargement…</div>";
+  var r=await db.rpc('sss_rh_fiche',{p_user:id}); var box=document.getElementById('sssrh-f'); if(!box||VIEW!=='equipe_rh') return; box.className='';
+  if(r.error){ box.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  var F=r.data||{}; var P=F.personne||{}, D=F.dossier||{}; SSSRH.F=F;
+  var t=document.getElementById('sssrh-t'); if(t) t.textContent=((P.prenom||'')+' '+(P.nom||'')).trim()+' — fiche RH';
+  var src=D.sources||{}; var ligne=function(l,v,k){ return "<tr><td style='color:var(--text-3);width:210px'>"+l+"</td><td>"+v+(k&&src[k]?"<div style='font-size:11px;color:var(--text-3)'>source : "+esc(src[k])+"</div>":"")+"</td></tr>"; };
+  var sec=function(titre,corps){ return "<div class='card' style='padding:12px 15px;margin-bottom:12px;max-width:1100px;text-align:left'><div style='font-weight:800;margin-bottom:8px'>"+titre+"</div>"+corps+"</div>"; };
+  var h='';
+  if((D.a_confirmer||[]).length) h+=sec('⚠️ À confirmer / manquant',"<ul style='margin:0;padding-left:18px'>"+D.a_confirmer.map(function(x){ return "<li style='margin:3px 0'>"+esc(x)+"</li>"; }).join('')+"</ul>");
+  h+=sec('Identité & contrat',"<table style='width:100%;font-size:13px'>"
+    +ligne('Nom légal',esc(D.nom_legal||'—'),'nom_legal')+ligne('Fonction',esc(D.fonction||'—'),'fonction')+ligne('Service',esc(D.service||'—'))
+    +ligne('Statut',esc(D.statut||(P.actif?'actif':'inactif')))+ligne('Date d’entrée',sssRhDate(D.date_entree),'date_entree')+ligne('Fin de contrat',sssRhDate(D.date_fin),'date_fin')
+    +ligne('Type de contrat',esc(D.type_contrat||'—'),'type_contrat')+ligne('Taux d’activité',D.taux_activite!=null?esc(String(D.taux_activite))+' %':'—','taux_activite')
+    +ligne('Heures / semaine',D.heures_semaine!=null?esc(String(D.heures_semaine)):'—','heures_semaine')+ligne('Vacances / an',D.vacances_jours!=null?esc(String(D.vacances_jours))+' jours':'—','vacances_jours')
+    +ligne('E-mail professionnel',esc(D.email_pro||P.email||'—'))+ligne('Téléphone professionnel',esc(D.telephone_pro||'—'))+ligne('Adresse',esc(D.adresse||'—'))
+    +ligne('N° AVS',sssRhMasque(D.avs_numero),'avs_numero')+ligne('Compte de versement',sssRhMasque(D.iban)+(D.banque?' · '+esc(D.banque):''),'iban')
+    +ligne('Assurances','AVS : '+esc(D.caisse_avs||'—')+' · LPP : '+esc(D.lpp_institution||'—')+' · LAA : '+esc(D.laa_assureur||'—')+' · IJM : '+esc(D.ijm_assureur||'—'))
+    +ligne('Rôle SSS OS',esc(SSSRH_ROLE[P.role]||P.role||'—')+' · dernière connexion : '+(P.derniere_connexion?sssRhDate(P.derniere_connexion):'jamais'))
+    +ligne('Matériel attribué',esc(F.materiel||'—'))+"</table>");
+  // paie mois par mois
+  var paie=F.paie||[]; var annees=[]; paie.forEach(function(p){ if(annees.indexOf(p.annee)<0) annees.push(p.annee); }); if(annees.indexOf(SSSRH.annee)<0 && annees.length) SSSRH.annee=annees[annees.length-1];
+  var th="<th>Mois</th><th>Brut</th><th>13e</th><th>Net</th><th>AVS</th><th>AC</th><th>LPCFam</th><th>LAA</th><th>IJM</th><th>LPP</th><th>Autres</th><th>Coût employeur</th><th>Source</th>";
+  var rows=SSSRH_MOIS.map(function(nom,i){ var mo=i+1; var ret=paie.filter(function(p){ return p.annee===SSSRH.annee && p.mois===mo && p.retenue; })[0]; var old=paie.filter(function(p){ return p.annee===SSSRH.annee && p.mois===mo && !p.retenue; });
+    if(!ret) return "<tr style='color:var(--text-3)'><td>"+nom+"</td><td colspan='12'>aucune fiche retrouvée</td></tr>";
+    var aut=(ret.autres||[]).map(function(a){ return esc(a.libelle)+' '+sssRhChf(a.montant); }).join('<br>');
+    var lien=ret.fichier?"<button class='relbtn' style='padding:2px 8px' onclick=\"sssRhOuvrir('"+esc(ret.fichier)+"')\">PDF</button>":(ret.statut==='declaree_sans_pdf'?"<span style='color:#e0a52b' title='"+esc(ret.source)+"'>sans PDF</span>":'—');
+    return "<tr><td><b>"+nom+"</b>"+(ret.statut==='corrigee'?"<div style='font-size:11px;color:var(--text-3)'>fiche corrigée</div>":"")+(old.length?"<div style='font-size:11px;color:var(--text-3)'>"+old.length+" version(s) remplacée(s)"+old.map(function(o){ return o.fichier?" <a href='#' onclick=\"sssRhOuvrir('"+esc(o.fichier)+"');return false\">PDF du "+sssRhDate(o.date_fiche)+"</a>":''; }).join('')+"</div>":"")+"</td>"
+      +[ret.brut,ret.treizieme,ret.net,ret.avs,ret.ac,ret.lpcfam,ret.laa,ret.ijm,ret.lpp].map(function(v){ return "<td style='text-align:right'>"+sssRhChf(v)+"</td>"; }).join('')
+      +"<td style='font-size:11.5px'>"+(aut||'—')+"</td><td style='text-align:right' title='"+esc((ret.cout_calcul&&ret.cout_calcul.note)||'')+"'>"+sssRhChf(ret.cout_employeur)+"</td><td>"+lien+"</td></tr>"; }).join('');
+  h+=sec('Paie '+SSSRH.annee+" "+annees.map(function(a){ return "<button class='relbtn"+(a===SSSRH.annee?' win':'')+"' style='padding:2px 9px;margin-left:4px' onclick=\"SSSRH.annee="+a+";sssRhFiche('"+id+"')\">"+a+"</button>"; }).join(''),
+    "<div style='overflow-x:auto'><table class='table' style='width:100%;font-size:12.5px'><thead><tr>"+th+"</tr></thead><tbody>"+rows+"</tbody></table></div><div style='font-size:11.5px;color:var(--text-3);margin-top:6px'>Coût employeur = brut + charges FPV/SUVA documentées + IJM et LPP employeur égaux à la part salarié (hypothèse, à confirmer par AXA / Innova). Aucune valeur n’est inventée pour un mois sans fiche.</div>");
+  // historique des salaires
+  var NAT={contrat:'Contrat',avenant:'Avenant',version_non_retenue:'Version non retenue',salaire_paye:'Salaire réellement payé',decision:'Décision'};
+  h+=sec('Historique des salaires (daté)',"<table class='table' style='width:100%;font-size:12.5px'><thead><tr><th>Dès</th><th>Jusqu’au</th><th>Nature</th><th>Mensuel</th><th>13e</th><th>Annuel</th><th>h / sem.</th><th>Vacances</th><th>Source</th></tr></thead><tbody>"
+    +(F.contrats||[]).map(function(c){ return "<tr style='"+(c.retenu?'':'color:var(--text-3)')+"'><td>"+sssRhDate(c.valable_des)+"</td><td>"+sssRhDate(c.valable_jusqu)+"</td><td>"+esc(NAT[c.nature]||c.nature)+(c.retenu?'':' · <i>non appliqué</i>')+"</td><td style='text-align:right'>"+sssRhChf(c.salaire_mensuel)+"</td><td>"+(c.treizieme==null?'—':(c.treizieme?'oui':'non'))+"</td><td style='text-align:right'>"+sssRhChf(c.salaire_annuel)+"</td><td>"+(c.heures_semaine||'—')+"</td><td>"+(c.vacances_jours?c.vacances_jours+' j':'—')+"</td><td style='font-size:11.5px'>"+esc(c.source)+(c.notes?"<div>"+esc(c.notes)+"</div>":"")+"</td></tr>"; }).join('')+"</tbody></table>");
+  // coûts horaires B / C
+  h+=sec('Coûts horaires (historique, jamais écrasé)',"<table class='table' style='width:100%;font-size:12.5px'><thead><tr><th>Dès</th><th>Variante</th><th>CHF / h</th><th>État</th><th>Calcul</th></tr></thead><tbody>"
+    +(F.couts||[]).map(function(c){ var k=c.calcul||{}; return "<tr style='"+(c.actif?'':'color:var(--text-3)')+"'><td>"+sssRhDate(c.valable_des)+"</td><td>"+(c.variante==='C'?'C — prix de vente':'B — marges chantier')+"</td><td style='text-align:right'><b>"+sssRhChf(c.cout_horaire)+"</b></td><td>"+(c.actif?'en vigueur':'remplacé le '+sssRhDate(c.remplace_le))+"</td><td style='font-size:11.5px'>"+(k.cout_employeur_annuel?sssRhChf(k.cout_employeur_annuel)+' CHF/an ÷ '+k.heures_presence+' h de présence'+(k.productivite?' ÷ '+Math.round(k.productivite*100)+' % productif':''):esc(c.notes||''))+"</td></tr>"; }).join('')+"</tbody></table>");
+  // temps
+  var pt=F.pointages||{}, hc=F.heures_chantier||{};
+  h+=sec('Temps, congés & absences',"<div style='display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin-bottom:8px'><div>Pointages : <b>"+(pt.nb||0)+"</b> ("+(pt.heures||0)+" h, dernier "+sssRhDate(pt.dernier)+")</div><div>Heures chantier : <b>"+(hc.reelles||0)+" h réelles</b> · "+(hc.estimees||0)+" h estimées · "+(hc.chantiers||0)+" chantier(s)</div></div>"
+    +((F.conges||[]).length?"<table class='table' style='width:100%;font-size:12.5px'><thead><tr><th>Du</th><th>Au</th><th>Jours</th><th>Type</th><th>Statut</th></tr></thead><tbody>"+F.conges.map(function(g){ return "<tr><td>"+sssRhDate(g.du)+"</td><td>"+sssRhDate(g.au)+"</td><td>"+(g.jours||'—')+"</td><td>"+esc(g.type||'congé')+"</td><td>"+esc(g.statut||'')+"</td></tr>"; }).join('')+"</tbody></table>":"<div style='font-size:13px;color:var(--text-3)'>Aucun congé ni absence enregistré dans SSS OS.</div>"));
+  // documents
+  var TY={fiche_salaire:'Fiche de salaire',contrat:'Contrat',avenant:'Avenant',donnees_rh:'Données RH',decision:'Décision',apg:'APG',allocations:'Allocations',permis:'Permis / frontalier'};
+  h+=sec('Documents RH',((F.documents||[]).length?"<table class='table' style='width:100%;font-size:12.5px'><thead><tr><th>Document</th><th>Type</th><th>Période</th><th>Visible par le salarié</th><th></th></tr></thead><tbody>"
+    +F.documents.map(function(d){ return "<tr><td>"+esc(d.nom||'')+"<div style='font-size:11px;color:var(--text-3)'>"+esc(d.source||'')+"</div></td><td>"+esc(TY[d.type]||d.type||'')+"</td><td>"+esc((d.mois?d.mois+'.':'')+(d.annee||''))+"</td>"
+      +"<td><label style='display:flex;gap:6px;align-items:center;cursor:pointer'><input type='checkbox' "+(d.visible_salarie?'checked':'')+" onchange=\"sssRhVisible('"+d.id+"',this.checked,'"+id+"')\"> "+(d.visible_salarie?'oui':'non')+"</label></td>"
+      +"<td><button class='relbtn' style='padding:2px 8px' onclick=\"sssRhOuvrir('"+esc(d.fichier)+"')\">Ouvrir</button></td></tr>"; }).join('')+"</tbody></table>":"<div style='font-size:13px;color:var(--text-3)'>Aucun document.</div>"));
+  box.innerHTML=h;
+}
+async function sssRhOuvrir(chemin){
+  var w=window.open('about:blank','_blank');
+  var r=await db.storage.from('rh').createSignedUrl(chemin,120);
+  if(r.error||!r.data){ if(w) w.close(); alert('Ouverture impossible : '+((r.error&&r.error.message)||'')); return; }
+  if(w) w.location=r.data.signedUrl; else window.open(r.data.signedUrl,'_blank');
+}
+async function sssRhVisible(docId,oui,uid){
+  if(oui && !confirm('Rendre ce document visible par le salarié dans son espace ? Il ne verra que ses propres documents.')){ sssRhFiche(uid); return; }
+  var a=await db.from('documents_rh').update({visible_salarie:!!oui}).eq('id',docId).select('id');
+  var b=await db.from('rh_paie').update({visible_salarie:!!oui}).eq('document_id',docId).select('id');
+  if(a.error||b.error){ alert('Modification impossible : '+((a.error||b.error).message)); }
+  sssRhFiche(uid);
+}
+(function(){
+  try{ VUE_ROLES.equipe_rh=['superadmin']; VUE_SERVICES.equipe_rh=(VUE_SERVICES.utilisation||VUE_SERVICES.sante||['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant']); }catch(e){}
+  try{ var _go=go; go=function(v){ if(v==='rh' && typeof ME!=='undefined' && ME && ME.role==='superadmin' && !SSSRH.ancien){ v='equipe_rh'; } var r=_go.apply(this,[v].concat([].slice.call(arguments,1))); try{ if(VIEW==='equipe_rh'){ SSSRH.sel=null; renderEquipeRh(); } }catch(e){ console.error(e); } return r; }; }catch(e){}
+})();
+
+/* SSS-RH-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
