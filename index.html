@@ -2336,6 +2336,7 @@ function renderNav(){
     ['tech_bat','Chantiers batterie en cours','<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="7" width="16" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M9 4h6v3H9zM12 10v5M9.5 12.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_sav','SAV en cours','<svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4l-4.6 4.6 2 2 4.6-4.6a4 4 0 0 1 5.4-5.4l-2.2 2.2-1.8-1.8 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_materiel','Outillage','<svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
+    ['mes_fiches','Mes fiches de salaire','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',['technicien','supply_chain','soustraitant','backoffice','commercial','admin']],
     ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
     ['marges','Coûts & Marges SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/></svg>',['superadmin']],
@@ -6014,6 +6015,45 @@ async function sssRhVisible(docId,oui,uid){
 })();
 
 /* SSS-RH-FIN */
+
+/* SSS-MES-FICHES-DEBUT */
+/* ==========================================================================
+   SSS OS — « Mes fiches de salaire » dans Mon espace (décision de la direction du 07.10.2026).
+   Chaque salarié voit et télécharge SES fiches de salaire, et rien d'autre du dossier RH : la base ne lui renvoie que
+   ses lignes rh_paie / documents_rh marquées « visible par le salarié » (RLS + stockage « rh », migration 0033).
+   ========================================================================== */
+var SSSMF_MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+async function renderMesFiches(){
+  var m=document.getElementById('main'); if(!m) return;
+  m.innerHTML="<div class='page-head'><h2>Mes fiches de salaire</h2></div><div id='sssmf-l' class='loading'>Chargement…</div>";
+  var r=await db.from('rh_paie').select('annee,mois,net,document:document_id(fichier_url)').eq('utilisateur_id',ME.id).eq('retenue',true).order('annee',{ascending:false}).order('mois',{ascending:false});
+  var box=document.getElementById('sssmf-l'); if(!box||VIEW!=='mes_fiches') return; box.className='';
+  if(r.error){ box.innerHTML="<div class='empty'>Lecture impossible : "+esc(r.error.message)+"</div>"; return; }
+  var L=(r.data||[]).filter(function(x){ return x.document && x.document.fichier_url; });
+  if(!L.length){ box.innerHTML="<div class='empty' style='max-width:640px'>Aucune fiche de salaire disponible pour le moment.</div>"; return; }
+  var an=null, h="<div style='max-width:640px'>";
+  L.forEach(function(x){
+    if(x.annee!==an){ an=x.annee; h+="<div style='margin:14px 0 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)'>"+an+"</div>"; }
+    h+="<div class='card' style='display:flex;align-items:center;gap:10px;padding:11px 14px;margin-bottom:7px'><div style='flex:1'><b>"+esc(SSSMF_MOIS[x.mois-1]||'')+" "+x.annee+"</b>"
+      +(x.net!=null?"<div style='font-size:12.5px;color:var(--text-3)'>net "+(Number(x.net)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+" CHF</div>":"")+"</div>"
+      +"<button class='relbtn win' style='min-height:40px' onclick=\"sssMfOuvrir('"+esc(x.document.fichier_url)+"')\">⬇ Télécharger</button></div>";
+  });
+  box.innerHTML=h+"</div>";
+}
+async function sssMfOuvrir(chemin){
+  var w=window.open('about:blank','_blank');
+  var r=await db.storage.from('rh').createSignedUrl(chemin,120,{download:true});
+  if(r.error||!r.data){ if(w) w.close(); alert('Téléchargement impossible : '+((r.error&&r.error.message)||'')); return; }
+  if(w) w.location=r.data.signedUrl; else window.location=r.data.signedUrl;
+}
+(function(){
+  var R=['technicien','supply_chain','soustraitant','backoffice','commercial','admin'];
+  try{ VUE_ROLES.mes_fiches=R; VUE_SERVICES.mes_fiches=['technique','commercial','admin','backoffice','soustraitant','rh','docs','financier']; }catch(e){}
+  try{ [typeof SSS_MENU_TECH!=='undefined'?SSS_MENU_TECH:null, typeof SSS_MENU_SUPPLY!=='undefined'?SSS_MENU_SUPPLY:null].forEach(function(M){ (M||[]).forEach(function(g){ if(g.id==='gmoi' && g.keys.indexOf('mes_fiches')<0){ var i=g.keys.indexOf('tech_quittances'); g.keys.splice(i>=0?i:g.keys.length,0,'mes_fiches'); } }); }); }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='mes_fiches') renderMesFiches(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+})();
+
+/* SSS-MES-FICHES-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
