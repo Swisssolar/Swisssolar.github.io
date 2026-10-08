@@ -2336,6 +2336,7 @@ function renderNav(){
     ['tech_bat','Chantiers batterie en cours','<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="7" width="16" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M9 4h6v3H9zM12 10v5M9.5 12.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_sav','SAV en cours','<svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4l-4.6 4.6 2 2 4.6-4.6a4 4 0 0 1 5.4-5.4l-2.2 2.2-1.8-1.8 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_materiel','Outillage','<svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
+    ['prospects','Prospects','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>',['superadmin','direction','commercial']],
     ['mes_fiches','Mes fiches de salaire','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',['technicien','supply_chain','soustraitant','backoffice','commercial','admin']],
     ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
@@ -2423,7 +2424,7 @@ function renderNav(){
   const itemMap={}; items.forEach(function(it){ if(it&&it[0]) itemMap[it[0]]=it; });
   const isDir=['superadmin','direction'].includes(ME.role);
   const GROUPS_COM=[
-    {id:'g1',title:'Activité',keys:['agenda','contacts']},
+    {id:'g1',title:'Activité',keys:['prospects','agenda','contacts']},
     {id:'g2',title:'Ventes & dossiers',keys:['devis','relances','vivier','retours','avalider','generateur']},
     {id:'g4',title:'Ressources',keys:['temoins','support','tarifs']}
   ];
@@ -5672,7 +5673,7 @@ function sssNavNettoyer(){
 function sssCtrlLiens(){
   var m=document.getElementById('main'); if(!m||document.getElementById('sss-ctrl-liens')) return;
   var h=m.querySelector('.page-head'); var html="<div id='sss-ctrl-liens' style='display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px'>"
-    +"<button class='relbtn' onclick=\"go('equipe_rh')\">🧑‍💼 Équipe & RH</button><button class='relbtn' onclick=\"go('utilisation')\">👥 Utilisation de SSS OS</button><button class='relbtn' onclick=\"go('sante')\">🩺 Santé du système</button><button class='relbtn' onclick=\"go('marges')\">📊 Coûts & marges</button></div>";
+    +"<button class='relbtn' onclick=\"go('prospects')\">📇 Prospects</button><button class='relbtn' onclick=\"go('equipe_rh')\">🧑‍💼 Équipe & RH</button><button class='relbtn' onclick=\"go('utilisation')\">👥 Utilisation de SSS OS</button><button class='relbtn' onclick=\"go('sante')\">🩺 Santé du système</button><button class='relbtn' onclick=\"go('marges')\">📊 Coûts & marges</button></div>";
   if(h) h.insertAdjacentHTML('afterend',html); else m.insertAdjacentHTML('afterbegin',html);
 }
 function sssRpc(nom,args){ return db.rpc(nom,args||{}).then(function(r){ return r.error?null:r.data; },function(){ return null; }); }
@@ -6078,6 +6079,211 @@ async function sssMfOuvrir(chemin){
 })();
 
 /* SSS-MES-FICHES-FIN */
+
+/* SSS-PROSPECTS-DEBUT */
+/* ==========================================================================
+   SSS OS — Commercial → Prospects (migration 0035, 08.10.2026).
+   Liste de travail (filtres), fiche prospect (coordonnées, demande, commercial, historique), appels / notes /
+   rappels / rendez-vous / offre, attribution et conversion (direction), tableau de bord + délai de premier contact.
+   Toute écriture passe par sss_prospect_action / sss_prospect_creer : la base vérifie le rôle et le périmètre
+   (un commercial ne voit et ne modifie que SES prospects) et garde l'historique.
+   ========================================================================== */
+var SSSPR = { onglet: 'liste', f: { rapide: '', commercial: '', source: '', statut: '', periode: '90', canton: '', q: '', categorie: '' }, sel: null, users: null, liste: [] };
+var SSSPR_STATUTS = [['nouveau','Nouveau','#3b82f6'],['a_appeler','À appeler','#e0a52b'],['contacte','Contacté','#22a06b'],['a_rappeler','À rappeler','#e0a52b'],['rdv_fixe','RDV fixé','#8a5cf6'],
+  ['etude_offre','Étude / offre à préparer','#8a5cf6'],['offre_envoyee','Offre envoyée','#0ea5e9'],['relance_offre','Relance offre','#0ea5e9'],['vendu','Vendu','#16a34a'],['perdu','Perdu','#8a8f98'],
+  ['sans_reponse','Sans réponse','#8a8f98'],['hors_cible','Hors cible','#8a8f98'],['vivier','Vivier','#64748b'],['a_reprendre','À reprendre / historique','#b45309']];
+var SSSPR_SOURCES = [['devis.ch','devis.ch'],['site_sss','Site Swiss Solar System'],['meta','Meta'],['google','Google'],['whatsapp','WhatsApp'],['telephone','Téléphone'],['recommandation','Recommandation'],['partenaire','Partenaire'],['manuel','Manuel'],['autre','Autre']];
+var SSSPR_CATS = [['photovoltaique','Photovoltaïque'],['batterie','Batterie'],['borne','Borne de recharge'],['pac','Pompe à chaleur'],['renovation_electricite','Rénovation / électricité'],['maintenance','Maintenance / dépannage'],['ppe','PPE / immeuble'],['autre','Autre'],['a_verifier','À vérifier']];
+var SSSPR_APPEL = [['client_joint','Client joint'],['pas_de_reponse','Pas de réponse'],['rappeler','Rappeler'],['message_laisse','Message laissé'],['rdv_fixe','RDV fixé'],['pas_interesse','Pas intéressé'],['mauvais_numero','Mauvais numéro']];
+var SSSPR_RDVRES = [['effectue','RDV effectué'],['absent','Client absent'],['reporte','Reporté'],['etude_necessaire','Étude nécessaire'],['offre_a_preparer','Offre à préparer'],['sans_suite','Sans suite'],['annule','Annulé']];
+function sssPrLib(L,k){ var x=L.filter(function(y){ return y[0]===k; })[0]; return x?x[1]:(k||'—'); }
+function sssPrStatut(k){ var x=SSSPR_STATUTS.filter(function(y){ return y[0]===k; })[0]||[k,k,'#8a8f98']; return "<span style='display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:700;background:"+x[2]+"22;color:"+x[2]+"'>"+esc(x[1])+"</span>"; }
+function sssPrDate(d,h){ if(!d) return '—'; try{ var x=new Date(d); return x.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'})+(h===false?'':' '+x.toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})); }catch(e){ return ''+d; } }
+function sssPrDuree(min){ if(min==null) return '—'; min=Number(min); if(min<60) return Math.round(min)+' min'; if(min<48*60) return (Math.round(min/6)/10)+' h'; return (Math.round(min/144)/10)+' j'; }
+function sssPrNom(p){ var n=((p.prenom||'')+' '+(p.nom||'')).trim()||p.societe; return n?n:('Demande '+(p.source==='devis.ch'?'devis.ch ':'')+'n° '+p.numero+' — coordonnées à compléter'); }
+function sssPrPatron(){ return typeof ME!=='undefined' && ME && ['superadmin','direction'].indexOf(ME.role)>=0; }
+function sssPrUser(id){ var u=(SSSPR.users||[]).filter(function(x){ return x.id===id; })[0]; return u?((u.prenom||'')+' '+(u.nom||'')).trim():(id?'…':'—'); }
+async function sssPrUsers(){ if(SSSPR.users) return SSSPR.users; var r=await db.from('utilisateurs').select('id,prenom,nom,role,actif'); SSSPR.users=(r.data||[]); if(ME && !SSSPR.users.some(function(u){ return u.id===ME.id; })) SSSPR.users.push({id:ME.id,prenom:ME.prenom,nom:ME.nom,role:ME.role}); return SSSPR.users; }
+async function sssPrAct(id,action,d){ var r=await db.rpc('sss_prospect_action',{p_id:id,p_action:action,d:d||{}}); if(r.error){ alert('Impossible : '+r.error.message); return null; } return r.data||{}; }
+function sssPrSel(id,L,v,vide){ return "<select id='"+id+"' style='min-height:38px'>"+(vide!=null?"<option value=''>"+esc(vide)+"</option>":"")+L.map(function(x){ return "<option value='"+esc(x[0])+"'"+(String(v)===String(x[0])?' selected':'')+">"+esc(x[1])+"</option>"; }).join('')+"</select>"; }
+function sssPrV(id){ var e=document.getElementById(id); return e?(''+(e.value||'')).trim():''; }
+
+async function renderProspects(){
+  var m=document.getElementById('main'); if(!m) return;
+  if(SSSPR.sel) return sssPrFiche(SSSPR.sel);
+  await sssPrUsers();
+  var tabs=[['liste','Prospects'],['tableau','Tableau de bord']];
+  m.innerHTML="<div class='page-head'><h2>Prospects</h2><div class='spacer'></div><button class='btn' style='min-height:38px' onclick='sssPrNouveau()'>+ Nouveau prospect</button></div>"
+    +"<div style='display:flex;gap:6px;margin-bottom:12px'>"+tabs.map(function(t){ return "<button class='relbtn"+(SSSPR.onglet===t[0]?' win':'')+"' onclick=\"SSSPR.onglet='"+t[0]+"';renderProspects()\">"+t[1]+"</button>"; }).join('')+"</div><div id='sspr-c' class='loading'>Chargement…</div>";
+  if(SSSPR.onglet==='tableau') return sssPrTableau();
+  var r=await db.from('prospects').select('*').is('fusionne_dans',null).order('recu_at',{ascending:false}).limit(1000);
+  var box=document.getElementById('sspr-c'); if(!box||VIEW!=='prospects') return; box.className='';
+  if(r.error){ box.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  SSSPR.liste=r.data||[]; sssPrListe();
+}
+function sssPrListe(){
+  var box=document.getElementById('sspr-c'); if(!box) return; var F=SSSPR.f, now=Date.now();
+  var coms=(SSSPR.users||[]).filter(function(u){ return u.role==='commercial'||u.role==='superadmin'||u.role==='direction'; }).map(function(u){ return [u.id,((u.prenom||'')+' '+(u.nom||'')).trim()]; });
+  var cantons=[]; SSSPR.liste.forEach(function(p){ if(p.canton && cantons.indexOf(p.canton)<0) cantons.push(p.canton); });
+  var L=SSSPR.liste.filter(function(p){
+    if(F.rapide==='nouveau' && p.statut!=='nouveau') return false;
+    if(F.rapide==='non_appele' && (p.premier_contact_at || p.importe_le || ['vendu','perdu','hors_cible'].indexOf(p.statut)>=0)) return false;
+    if(F.rapide==='retard' && !(p.prochain_rappel && new Date(p.prochain_rappel).getTime()<now && ['vendu','perdu','hors_cible'].indexOf(p.statut)<0)) return false;
+    if(F.rapide==='sans_commercial' && (p.commercial_id || p.importe_le)) return false;
+    if(F.rapide==='historique' && !p.importe_le) return false;
+    if(F.rapide==='nouveaux_leads' && p.importe_le) return false;
+    if(F.commercial && (F.commercial==='aucun'?p.commercial_id:p.commercial_id!==F.commercial)) return false;
+    if(F.source && p.source!==F.source) return false; if(F.statut && p.statut!==F.statut) return false; if(F.categorie && p.categorie!==F.categorie) return false;
+    if(F.canton && p.canton!==F.canton) return false;
+    if(F.periode && (now-new Date(p.recu_at).getTime())>Number(F.periode)*864e5) return false;
+    if(F.q){ var q=F.q.toLowerCase(); if(((p.nom||'')+' '+(p.prenom||'')+' '+(p.localite||'')+' '+(p.npa||'')+' '+(p.telephone||'')+' '+(p.email||'')+' '+(p.source_ref||'')+' '+p.numero).toLowerCase().indexOf(q)<0) return false; }
+    return true; });
+  var chip=function(k,t){ return "<button class='relbtn"+(F.rapide===k?' win':'')+"' onclick=\"SSSPR.f.rapide=(SSSPR.f.rapide==='"+k+"'?'':'"+k+"');sssPrListe()\">"+t+"</button>"; };
+  var sel=function(k,L2,vide){ return "<select onchange=\"SSSPR.f."+k+"=this.value;sssPrListe()\" style='width:auto;min-height:36px;font-size:13px'><option value=''>"+vide+"</option>"+L2.map(function(x){ return "<option value='"+esc(x[0])+"'"+(F[k]===x[0]?' selected':'')+">"+esc(x[1])+"</option>"; }).join('')+"</select>"; };
+  var h="<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>"+chip('nouveau','🆕 Nouveaux')+chip('non_appele','📵 Jamais appelés')+chip('retard','⏰ Rappel en retard')+(sssPrPatron()?chip('sans_commercial','👤 Sans commercial'):'')+chip('historique','🗂 Import historique devis.ch 2026')+chip('nouveaux_leads','⚡ Nouveaux leads (hors historique)')+"</div>"
+    +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center'><input placeholder='Rechercher (nom, localité, tél., n°…)' value=\""+esc(F.q)+"\" oninput=\"SSSPR.f.q=this.value;clearTimeout(window.__sspr_t);window.__sspr_t=setTimeout(sssPrListe,250)\" style='max-width:260px;min-height:36px'>"
+    +(sssPrPatron()?sel('commercial',[['aucun','— sans commercial —']].concat(coms),'Tous les commerciaux'):'')+sel('source',SSSPR_SOURCES,'Toutes les sources')+sel('statut',SSSPR_STATUTS.map(function(x){ return [x[0],x[1]]; }),'Tous les statuts')
+    +sel('categorie',SSSPR_CATS,'Tous les types')+sel('canton',cantons.sort().map(function(c){ return [c,c]; }),'Tous les cantons')
+    +sel('periode',[['1','Aujourd’hui'],['7','7 jours'],['30','30 jours'],['90','90 jours'],['3650','Tout']],'Période')+"<span style='font-size:12.5px;color:var(--text-3)'>"+L.length+" prospect(s)</span></div>";
+  if(!L.length){ box.innerHTML=h+"<div class='empty'>Aucun prospect dans cette sélection.</div>"; return; }
+  h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Prospect</th><th>Localité</th><th>Type</th><th>Source</th><th>Reçu</th><th>Statut</th><th>Commercial</th><th>Dernière activité</th><th>Prochaine action</th><th>Rappel</th><th>Appel</th></tr></thead><tbody>"
+    +L.map(function(p){ var retard=p.prochain_rappel && new Date(p.prochain_rappel).getTime()<now && ['vendu','perdu','hors_cible'].indexOf(p.statut)<0;
+      var attente=!p.premier_contact_at ? (now-new Date(p.recu_at).getTime())/36e5 : null;
+      return "<tr style='cursor:pointer' onclick=\"SSSPR.sel='"+p.id+"';sssPrFiche('"+p.id+"')\"><td><b>"+esc(sssPrNom(p))+"</b><div style='font-size:11px;color:var(--text-3)'>n° "+p.numero+(p.telephone?' · '+esc(p.telephone):'')+"</div>"+(p.importe_le?"<div style='font-size:10.5px;color:#b45309;font-weight:700'>"+esc(p.campagne||'Import historique')+" · avant SSS OS</div>":'')+"</td>"
+        +"<td>"+esc([p.npa,p.localite].filter(Boolean).join(' ')||'—')+"</td><td>"+esc(sssPrLib(SSSPR_CATS,p.categorie))+"</td><td>"+esc(sssPrLib(SSSPR_SOURCES,p.source))+"</td>"
+        +"<td>"+sssPrDate(p.recu_at,!(p.source_infos&&p.source_infos.heure_inconnue))+"</td><td>"+sssPrStatut(p.statut)+"</td><td>"+esc(p.commercial_id?sssPrUser(p.commercial_id):'—')+"</td><td>"+sssPrDate(p.dernier_evenement_at)+"</td>"
+        +"<td>"+esc(p.prochaine_action||'—')+"</td><td style='"+(retard?'color:#e5484d;font-weight:700':'')+"'>"+sssPrDate(p.prochain_rappel)+"</td>"
+        +"<td>"+(p.premier_contact_at?"<span style='color:#22a06b'>✔ appelé</span>":p.importe_le?"<span style='color:var(--text-3)' title='Demande reprise de la liste devis.ch : appels antérieurs non connus dans SSS OS'>avant SSS OS</span>":"<span style='color:"+(attente>48?'#e5484d':attente>24?'#e0a52b':'var(--text-3)')+"'>jamais"+(attente!=null?' ('+sssPrDuree(attente*60)+')':'')+"</span>")+"</td></tr>"; }).join('')+"</tbody></table></div>";
+  box.innerHTML=h;
+}
+
+async function sssPrFiche(id){
+  var m=document.getElementById('main'); if(!m) return; await sssPrUsers();
+  m.innerHTML="<div class='page-head'><button class='iconbtn' onclick=\"SSSPR.sel=null;renderProspects()\" title='Retour'>←</button><h2 id='sspr-t'>Prospect</h2></div><div id='sspr-f' class='loading'>Chargement…</div>";
+  var R=await Promise.all([db.from('prospects').select('*').eq('id',id).maybeSingle(), db.from('prospect_evenements').select('*').eq('prospect_id',id).order('at',{ascending:false}),
+    db.from('prospect_rdv').select('*').eq('prospect_id',id).order('debut',{ascending:false}), sssPrPatron()?db.from('prospect_doublons').select('*').or('prospect_id.eq.'+id+',autre_id.eq.'+id).eq('statut','a_examiner'):Promise.resolve({data:[]})]);
+  var box=document.getElementById('sspr-f'); if(!box||VIEW!=='prospects') return; box.className='';
+  var p=R[0].data; if(!p){ box.innerHTML="<div class='empty'>Prospect introuvable ou non attribué.</div>"; return; }
+  var E=R[1].data||[], RDV=R[2].data||[], DB=R[3].data||[]; SSSPR.p=p; SSSPR.E=E;
+  document.getElementById('sspr-t').textContent=sssPrNom(p);
+  var sec=function(t,c,extra){ return "<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left'><div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'><div style='font-weight:800;flex:1'>"+t+"</div>"+(extra||'')+"</div>"+c+"</div>"; };
+  var kv=function(k,v){ return "<div style='display:flex;gap:10px;padding:3px 0;font-size:13.5px'><div style='width:150px;color:var(--text-3)'>"+k+"</div><div style='flex:1'>"+v+"</div></div>"; };
+  var inconnu="<span style='color:var(--text-3)'>inconnu</span>";
+  var tel=p.telephone?"<a href='"+telHref(p.telephone)+"' class='btn' style='text-decoration:none;min-height:40px;display:inline-flex;align-items:center;background:#16a34a;color:#fff' onclick=\"setTimeout(function(){sssPrAppelResultat('"+p.id+"')},1200)\">📞 Appeler "+esc(p.telephone)+"</a>":"";
+  var h="<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px'>"+tel+"<button class='relbtn' onclick=\"sssPrAppelResultat('"+p.id+"')\">✍️ Résultat d’appel</button><button class='relbtn' onclick=\"sssPrNote('"+p.id+"')\">📝 Note</button>"
+    +"<button class='relbtn' onclick=\"sssPrRappel('"+p.id+"')\">⏰ Rappel</button><button class='relbtn' onclick=\"sssPrRdv('"+p.id+"')\">📅 Rendez-vous</button><button class='relbtn' onclick=\"sssPrOffre('"+p.id+"')\">📄 Offre envoyée</button>"
+    +(sssPrPatron()&&!p.affaire_id?"<button class='relbtn win' onclick=\"sssPrConvertir('"+p.id+"')\">➜ Convertir en client / projet</button>":"")+"</div>";
+  h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px'>";
+  var SI=p.source_infos||{};
+  h+="<div>"+sec('Coordonnées',kv('Nom',esc(((p.prenom||'')+' '+(p.nom||'')).trim())||inconnu)+(p.societe?kv('Société',esc(p.societe)):'')+kv('Téléphone',(p.telephone?"<a href='"+telHref(p.telephone)+"'>"+esc(p.telephone)+"</a>":inconnu)
+      +(SI.telephone_invalide?" <span style='font-size:11.5px;color:#e5484d'>(signalé invalide par devis.ch)</span>":'')+((SI.autres_telephones||[]).length?"<div style='font-size:12.5px'>autre : "+SI.autres_telephones.map(function(t){ return "<a href='"+telHref(t)+"'>"+esc(t)+"</a>"; }).join(', ')+"</div>":''))
+      +kv('E-mail',p.email?esc(p.email):inconnu)+kv('Adresse',esc([p.rue,[p.npa,p.localite].filter(Boolean).join(' '),p.canton].filter(Boolean).join(', '))||inconnu),"<button class='relbtn' onclick=\"sssPrModifier('"+p.id+"')\">Modifier</button>")
+    +sec('Demande',kv('Reçue le',sssPrDate(p.recu_at,!SI.heure_inconnue)+(SI.heure_inconnue?" <span style='font-size:11px;color:var(--text-3)'>(heure inconnue)</span>":''))
+      +kv('Source',esc(sssPrLib(SSSPR_SOURCES,p.source))+(p.source_ref?" · réf. <code>"+esc(p.source_ref)+"</code>":'')+(SI.or_id&&p.source_ref!=='OR-'+SI.or_id?" · n° OR <code>"+esc(SI.or_id)+"</code>":''))
+      +(p.source_statut?kv('Statut devis.ch',esc(p.source_statut)+(p.importe_le?" <span style='font-size:11px;color:var(--text-3)'>(liste du "+sssPrDate(p.importe_le,false)+")</span>":'')):'')
+      +kv('Type',esc(sssPrLib(SSSPR_CATS,p.categorie))+(p.categorie_auto?" <span style='font-size:11px;color:var(--text-3)'>(proposé automatiquement)</span>":'')+(SI.type_demande?" <span style='font-size:12px;color:var(--text-3)'>— devis.ch : "+esc(SI.type_demande)+"</span>":''))
+      +(SI.batiment?kv('Bâtiment',esc(SI.batiment)):'')+(SI.volume?kv('Volume estimé',esc(SI.volume)):'')+(SI.periode?kv('Période souhaitée',esc(SI.periode)):'')+(SI.credits?kv('Crédits devis.ch',esc(SI.credits)):'')
+      +kv('Demande',p.demande?esc(p.demande).replace(/\n/g,'<br>'):inconnu)+(p.commentaires?kv('Commentaires',esc(p.commentaires)):'')
+      +(p.source_lien?"<div style='margin-top:8px'><a class='relbtn' style='text-decoration:none' target='_blank' rel='noopener' href='"+esc(p.source_lien)+"'>↗ Ouvrir la demande sur "+esc(sssPrLib(SSSPR_SOURCES,p.source))+"</a>"
+        +(p.source==='devis.ch'&&!p.telephone&&!p.email?"<div style='font-size:11.5px;color:var(--text-3);margin-top:4px'>L’e-mail devis.ch ne contient pas les coordonnées : elles sont sur la page de la demande. Contact attendu sous 48 h.</div>":"")+"</div>":""))+"</div>";
+  var rdvH=RDV.map(function(r){ return "<div style='border-left:3px solid #8a5cf6;padding:5px 9px;margin:5px 0;font-size:13px'><b>"+sssPrDate(r.debut)+"</b> · "+esc(r.type)+" · "+esc(sssPrUser(r.intervenant_id))+"<div style='color:var(--text-3)'>"+esc(r.adresse||'')+"</div>"
+      +"<div>"+(r.statut==='prevu'?(new Date(r.debut).getTime()<Date.now()?"<span style='color:#e5484d'>passé sans compte rendu</span> <button class='relbtn' style='padding:2px 8px' onclick=\"sssPrRdvCr('"+p.id+"','"+r.id+"')\">Compte rendu</button>":"prévu"):esc(sssPrLib(SSSPR_RDVRES,r.statut))+(r.compte_rendu?' — '+esc(r.compte_rendu):''))+"</div></div>"; }).join('')||"<div style='font-size:13px;color:var(--text-3)'>Aucun rendez-vous.</div>";
+  h+="<div>"+sec('Commercial',kv('Statut',sssPrSel('sspr-st',SSSPR_STATUTS.map(function(x){ return [x[0],x[1]]; }),p.statut)+" <button class='relbtn' style='padding:3px 9px' onclick=\"sssPrStatutSet('"+p.id+"')\">OK</button>")
+      +kv('Responsable',sssPrPatron()?sssPrSel('sspr-com',(SSSPR.users||[]).filter(function(u){ return u.actif!==false && ['commercial','superadmin','direction'].indexOf(u.role)>=0; }).map(function(u){ return [u.id,((u.prenom||'')+' '+(u.nom||'')).trim()]; }),p.commercial_id||'','— aucun —')+" <button class='relbtn' style='padding:3px 9px' onclick=\"sssPrAttribuer('"+p.id+"')\">OK</button>":esc(sssPrUser(p.commercial_id)))
+      +kv('Priorité',esc(p.priorite))+kv('Prochaine action',esc(p.prochaine_action||'—'))+kv('Rappel prévu',sssPrDate(p.prochain_rappel))
+      +kv('Premier contact',p.premier_contact_at?sssPrDate(p.premier_contact_at)+' ('+sssPrDuree((new Date(p.premier_contact_at)-new Date(p.recu_at))/6e4)+' après réception)':p.importe_le?"<span style='color:var(--text-3)'>avant SSS OS — non connu (demande reprise de la liste devis.ch)</span>":"<span style='color:#e0a52b'>jamais appelé</span>")
+      +(p.affaire_id?kv('Converti',"✔ client / projet le "+sssPrDate(p.converti_at,false)):''))
+    +sec('Rendez-vous',rdvH)
+    +(DB.length?sec('⚠️ Doublons potentiels',DB.map(function(d){ var autre=d.prospect_id===p.id?d.autre_id:d.prospect_id; return "<div style='font-size:13px;margin:4px 0'>"+esc(d.raison)+" ("+esc(d.niveau)+") — <a href='#' onclick=\"SSSPR.sel='"+autre+"';sssPrFiche('"+autre+"');return false\">voir l’autre fiche</a> "
+      +"<button class='relbtn' style='padding:2px 8px' onclick=\"sssPrFusion('"+p.id+"','"+autre+"')\">Fusionner ici</button> <button class='relbtn' style='padding:2px 8px' onclick=\"sssPrDistinct('"+p.id+"','"+autre+"')\">Personnes différentes</button></div>"; }).join('')):'')+"</div></div>";
+  var TY={creation:'🆕 Création',email_recu:'✉️ E-mail reçu',appel:'📞 Appel',note:'📝 Note',note_modifiee:'📝 Note modifiée',statut:'🔀 Statut',attribution:'👤 Attribution',rappel:'⏰ Rappel',rdv:'📅 Rendez-vous',rdv_compte_rendu:'📋 Compte rendu de RDV',offre:'📄 Offre',conversion:'➜ Conversion',doublon:'⚠️ Doublon potentiel',fusion:'🔗 Fusion',modification:'✏️ Fiche modifiée',prochaine_action:'➡️ Prochaine action'};
+  var remplacees={}; E.forEach(function(e){ if(e.remplace_id) remplacees[e.remplace_id]=1; });
+  h+=sec('Historique ('+E.length+')',E.map(function(e){ var lig='';
+      if(e.type==='statut') lig=esc(sssPrLib(SSSPR_STATUTS.map(function(x){ return [x[0],x[1]]; }),e.ancien))+' → <b>'+esc(sssPrLib(SSSPR_STATUTS.map(function(x){ return [x[0],x[1]]; }),e.nouveau))+'</b>';
+      else if(e.type==='attribution') lig=esc(e.ancien?sssPrUser(e.ancien):'aucun')+' → <b>'+esc(e.nouveau?sssPrUser(e.nouveau):'aucun')+'</b>';
+      else if(e.type==='appel') lig='<b>'+esc(sssPrLib(SSSPR_APPEL,e.resultat))+'</b>'+(e.echeance?' · rappel '+sssPrDate(e.echeance):'');
+      else if(e.type==='rdv') lig='le '+sssPrDate(e.echeance);
+      else if(e.type==='rdv_compte_rendu') lig='<b>'+esc(sssPrLib(SSSPR_RDVRES,e.resultat))+'</b>';
+      else if(e.type==='rappel') lig='pour le '+sssPrDate(e.echeance);
+      else if(e.type==='note_modifiee') lig="<span style='color:var(--text-3)'>avant : "+esc(e.ancien||'')+"</span>";
+      var corps=e.contenu?"<div style='white-space:pre-wrap'>"+esc(e.contenu)+"</div>":'';
+      var modif=(e.type==='note'||e.type==='note_modifiee')&&!remplacees[e.id]&&(e.auteur_id===ME.id||sssPrPatron())?" <a href='#' style='font-size:11.5px' onclick=\"sssPrNoteModif('"+p.id+"','"+e.id+"');return false\">modifier</a>":'';
+      return "<div style='border-bottom:1px solid var(--border,#2a2a2a);padding:7px 0;font-size:13px"+(remplacees[e.id]?';opacity:.55':'')+"'><div style='display:flex;gap:8px'><b style='flex:1'>"+(TY[e.type]||e.type)+(remplacees[e.id]?' (version remplacée)':'')+modif+"</b><span style='color:var(--text-3);font-size:12px'>"+sssPrDate(e.at)+" · "+esc(e.auteur_id?sssPrUser(e.auteur_id):'système')+"</span></div>"+(lig?"<div>"+lig+"</div>":'')+corps+"</div>"; }).join('')||'—');
+  box.innerHTML=h;
+}
+function sssPrModal(titre,corps,go){ modal("<h3 style='margin:0 0 10px'>"+titre+"</h3>"+corps+"<div style='display:flex;gap:8px;margin-top:12px'><button class='btn' style='min-height:44px' onclick=\""+go+"\">Enregistrer</button><button class='relbtn' onclick='closeModal()'>Annuler</button></div>"); }
+function sssPrChamp(lab,h){ return "<div class='field'><label>"+lab+"</label>"+h+"</div>"; }
+function sssPrDt(id,v){ var d=v?new Date(v):new Date(Date.now()+864e5); d.setSeconds(0,0); var s=new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,16); return "<input id='"+id+"' type='datetime-local' value='"+s+"'>"; }
+function sssPrIso(id){ var v=sssPrV(id); return v?new Date(v).toISOString():''; }
+async function sssPrApres(id){ closeModal(); SSSPR.sel=id; sssPrFiche(id); }
+function sssPrAppelResultat(id){
+  sssPrModal('Résultat de l’appel',"<div id='sspr-res' style='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px'>"+SSSPR_APPEL.map(function(a){ return "<button class='relbtn' data-r='"+a[0]+"' style='min-height:44px' onclick=\"document.querySelectorAll('#sspr-res button').forEach(function(b){b.classList.remove('win')});this.classList.add('win');window.__sspr_r='"+a[0]+"';document.getElementById('sspr-rapw').style.display=('"+a[0]+"'==='rappeler'?'':'none')\">"+a[1]+"</button>"; }).join('')+"</div>"
+    +"<div id='sspr-rapw' style='display:none'>"+sssPrChamp('Rappeler le',sssPrDt('sspr-rap'))+"</div>"+sssPrChamp('Note',"<textarea id='sspr-n' rows='3' maxlength='2000'></textarea>")
+    +"<div style='font-size:11.5px;color:var(--text-3)'>Qui a appelé et quand sont enregistrés automatiquement. Aucune durée d’appel n’est inventée.</div>",
+    "sssPrAppelOk('"+id+"')"); window.__sspr_r=null;
+}
+async function sssPrAppelOk(id){ if(!window.__sspr_r){ alert('Choisis le résultat de l’appel.'); return; } var d={resultat:window.__sspr_r,note:sssPrV('sspr-n')}; if(d.resultat==='rappeler') d.rappel_at=sssPrIso('sspr-rap');
+  if(await sssPrAct(id,'appel',d)) sssPrApres(id); }
+function sssPrNote(id){ sssPrModal('Nouvelle note',sssPrChamp('Note',"<textarea id='sspr-n' rows='4' maxlength='4000'></textarea>"),"sssPrNoteOk('"+id+"')"); }
+async function sssPrNoteOk(id){ if(await sssPrAct(id,'note',{note:sssPrV('sspr-n')})) sssPrApres(id); }
+function sssPrNoteModif(id,eid){ var e=(SSSPR.E||[]).filter(function(x){ return x.id===eid; })[0]||{}; sssPrModal('Modifier la note (l’ancienne version reste dans l’historique)',sssPrChamp('Note',"<textarea id='sspr-n' rows='4' maxlength='4000'>"+esc(e.contenu||'')+"</textarea>"),"sssPrNoteModifOk('"+id+"','"+eid+"')"); }
+async function sssPrNoteModifOk(id,eid){ if(await sssPrAct(id,'note_modifier',{evenement_id:eid,note:sssPrV('sspr-n')})) sssPrApres(id); }
+function sssPrRappel(id){ sssPrModal('Programmer un rappel',sssPrChamp('Date et heure',sssPrDt('sspr-rap'))+sssPrChamp('Prochaine action',"<input id='sspr-pa' value='Rappeler'>")+sssPrChamp('Note',"<textarea id='sspr-n' rows='2'></textarea>"),"sssPrRappelOk('"+id+"')"); }
+async function sssPrRappelOk(id){ if(await sssPrAct(id,'rappel',{rappel_at:sssPrIso('sspr-rap'),prochaine_action:sssPrV('sspr-pa'),note:sssPrV('sspr-n')})) sssPrApres(id); }
+function sssPrRdv(id){ var p=SSSPR.p||{};
+  sssPrModal('Rendez-vous',sssPrChamp('Date et heure',sssPrDt('sspr-d'))+sssPrChamp('Type',sssPrSel('sspr-ty',[['visite','Visite'],['etude','Étude'],['signature','Signature'],['telephone','Téléphone'],['visio','Visio'],['autre','Autre']],'visite'))
+    +sssPrChamp('Adresse',"<input id='sspr-ad' value=\""+esc([p.rue,[p.npa,p.localite].filter(Boolean).join(' ')].filter(Boolean).join(', '))+"\">")
+    +sssPrChamp('Commercial / technicien',sssPrSel('sspr-iv',(SSSPR.users||[]).filter(function(u){ return u.actif!==false && ['commercial','superadmin','direction','technicien'].indexOf(u.role)>=0; }).map(function(u){ return [u.id,((u.prenom||'')+' '+(u.nom||'')).trim()]; }),p.commercial_id||ME.id))
+    +sssPrChamp('Commentaire',"<textarea id='sspr-n' rows='2'></textarea>"),"sssPrRdvOk('"+id+"')"); }
+async function sssPrRdvOk(id){ if(await sssPrAct(id,'rdv_creer',{debut:sssPrIso('sspr-d'),type:sssPrV('sspr-ty'),adresse:sssPrV('sspr-ad'),intervenant_id:sssPrV('sspr-iv'),note:sssPrV('sspr-n')})) sssPrApres(id); }
+function sssPrRdvCr(id,rid){ sssPrModal('Compte rendu du rendez-vous',sssPrChamp('Résultat',sssPrSel('sspr-rr',SSSPR_RDVRES,'effectue'))+sssPrChamp('Compte rendu',"<textarea id='sspr-n' rows='3'></textarea>"),"sssPrRdvCrOk('"+id+"','"+rid+"')"); }
+async function sssPrRdvCrOk(id,rid){ if(await sssPrAct(id,'rdv_compte_rendu',{rdv_id:rid,resultat:sssPrV('sspr-rr'),note:sssPrV('sspr-n')})) sssPrApres(id); }
+function sssPrOffre(id){ sssPrModal('Offre envoyée',sssPrChamp('Référence (facultatif)',"<input id='sspr-ref' placeholder='AN-…'>")+sssPrChamp('Montant HT (facultatif, seulement s’il est connu)',"<input id='sspr-mt' type='number' step='0.05'>")+sssPrChamp('Note',"<textarea id='sspr-n' rows='2'></textarea>"),"sssPrOffreOk('"+id+"')"); }
+async function sssPrOffreOk(id){ if(await sssPrAct(id,'offre',{reference:sssPrV('sspr-ref'),montant_ht:sssPrV('sspr-mt'),note:sssPrV('sspr-n')})) sssPrApres(id); }
+async function sssPrStatutSet(id){ var v=sssPrV('sspr-st'); var d={statut:v}; if(v==='vendu'){ if(!confirm('Marquer ce prospect « Vendu » ? (rien n’est créé dans Bexio)')) return; d.confirme=true; } if(await sssPrAct(id,'statut',d)) sssPrApres(id); }
+async function sssPrAttribuer(id){ if(await sssPrAct(id,'attribuer',{commercial_id:sssPrV('sspr-com')})) sssPrApres(id); }
+async function sssPrConvertir(id){ if(!confirm('Convertir en client / projet ? La source, la référence, la date du lead et le commercial sont conservés. Rien n’est créé dans Bexio.')) return; var r=await sssPrAct(id,'convertir',{}); if(r){ alert('Client / projet créé.'); sssPrApres(id); } }
+async function sssPrFusion(id,autre){ if(!confirm('Fusionner l’autre fiche dans celle-ci ? Tout son historique sera rattaché ici (rien n’est supprimé).')) return; if(await sssPrAct(id,'fusionner',{autre_id:autre})) sssPrApres(id); }
+async function sssPrDistinct(id,autre){ if(await sssPrAct(id,'distinct',{autre_id:autre})) sssPrApres(id); }
+function sssPrFormCoord(p){ p=p||{}; var i=function(k,lab,t){ return sssPrChamp(lab,"<input id='sspr-"+k+"' value=\""+esc(p[k]||'')+"\""+(t?" type='"+t+"'":"")+">"); };
+  return "<div style='display:grid;grid-template-columns:1fr 1fr;gap:0 10px'>"+i('prenom','Prénom')+i('nom','Nom')+i('telephone','Téléphone','tel')+i('email','E-mail','email')+i('rue','Rue et n°')+i('npa','NPA')+i('localite','Localité')+i('canton','Canton')+"</div>"
+    +sssPrChamp('Type de demande',sssPrSel('sspr-categorie',SSSPR_CATS,p.categorie||'a_verifier'))+sssPrChamp('Demande du client',"<textarea id='sspr-demande' rows='3'>"+esc(p.demande||'')+"</textarea>"); }
+function sssPrModifier(id){ sssPrModal('Coordonnées et demande',sssPrFormCoord(SSSPR.p),"sssPrModifierOk('"+id+"')"); }
+function sssPrLireCoord(){ var d={}; ['prenom','nom','telephone','email','rue','npa','localite','canton','demande','categorie'].forEach(function(k){ d[k]=sssPrV('sspr-'+k); }); return d; }
+async function sssPrModifierOk(id){ if(await sssPrAct(id,'modifier',sssPrLireCoord())) sssPrApres(id); }
+function sssPrNouveau(){ sssPrModal('Nouveau prospect',sssPrChamp('Source',sssPrSel('sspr-source',SSSPR_SOURCES,'telephone'))+sssPrFormCoord({}),'sssPrNouveauOk()'); }
+async function sssPrNouveauOk(){ var d=sssPrLireCoord(); d.source=sssPrV('sspr-source'); if(d.categorie==='a_verifier') delete d.categorie;
+  var r=await db.rpc('sss_prospect_creer',{p:d}); if(r.error){ alert('Impossible : '+r.error.message); return; } closeModal(); SSSPR.sel=r.data; sssPrFiche(r.data); }
+
+async function sssPrTableau(){
+  var r=await db.rpc('sss_prospects_tableau',{p_jours:90}); var box=document.getElementById('sspr-c'); if(!box||VIEW!=='prospects') return; box.className='';
+  if(r.error){ box.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  var T=r.data||{}, C=T.compteurs||{}, K=T.kpi||{}, D=T.delai_premier_contact_min||{};
+  var carte=function(l,v,c){ return "<div class='card' style='padding:10px 14px;min-width:140px'><div style='font-size:12px;color:var(--text-3)'>"+l+"</div><div style='font-size:22px;font-weight:800;"+(c?'color:'+c:'')+"'>"+(v==null?'—':v)+"</div></div>"; };
+  var pct=function(a,b){ return b?Math.round(1000*a/b)/10+' %':'—'; };
+  var h="<div style='font-size:12.5px;color:var(--text-3);margin-bottom:8px'>Périmètre : "+esc(T.perimetre||'')+" · indicateurs sur "+T.periode_jours+" jours · une valeur inconnue reste « — »</div>"
+    +"<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px'>"+carte('Nouveaux aujourd’hui',C.aujourdhui)+carte('Cette semaine',C.semaine)+carte('Jamais appelés',C.jamais_appeles,C.jamais_appeles?'#e0a52b':'')
+    +carte('Rappels aujourd’hui',C.rappels_aujourdhui)+carte('Rappels en retard',C.rappels_en_retard,C.rappels_en_retard?'#e5484d':'')+carte('RDV aujourd’hui',C.rdv_aujourdhui)+carte('RDV à venir',C.rdv_a_venir)
+    +carte('RDV sans compte rendu',C.rdv_sans_compte_rendu,C.rdv_sans_compte_rendu?'#e5484d':'')+carte('Offres à préparer',C.offres_a_preparer)+carte('Offres envoyées',C.offres_envoyees)+carte('Relances nécessaires',C.relances_necessaires)
+    +(T.perimetre==='tous'?carte('Sans commercial',C.sans_commercial,C.sans_commercial?'#e0a52b':''):'')+carte('Vendus',C.vendus,'#16a34a')+carte('Perdus',C.perdus)+carte('Vivier',C.vivier)+"</div>";
+  var HI=T.historique||{}; if(HI.total) h+="<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left;border-left:4px solid #b45309'><div style='font-weight:800;margin-bottom:4px'>🗂 Import historique devis.ch 2026 (avant SSS OS)</div><div style='font-size:11.5px;color:var(--text-3);margin-bottom:6px'>Exclu des nouveaux leads, du délai de premier appel, de « jamais appelés » et des alertes 1 h / 4 h / 24 h / 48 h.</div><div style='display:flex;gap:8px;flex-wrap:wrap'>"+carte('Total',HI.total)+carte('Pipeline actif',HI.actifs)+carte('À reprendre',HI.a_reprendre,'#b45309')+carte('Vivier',HI.vivier)+carte('Vendus',HI.vendus,'#16a34a')+carte('Perdus',HI.perdus)+(T.perimetre==='tous'?carte('Sans commercial',HI.sans_commercial):'')+"</div></div>";
+  h+="<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>⏱ Délai réception → premier contact</div><div style='display:flex;gap:18px;flex-wrap:wrap;font-size:14px'><div>moyenne <b>"+sssPrDuree(D.moyenne)+"</b></div><div>médiane <b>"+sssPrDuree(D.mediane)+"</b></div><div>sur "+(D.nb||0)+" lead(s) appelés</div><div>dans les 48 h (devis.ch) : <b>"+pct(D.dans_48h||0,D.nb||0)+"</b></div></div>"
+    +[['par source','delai_par_source','source'],['par commercial','delai_par_commercial','commercial'],['par semaine','delai_par_semaine','semaine'],['par mois','delai_par_mois','mois']].map(function(g){ var L=T[g[1]]||[]; if(!L.length) return '';
+      return "<div style='margin-top:8px;font-size:12.5px'><b>"+g[0]+"</b> : "+L.map(function(x){ return esc(String(x[g[2]]))+' — moy. '+sssPrDuree(x.moyenne)+', méd. '+sssPrDuree(x.mediane)+' ('+x.nb+')'; }).join(' · ')+"</div>"; }).join('')+"</div>";
+  h+="<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Conversion</div><div style='display:flex;gap:18px;flex-wrap:wrap;font-size:14px'><div>leads <b>"+(K.leads||0)+"</b></div><div>appelés <b>"+pct(K.appeles||0,K.leads||0)+"</b></div><div>lead → RDV <b>"+pct(K.avec_rdv||0,K.leads||0)+"</b></div><div>RDV → offre <b>"+pct(K.avec_offre||0,K.avec_rdv||0)+"</b></div><div>offre → vente <b>"+pct(K.vendus||0,K.avec_offre||0)+"</b></div><div>lead → vente <b>"+pct(K.vendus||0,K.leads||0)+"</b></div></div>"
+    +"<div style='font-size:12.5px;margin-top:8px'>"+(T.par_source||[]).map(function(x){ return '<b>'+esc(sssPrLib(SSSPR_SOURCES,x.source))+'</b> : '+x.leads+' leads, '+x.vendus+' vendus'+(x.ca_connu!=null?', CA connu '+Number(x.ca_connu).toLocaleString('de-CH')+' CHF':', CA inconnu'); }).join(' · ')+"</div>"
+    +(T.perimetre==='tous'?"<div style='font-size:12.5px;margin-top:4px'>"+(T.par_commercial||[]).map(function(x){ return '<b>'+esc(x.commercial)+'</b> : '+x.leads+' leads, '+x.vendus+' vendus'; }).join(' · ')+"</div>":'')+"</div>";
+  var A=T.alertes||[]; var S=T.seuils||{};
+  h+="<div class='card' style='padding:12px 15px;text-align:left'><div style='font-weight:800;margin-bottom:4px'>Alertes ("+A.length+")</div><div style='font-size:11.5px;color:var(--text-3);margin-bottom:6px'>Seuils de la direction (affichage seulement, aucune notification) — nouveaux leads : non attribué "+S.non_attribue_h+" h · attribué jamais contacté "+S.attribue_non_contacte_h+" h · urgent "+S.urgent_h+" h · délai devis.ch "+S.limite_source_h+" h · RDV sans compte rendu "+S.rdv_sans_cr_h+" h · offre sans relance "+S.offre_sans_relance_j+" j</div>"
+    +(A.length?A.slice(0,60).map(function(a){ return "<div style='font-size:13px;padding:3px 0'><a href='#' onclick=\"SSSPR.sel='"+a.id+"';sssPrFiche('"+a.id+"');return false\">n° "+a.numero+"</a> — "+(a.niveau>=3?"<b style='color:#e5484d'>"+esc(a.texte)+"</b>":esc(a.texte))+" (depuis "+sssPrDate(a.depuis)+")</div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune alerte.</div>")+"</div>";
+  box.innerHTML=h;
+}
+(function(){
+  try{ VUE_ROLES.prospects=['superadmin','direction','commercial']; VUE_SERVICES.prospects=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant']; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='prospects'){ SSSPR.sel=null; renderProspects(); } }catch(e){ console.error(e); } return r; }; }catch(e){}
+})();
+
+/* SSS-PROSPECTS-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
