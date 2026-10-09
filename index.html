@@ -5842,12 +5842,13 @@ function sssPcCarte(e){
   var hm=function(iso){ return iso?(typeof sssHeure==='function'?sssHeure(iso):iso.slice(11,16)):''; };
   var liens=(e.adr?("<a href='"+techWazeUrl(e.adr)+"' target='_blank' rel='noopener' class='relbtn' style='text-decoration:none'>🧭 Waze</a>"):"")+(e.tel?("<a href='"+telHref(e.tel)+"' class='relbtn' style='text-decoration:none'>📞 "+esc(e.tel)+"</a>"):"");
   var clos=!!st.cloture_at;
+  setTimeout(function(){ try{ if(typeof sssDocsTerrainCarte==='function') sssDocsTerrainCarte(id); }catch(e){} },0);   // 📎 Documents chantier (0040)
   return "<div class='card' id='sspc-"+id+"' style='padding:14px 16px;border:2px solid "+(clos?'#16a34a':'#f59e0b')+";max-width:760px;margin-bottom:12px'>"
     +"<div style='font-size:12px;font-weight:800;letter-spacing:.08em;color:"+(clos?'#16a34a':'#f59e0b')+"'>CHANTIER DU JOUR"+(clos?' · CLÔTURÉ':'')+" · "+esc(e.lib)+(e.h1?(' · '+esc(e.h1)+(e.h2?'–'+esc(e.h2):'')):'')+"</div>"
     +"<div style='font-weight:800;font-size:17px;margin:3px 0 2px'>"+esc(e.nom)+"</div>"
     +(e.adr?"<div style='font-size:13.5px;color:var(--text-2)'>📍 "+esc(e.adr)+"</div>":"")
     +(e.mat?"<div style='font-size:13px;color:var(--text-2)'>🔧 "+esc(e.mat)+"</div>":"")
-    +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px'>"+liens+"</div>"
+    +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px'>"+liens+"</div>"+"<div id='sspc-docs-"+id+"'></div>"
     +etape(1,false,"Ouvrir la fiche","<div style='font-size:12.5px;color:var(--text-3)'>Contact, matériel, plans et documents du chantier.</div><button class='relbtn win' style='margin-top:6px;min-height:42px' onclick=\"installOpen('"+id+"')\">Ouvrir</button>")
     +etape(2,!!st.demarre_at,"Démarrer",st.demarre_at?("<div style='font-size:12.5px;color:var(--text-3)'>Démarré à "+esc(hm(st.demarre_at))+"</div>"):("<button class='btn' style='margin-top:6px;min-height:46px;background:#16a34a;color:#fff' onclick=\"sssPcDemarrer('"+id+"')\">▶ Démarrer le chantier</button>"))
     +etape(3,nb>0,"Photos","<div style='font-size:12.5px;color:var(--text-3)'>"+(nb==null?'…':(nb+' photo'+(nb>1?'s':'')+' sur ce chantier'))+"</div><label class='relbtn' style='cursor:pointer;margin-top:6px;min-height:42px'>📷 Ajouter des photos<input type='file' accept='image/*' capture='environment' multiple style='display:none' onchange=\"sssPcPhoto('"+id+"',this)\"></label>")
@@ -6708,6 +6709,97 @@ document.addEventListener('keydown',function(e){ var tag=(e.target&&e.target.tag
 })();
 
 /* SSS-RECHERCHE-FIN */
+
+/* SSS-DOCS-CHANTIER-DEBUT */
+/* ==========================================================================
+   SSS OS — « 📎 Documents chantier » (migration 0040, 09.10.2026).
+   Pochette de documents par projet : la direction dépose (glisser-déposer ou sélection), titre + catégorie,
+   « Visible équipe terrain » / « Confidentiel » ; les techniciens AFFECTÉS ouvrent les documents visibles (lecture seule).
+   Stockage privé « chantiers » + table documents ; droits appliqués par la base (RLS + stockage). Designer inchangé.
+   Affiché : dossier administratif, page chantier (installOpen), fiche client (projets), Chantier du jour.
+   ========================================================================== */
+var SSSDOC_CATS = [['plan','Plan'],['designer','Designer'],['schema_electrique','Schéma électrique'],['toiture','Toiture'],['materiel','Matériel'],['notice','Notice'],['photo','Photo'],['autre','Autre']];
+var SSSDOC_ICO = { plan:'📐', designer:'🧭', schema_electrique:'⚡', toiture:'🏠', materiel:'🔧', notice:'📘', photo:'📷', autre:'📄' };
+function sssDocStaff(){ return typeof ME!=='undefined' && ME && (['superadmin','direction','admin'].indexOf(ME.role)>=0 || ME.acces_admin); }
+function sssDocCss(){ if(document.getElementById('ssdoc-css')) return; var s=document.createElement('style'); s.id='ssdoc-css'; s.textContent=
+  ".ssdoc-zone{border:2px dashed var(--line,#8886);border-radius:12px;padding:14px;text-align:center;font-size:14px;color:var(--text-3,#999);cursor:pointer;margin:8px 0}"
+ +".ssdoc-zone.sur{border-color:#e5484d;color:inherit;background:rgba(229,72,77,.06)}.ssdoc-it{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line,#8883)}"
+ +".ssdoc-it:first-child{border-top:0}.ssdoc-it .t{flex:1;min-width:0}.ssdoc-it b{display:block;font-size:15px;word-break:break-word}.ssdoc-it span{font-size:12.5px;color:var(--text-3,#999)}"
+ +".ssdoc-it button{min-height:42px;white-space:nowrap}.ssdoc-vis{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 8px;border-radius:999px;margin-left:4px}"
+ +".ssdoc-vis.on{background:#16a34a22;color:#16a34a}.ssdoc-vis.off{background:#8882;color:var(--text-3,#999)}.ssdoc-vis.conf{background:#e5484d22;color:#e5484d}";
+  document.head.appendChild(s); }
+function sssDocTaille(n){ if(!n) return ''; return n>1048576?(Math.round(n/104857.6)/10)+' Mo':Math.max(1,Math.round(n/1024))+' Ko'; }
+
+/* bloc complet (direction) ou liste (terrain) dans un conteneur */
+async function sssDocsBloc(el, affaireId, titre){
+  if(!el || !affaireId) return; sssDocCss(); var staff=sssDocStaff();
+  el.innerHTML="<div class='card' style='padding:12px 15px;text-align:left;margin-bottom:12px' id='ssdoc-"+affaireId+"'><div style='font-weight:800;margin-bottom:4px'>📎 Documents chantier</div>"
+    +(staff?"<div style='font-size:12.5px;color:var(--text-3)'>Plans, PDF Designer, schémas, photos… « Visible équipe terrain » = les installateurs affectés le voient dans leur chantier.</div>"
+      +"<label class='ssdoc-zone' ondragover=\"event.preventDefault();this.classList.add('sur')\" ondragleave=\"this.classList.remove('sur')\" ondrop=\"event.preventDefault();this.classList.remove('sur');sssDocChoisis('"+affaireId+"',event.dataTransfer.files)\">"
+      +"<input type='file' multiple style='display:none' accept='.pdf,image/*,.doc,.docx,.xls,.xlsx,.dwg,.dxf,.txt,.csv,.zip' onchange=\"sssDocChoisis('"+affaireId+"',this.files);this.value=''\">"
+      +"➕ <b>Ajouter un document</b> — glisser-déposer ici ou toucher pour choisir</label>":"")
+    +"<div class='ssdoc-liste'><div class='loading' style='font-size:13px'>Chargement…</div></div></div>";
+  await sssDocsListe(affaireId);
+}
+async function sssDocsListe(affaireId){
+  var box=document.querySelector('#ssdoc-'+affaireId+' .ssdoc-liste'); if(!box) return; var staff=sssDocStaff();
+  var r=await db.from('documents').select('id,nom,type,categorie,url,visible_terrain,confidentiel,taille,mime,created_at').eq('affaire_id',affaireId).order('created_at',{ascending:false});
+  if(r.error){ box.innerHTML="<div style='font-size:13px;color:var(--text-3)'>"+esc(r.error.message)+"</div>"; return; }
+  var L=(r.data||[]).filter(function(d){ return d.url && d.url.indexOf(affaireId+'/')===0 || d.categorie; });   // documents de la pochette (les anciennes lignes sans fichier ne s'ouvrent pas)
+  if(!L.length){ box.innerHTML="<div style='font-size:13.5px;color:var(--text-3);padding:4px 0'>"+(staff?'Aucun document pour l’instant.':'Aucun document disponible pour ce chantier.')+"</div>"; return; }
+  box.innerHTML=L.map(function(d){ var lib=(SSSDOC_CATS.filter(function(c){ return c[0]===d.categorie; })[0]||[0,d.type||'Document'])[1];
+    return "<div class='ssdoc-it'><div style='font-size:22px'>"+(SSSDOC_ICO[d.categorie]||'📄')+"</div><div class='t'><b>"+esc(d.nom||'Document')+"</b><span>"+esc(lib)+(d.taille?' · '+sssDocTaille(d.taille):'')+' · '+sssPrDate(d.created_at,false)
+      +(staff?(d.confidentiel?"<span class='ssdoc-vis conf'>confidentiel</span>":d.visible_terrain?"<span class='ssdoc-vis on'>visible équipe terrain</span>":"<span class='ssdoc-vis off'>direction seulement</span>"):'')+"</span></div>"
+      +"<button class='relbtn' onclick=\"sssDocOuvrir('"+d.id+"','"+encodeURIComponent(d.url)+"')\">Ouvrir</button>"
+      +(staff?"<button class='relbtn' title='Visibilité équipe terrain' onclick=\"sssDocVisible('"+affaireId+"','"+d.id+"',"+(!d.visible_terrain)+")\">"+(d.visible_terrain?'🙈 Masquer':'👷 Rendre visible')+"</button>"
+        +"<button class='relbtn danger' title='Supprimer' onclick=\"sssDocSuppr('"+affaireId+"','"+d.id+"','"+encodeURIComponent(d.url)+"')\">🗑</button>":'')+"</div>"; }).join('');
+}
+async function sssDocOuvrir(id,urlEnc){ var path=decodeURIComponent(urlEnc); var w=window.open('about:blank','_blank');
+  var r=await db.storage.from('chantiers').createSignedUrl(path,600); if(r.error||!r.data){ if(w) w.close(); alert('Document non accessible : '+((r.error&&r.error.message)||'')); return; }
+  if(w) w.location.href=r.data.signedUrl; else location.href=r.data.signedUrl; }
+/* dépôt : un formulaire court (titre, catégorie, visibilité) pour le ou les fichiers choisis */
+var SSSDOC_FICH=null;
+function sssDocChoisis(affaireId, files){ if(!sssDocStaff()) return; var F=[].slice.call(files||[]); if(!F.length) return;
+  var trop=F.filter(function(f){ return f.size>50*1048576; }); if(trop.length){ alert('Fichier trop lourd (50 Mo maximum) : '+trop.map(function(f){ return f.name; }).join(', ')); return; }
+  SSSDOC_FICH={aff:affaireId,F:F}; var devine=function(n){ n=n.toLowerCase(); return /designer|solaredge/.test(n)?'designer':/sch[eé]ma|unifilaire|elec/.test(n)?'schema_electrique':/toit|toiture|calepinage/.test(n)?'toiture':/plan/.test(n)?'plan':/notice|manuel|datasheet|fiche/.test(n)?'notice':/\.(jpe?g|png|heic|webp)$/.test(n)?'photo':'autre'; };
+  sssPrModal('Ajouter '+(F.length>1?F.length+' documents':'un document'),F.map(function(f,i){ return "<div style='border:1px solid var(--line,#8884);border-radius:10px;padding:8px 10px;margin-bottom:8px'><div style='font-size:12.5px;color:var(--text-3);word-break:break-all'>"+esc(f.name)+" · "+sssDocTaille(f.size)+"</div>"
+      +sssPrChamp('Titre',"<input id='ssdoc-t-"+i+"' value=\""+esc(f.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' '))+"\">")+sssPrChamp('Catégorie',sssPrSel('ssdoc-c-'+i,SSSDOC_CATS,devine(f.name)))+"</div>"; }).join('')
+    +"<label style='display:flex;gap:8px;align-items:center;font-size:14.5px;margin:6px 0'><input type='checkbox' id='ssdoc-vis' checked style='width:22px;height:22px'> 👷 Visible équipe terrain (installateurs affectés)</label>"
+    +"<label style='display:flex;gap:8px;align-items:center;font-size:14.5px;margin:6px 0'><input type='checkbox' id='ssdoc-conf' style='width:22px;height:22px' onchange=\"if(this.checked)document.getElementById('ssdoc-vis').checked=false\"> 🔒 Confidentiel (direction seulement)</label>"
+    +"<div id='ssdoc-prog' style='font-size:13px;color:var(--text-3)'></div>","sssDocEnvoyer()"); }
+async function sssDocEnvoyer(){ var S=SSSDOC_FICH; if(!S) return; var vis=document.getElementById('ssdoc-vis').checked, conf=document.getElementById('ssdoc-conf').checked; var prog=document.getElementById('ssdoc-prog'); var ok=0;
+  for(var i=0;i<S.F.length;i++){ var f=S.F[i]; var t=(sssPrV('ssdoc-t-'+i)||f.name).slice(0,200), c=sssPrV('ssdoc-c-'+i)||'autre';
+    var nom=f.name.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_').slice(-80); var path=S.aff+'/'+Date.now()+'_'+i+'_'+nom;
+    if(prog) prog.textContent='Envoi '+(i+1)+' / '+S.F.length+' : '+f.name+'…';
+    var up=await db.storage.from('chantiers').upload(path,f,{contentType:f.type||'application/octet-stream',upsert:false}); if(up.error){ alert('Envoi impossible ('+f.name+') : '+up.error.message); continue; }
+    var ins=await db.from('documents').insert({affaire_id:S.aff,nom:t,type:c,categorie:c,url:path,visible_terrain:vis&&!conf,confidentiel:conf,taille:f.size,mime:f.type||null,ajoute_par:ME.id});
+    if(ins.error){ await db.storage.from('chantiers').remove([path]); alert('Enregistrement impossible ('+f.name+') : '+ins.error.message); continue; } ok++; }
+  SSSDOC_FICH=null; closeModal(); sssDocsListe(S.aff); if(ok && typeof toast==='function') try{ toast(ok+' document(s) ajouté(s)'); }catch(e){} }
+async function sssDocVisible(aff,id,v){ var r=await db.from('documents').update({visible_terrain:v}).eq('id',id).eq('confidentiel',false).select('id'); if(r.error||!(r.data||[]).length){ alert('Impossible : '+((r.error&&r.error.message)||'document confidentiel')); return; } sssDocsListe(aff); }
+async function sssDocSuppr(aff,id,urlEnc){ if(!confirm('Supprimer ce document ? Les installateurs ne le verront plus.')) return; var r=await db.from('documents').delete().eq('id',id); if(r.error){ alert('Impossible : '+r.error.message); return; }
+  await db.storage.from('chantiers').remove([decodeURIComponent(urlEnc)]); sssDocsListe(aff); }
+
+/* insertion dans les écrans existants (sans toucher à Designer) */
+function sssDocInserer(affaireId, apresEl, avantEl){ var d=document.createElement('div'); d.className='ssdoc-wrap';
+  if(avantEl && avantEl.parentNode) avantEl.parentNode.insertBefore(d, avantEl); else if(apresEl && apresEl.parentNode) apresEl.parentNode.insertBefore(d, apresEl.nextSibling); else { var m=document.getElementById('main'); if(!m) return; m.appendChild(d); }
+  sssDocsBloc(d, affaireId); }
+(function(){
+  // dossier administratif : avant la carte « Documents du client (Dropbox) »
+  try{ var _ad=adminDossier; adminDossier=async function(id){ var r=await _ad.apply(this,arguments); try{ if(!document.querySelector('#main .ssdoc-wrap')){ var dl=document.getElementById('dbx-list'); sssDocInserer(id,null,dl?dl.closest('.card'):null); } }catch(e){} return r; }; }catch(e){}
+  // page chantier (direction et terrain) : après la carte « Photos du client »
+  try{ var _io=installOpen; installOpen=async function(id){ var r=await _io.apply(this,arguments); try{ if(!document.querySelector('#main .ssdoc-wrap')){ var td=document.getElementById('techdocs-'+id); sssDocInserer(id,td?td.closest('.card')||td:null,null); } }catch(e){} return r; }; }catch(e){}
+  // fiche client (direction) : une pochette par projet, sous « Projets »
+  try{ var _bf=sssBcFiche; sssBcFiche=async function(id){ var r=await _bf.apply(this,arguments); try{ if(sssDocStaff()){ var A=((await db.from('affaires_vue_commerciale').select('id,type,etape').eq('contact_id',id)).data)||[]; var box=document.getElementById('ssbc-f'); if(box && A.length){
+        A.forEach(function(a){ var d=document.createElement('div'); d.className='ssdoc-wrap'; box.appendChild(d); sssDocsBloc(d,a.id).then(function(){ var t=d.querySelector('.card > div'); if(t) t.innerHTML='📎 Documents chantier — '+esc((a.type||'projet').toUpperCase())+(a.etape?' · '+esc(a.etape):''); }); }); } } }catch(e){} return r; }; }catch(e){}
+})();
+/* Chantier du jour (téléphone installateur) : liste des documents visibles, ouverture en un clic */
+async function sssDocsTerrainCarte(affaireId){ var el=document.getElementById('sspc-docs-'+affaireId); if(!el) return; sssDocCss();
+  var r=await db.from('documents').select('id,nom,categorie,url').eq('affaire_id',affaireId).not('categorie','is',null).order('created_at',{ascending:false});
+  var L=(r.data||[]); el.innerHTML="<div style='margin:8px 0 4px;padding:10px 12px;border:1px solid var(--line,#8884);border-radius:12px'><div style='font-weight:800;font-size:15px;margin-bottom:4px'>📎 Documents chantier</div>"
+    +(L.length?L.map(function(d){ return "<button class='relbtn' style='display:flex;width:100%;justify-content:flex-start;gap:8px;min-height:48px;margin-top:6px;text-align:left' onclick=\"sssDocOuvrir('"+d.id+"','"+encodeURIComponent(d.url)+"')\"><span style='font-size:20px'>"+(SSSDOC_ICO[d.categorie]||'📄')+"</span><span style='font-size:15px'>"+esc(d.nom||'Document')+"</span></button>"; }).join('')
+      :"<div style='font-size:13.5px;color:var(--text-3)'>Aucun document pour ce chantier.</div>")+"</div>"; }
+
+/* SSS-DOCS-CHANTIER-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
