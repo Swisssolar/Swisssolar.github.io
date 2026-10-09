@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>DET — Dossier d'étude technique</title>
+<!-- SSS OS — générateur du « Dossier d'étude technique » (DET), ouvert dans l'écran DET (iframe).
+     Reçoit du parent : {type:'sss_prefill', nom, adr, interlocuteur, date} ; annonce {type:'sss_gen_ready'} ;
+     signale chaque dossier produit : {type:'sss_dossier', format, titre} (journal etudes_techniques).
+     Aucune donnée financière : ni prix, ni coût, ni marge. Rien n'est envoyé ailleurs : le dossier est imprimé / enregistré
+     en PDF par le navigateur ; le brouillon reste dans ce navigateur (localStorage). -->
+<style>
+:root{--rouge:#d63b3b;--txt:#1d2430;--doux:#5d6675;--ligne:#d9dee6;--fond:#f6f7f9;--carte:#fff}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--txt);background:var(--fond)}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--carte);border-bottom:1px solid var(--ligne);position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0}header .modes{display:flex;gap:6px}
+button,.btn{font:inherit;border:1px solid var(--ligne);background:#fff;border-radius:10px;padding:9px 14px;min-height:42px;cursor:pointer;color:var(--txt)}
+button.on{border-color:var(--rouge);color:var(--rouge);font-weight:700}button.prim{background:var(--rouge);border-color:var(--rouge);color:#fff;font-weight:700}
+main{max-width:980px;margin:0 auto;padding:14px 16px 90px}
+section{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+section h2{font-size:16px;margin:0 0 10px;display:flex;gap:8px;align-items:center}section h2 .n{background:var(--rouge);color:#fff;border-radius:999px;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px 14px}
+label{display:block;font-size:13px;color:var(--doux);margin-bottom:3px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;border:1px solid var(--ligne);border-radius:9px;padding:9px 10px;background:#fff;color:var(--txt);min-height:42px}
+textarea{min-height:70px;resize:vertical}.aide{font-size:12.5px;color:var(--doux);margin-top:4px}
+.complet{}.mode-guide .complet{display:none}.pans{display:flex;flex-direction:column;gap:10px}.pan{border:1px dashed var(--ligne);border-radius:10px;padding:10px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--carte);border-top:1px solid var(--ligne);padding:10px 16px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;z-index:6}
+.calc{font-weight:700}.photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.photos img{width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--ligne)}
+#doc{display:none}
+@media print{
+  header,.bar,main{display:none!important}body{background:#fff}#doc{display:block}
+  #doc{font-size:11pt;color:#000}#doc h1{font-size:18pt;margin:0 0 4pt}#doc .sous{color:#444;margin-bottom:12pt}
+  #doc h2{font-size:12.5pt;border-bottom:1.5pt solid var(--rouge);padding-bottom:2pt;margin:14pt 0 6pt;page-break-after:avoid}
+  #doc table{width:100%;border-collapse:collapse}#doc td{border-bottom:.5pt solid #ccc;padding:3pt 4pt;vertical-align:top}#doc td.k{width:38%;color:#444}
+  #doc .ph{display:flex;flex-wrap:wrap;gap:6pt}#doc .ph img{width:48%;max-height:200pt;object-fit:cover;page-break-inside:avoid}
+  #doc .pied{margin-top:16pt;font-size:9pt;color:#555;border-top:.5pt solid #ccc;padding-top:4pt}
+  @page{margin:16mm 14mm}
+}
+</style>
+</head>
+<body class="mode-guide">
+<header>
+  <h1>DET — Dossier d'étude technique</h1>
+  <div class="modes"><button id="m-guide" class="on" onclick="mode('guide')">Mode direct guidé</button><button id="m-complet" onclick="mode('complet')">Dossier complet</button></div>
+</header>
+<main id="form">
+  <section><h2><span class="n">1</span>Client et projet</h2><div class="g">
+    <div><label>Client</label><input id="nom"></div><div><label>Adresse du chantier</label><input id="adr"></div>
+    <div><label>Interlocuteur Swiss Solar System</label><input id="interlocuteur"></div><div><label>Date</label><input id="date"></div>
+    <div><label>Type de projet</label><select id="type"><option>Photovoltaïque</option><option>Photovoltaïque + batterie</option><option>Batterie seule</option><option>Borne de recharge</option><option>Pompe à chaleur</option><option>Autre</option></select></div>
+    <div><label>Objectif du client</label><input id="objectif" placeholder="autoconsommation, autonomie, recharge VE…"></div>
+  </div></section>
+
+  <section><h2><span class="n">2</span>Consommation et usages</h2><div class="g">
+    <div><label>Consommation annuelle (kWh)</label><input id="conso" inputmode="numeric"></div>
+    <div><label>Profil de consommation</label><select id="profil"><option></option><option>Surtout en journée</option><option>Surtout le soir</option><option>Mixte</option></select></div>
+    <div><label>Véhicule électrique</label><select id="ve"><option></option><option>Oui</option><option>Prévu</option><option>Non</option></select></div>
+    <div class="complet"><label>Chauffage / eau chaude</label><input id="chauffage" placeholder="PAC, électrique, mazout, gaz…"></div>
+    <div class="complet"><label>Installation PV existante</label><input id="pv_existant" placeholder="puissance, onduleur central / décentralisé"></div>
+    <div class="complet"><label>Application de suivi existante</label><input id="monitoring" placeholder="nom de l'application"></div>
+  </div></section>
+
+  <section><h2><span class="n">3</span>Bâtiment et toiture</h2><div class="g">
+    <div><label>Type de bâtiment</label><select id="batiment"><option></option><option>Maison individuelle</option><option>Villa jumelée</option><option>Immeuble / PPE</option><option>Bâtiment agricole</option><option>Commerce / industrie</option><option>Autre</option></select></div>
+    <div><label>Couverture</label><select id="couverture"><option></option><option>Tuile mécanique</option><option>Tuile ciment</option><option>Tuile plate</option><option>Tuile écaille</option><option>Bac acier</option><option>Tôle joint debout</option><option>Fibrociment</option><option>Toit plat</option><option>Autre</option></select></div>
+    <div><label>État de la toiture</label><select id="etat"><option></option><option>Bon</option><option>Moyen</option><option>À rénover</option></select></div>
+    <div class="complet"><label>Année du bâtiment / de la toiture</label><input id="annee"></div>
+    <div class="complet"><label>Accès / échafaudage</label><input id="acces" placeholder="hauteur, accès nacelle, échafaudage nécessaire…"></div>
+    <div class="complet"><label>Ombrages</label><input id="ombrages" placeholder="arbres, cheminée, voisins…"></div>
+  </div>
+  <div style="margin-top:12px"><label>Pans de toit</label><div class="pans" id="pans"></div><button onclick="ajouterPan()" style="margin-top:8px">+ Ajouter un pan</button>
+    <div class="aide">Orientation : Sud = 0°, Est = −90°, Ouest = +90°. Inclinaison : toit plat = 0°, façade = 90°.</div></div>
+  <div class="g complet" style="margin-top:12px">
+    <div><label>Faîtage (m)</label><input id="m_faitage" inputmode="decimal"></div><div><label>Rive (m)</label><input id="m_rive" inputmode="decimal"></div>
+    <div><label>Chéneau (m)</label><input id="m_cheneau" inputmode="decimal"></div><div><label>Chéneau – sol (m)</label><input id="m_cheneau_sol" inputmode="decimal"></div>
+  </div></section>
+
+  <section><h2><span class="n">4</span>Installation proposée</h2><div class="g">
+    <div><label>Nombre de panneaux</label><input id="nb_pv" inputmode="numeric" oninput="calc()"></div>
+    <div><label>Puissance unitaire (Wc)</label><input id="wc" inputmode="numeric" oninput="calc()"></div>
+    <div><label>Puissance totale</label><div class="calc" id="kwc">—</div></div>
+    <div><label>Modèle de panneau</label><input id="panneau" placeholder="ex. Maviwatt…"></div>
+    <div><label>Onduleur</label><select id="onduleur"><option></option><option>Micro-onduleurs Enphase</option><option>Victron</option><option>SolarEdge</option><option>Huawei</option><option>Autre</option></select></div>
+    <div class="complet"><label>Nombre d'onduleurs / micro-onduleurs</label><input id="nb_ond" inputmode="numeric"></div>
+    <div class="complet"><label>Mode de pose</label><select id="pose"><option></option><option>Surimposition</option><option>Intégration</option><option>Toit plat (lestage)</option><option>Façade</option><option>Au sol</option></select></div>
+    <div class="complet"><label>Production annuelle estimée (kWh)</label><input id="production" inputmode="numeric" placeholder="selon le simulateur"></div>
+  </div></section>
+
+  <section><h2><span class="n">5</span>Stockage et recharge</h2><div class="g">
+    <div><label>Batterie</label><select id="bat"><option></option><option>Aucune</option><option>Voltia SMARTES</option><option>Pylontech</option><option>Enphase</option><option>Victron</option><option>Huawei</option><option>BYD</option><option>Solax</option><option>Autre</option></select></div>
+    <div><label>Capacité (kWh)</label><input id="bat_kwh" inputmode="decimal"></div>
+    <div class="complet"><label>Emplacement de la batterie</label><input id="bat_lieu"></div>
+    <div class="complet"><label>Distance batterie – tableau (m) / carottage</label><input id="bat_dist"></div>
+    <div class="complet"><label>Borne de recharge</label><input id="borne" placeholder="modèle, puissance, emplacement"></div>
+  </div></section>
+
+  <section><h2><span class="n">6</span>Électricité et raccordement</h2><div class="g">
+    <div><label>Ampérage du raccordement</label><select id="amp"><option></option><option>25 A</option><option>32 A</option><option>40 A</option><option>63 A</option><option>80 A</option><option>100 A</option><option>Autre</option></select></div>
+    <div><label>Place dans le tableau</label><select id="place"><option></option><option>Oui</option><option>Non</option><option>À vérifier</option></select></div>
+    <div class="complet"><label>N° de compteur(s)</label><input id="compteur"></div>
+    <div class="complet"><label>Wi-Fi au tableau</label><select id="wifi"><option></option><option>Oui</option><option>Non</option><option>Faible</option></select></div>
+    <div class="complet"><label>Chemin de câble</label><input id="cable" placeholder="extérieur / intérieur, longueur, tranchée…"></div>
+  </div></section>
+
+  <section class="complet"><h2><span class="n">7</span>Démarches</h2><div class="g">
+    <div><label>Parcelle / n° cadastral</label><input id="parcelle" placeholder="geo.admin.ch"></div>
+    <div><label>Annonce à la commune</label><select id="commune"><option></option><option>À faire</option><option>Faite</option><option>Non nécessaire</option></select></div>
+    <div><label>Gestionnaire de réseau (GRD)</label><input id="grd"></div>
+    <div><label>Subventions à demander</label><input id="subventions" placeholder="Pronovo, cantonale…"></div>
+  </div></section>
+
+  <section><h2><span class="n">8</span>Conclusion</h2><div class="g">
+    <div><label>Faisabilité</label><select id="faisable"><option></option><option>Faisable</option><option>Faisable avec réserves</option><option>Non faisable</option></select></div>
+    <div><label>Prochaine étape</label><input id="suite" placeholder="offre, visite technique, documents à obtenir…"></div>
+  </div>
+  <div style="margin-top:10px"><label>Réserves / remarques</label><textarea id="remarques"></textarea></div>
+  <div style="margin-top:10px"><label>Photos (toiture, tableau, emplacement batterie…)</label><input id="photos" type="file" accept="image/*" multiple onchange="photos(this)"><div class="photos" id="vign"></div>
+    <div class="aide">Les photos restent dans ce navigateur : elles sont seulement insérées dans le dossier imprimé.</div></div>
+  </section>
+</main>
+<div class="bar"><button onclick="effacer()">Effacer</button><button onclick="telecharger()">Enregistrer (HTML)</button><button class="prim" onclick="generer()">Générer le dossier (PDF)</button></div>
+<div id="doc"></div>
+<script>
+var MODE='guide', PHOTOS=[], CLE='sss_det_brouillon';
+var CHAMPS=['nom','adr','interlocuteur','date','type','objectif','conso','profil','ve','chauffage','pv_existant','monitoring','batiment','couverture','etat','annee','acces','ombrages',
+  'm_faitage','m_rive','m_cheneau','m_cheneau_sol','nb_pv','wc','panneau','onduleur','nb_ond','pose','production','bat','bat_kwh','bat_lieu','bat_dist','borne','amp','place','compteur','wifi','cable',
+  'parcelle','commune','grd','subventions','faisable','suite','remarques'];
+var LIB={nom:'Client',adr:'Adresse du chantier',interlocuteur:'Interlocuteur SSS',date:'Date',type:'Type de projet',objectif:'Objectif',conso:'Consommation annuelle (kWh)',profil:'Profil',ve:'Véhicule électrique',
+  chauffage:'Chauffage / eau chaude',pv_existant:'PV existant',monitoring:'Application de suivi',batiment:'Type de bâtiment',couverture:'Couverture',etat:'État de la toiture',annee:'Année',acces:'Accès / échafaudage',ombrages:'Ombrages',
+  m_faitage:'Faîtage (m)',m_rive:'Rive (m)',m_cheneau:'Chéneau (m)',m_cheneau_sol:'Chéneau – sol (m)',nb_pv:'Nombre de panneaux',wc:'Puissance unitaire (Wc)',panneau:'Modèle de panneau',onduleur:'Onduleur',nb_ond:'Nombre d\'onduleurs',
+  pose:'Mode de pose',production:'Production estimée (kWh/an)',bat:'Batterie',bat_kwh:'Capacité (kWh)',bat_lieu:'Emplacement',bat_dist:'Distance tableau / carottage',borne:'Borne de recharge',amp:'Ampérage',place:'Place au tableau',
+  compteur:'N° de compteur',wifi:'Wi-Fi au tableau',cable:'Chemin de câble',parcelle:'Parcelle / cadastre',commune:'Annonce commune',grd:'GRD',subventions:'Subventions',faisable:'Faisabilité',suite:'Prochaine étape',remarques:'Réserves / remarques'};
+var SECTIONS=[['Client et projet',['nom','adr','interlocuteur','date','type','objectif']],['Consommation et usages',['conso','profil','ve','chauffage','pv_existant','monitoring']],
+  ['Bâtiment et toiture',['batiment','couverture','etat','annee','acces','ombrages','m_faitage','m_rive','m_cheneau','m_cheneau_sol']],['Installation proposée',['nb_pv','wc','panneau','onduleur','nb_ond','pose','production']],
+  ['Stockage et recharge',['bat','bat_kwh','bat_lieu','bat_dist','borne']],['Électricité et raccordement',['amp','place','compteur','wifi','cable']],['Démarches',['parcelle','commune','grd','subventions']],['Conclusion',['faisable','suite','remarques']]];
+function $(i){ return document.getElementById(i); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function mode(m){ MODE=m; document.body.className='mode-'+m; $('m-guide').className=m==='guide'?'on':''; $('m-complet').className=m==='complet'?'on':''; sauver(); }
+function ajouterPan(v){ v=v||{}; var d=document.createElement('div'); d.className='pan'; d.innerHTML="<div class='g'><div><label>Surface (m²)</label><input class='p_surf' inputmode='decimal' value='"+esc(v.surf||'')+"'></div>"
+  +"<div><label>Orientation (°)</label><input class='p_or' inputmode='numeric' value='"+esc(v.or||'')+"' placeholder='Sud = 0'></div><div><label>Inclinaison (°)</label><input class='p_inc' inputmode='numeric' value='"+esc(v.inc||'')+"'></div>"
+  +"<div style='display:flex;align-items:flex-end'><button onclick='this.closest(\".pan\").remove();sauver()'>Retirer</button></div></div>"; $('pans').appendChild(d); d.addEventListener('input',sauver); }
+function pans(){ return [].map.call(document.querySelectorAll('.pan'),function(p){ return {surf:p.querySelector('.p_surf').value,or:p.querySelector('.p_or').value,inc:p.querySelector('.p_inc').value}; }).filter(function(x){ return x.surf||x.or||x.inc; }); }
+function calc(){ var n=parseFloat(($('nb_pv').value||'').replace(',','.')), w=parseFloat(($('wc').value||'').replace(',','.')); $('kwc').textContent=(n>0&&w>0)?(Math.round(n*w/10)/100).toLocaleString('fr-CH')+' kWc':'—'; }
+function valeurs(){ var o={}; CHAMPS.forEach(function(k){ o[k]=($(k).value||'').trim(); }); return o; }
+function sauver(){ try{ localStorage.setItem(CLE,JSON.stringify({mode:MODE,v:valeurs(),pans:pans()})); }catch(e){} }
+function charger(){ try{ var s=JSON.parse(localStorage.getItem(CLE)||'null'); if(!s) return false; CHAMPS.forEach(function(k){ if(s.v&&s.v[k]!=null) $(k).value=s.v[k]; }); (s.pans||[]).forEach(ajouterPan); if(s.mode) mode(s.mode); calc(); return true; }catch(e){ return false; } }
+function effacer(){ if(!confirm('Effacer tout le formulaire ?')) return; try{ localStorage.removeItem(CLE); }catch(e){} CHAMPS.forEach(function(k){ $(k).value=''; }); $('pans').innerHTML=''; ajouterPan(); PHOTOS=[]; $('vign').innerHTML=''; calc(); appliquerPrefill(); }
+function photos(inp){ [].forEach.call(inp.files||[],function(f){ var r=new FileReader(); r.onload=function(){ PHOTOS.push(r.result); var im=document.createElement('img'); im.src=r.result; $('vign').appendChild(im); }; r.readAsDataURL(f); }); }
+function titre(){ var v=valeurs(); return 'DET — '+(v.nom||'client')+(v.date?' — '+v.date:''); }
+function documentHtml(){ var v=valeurs(); var h="<h1>Dossier d'étude technique</h1><div class='sous'>"+esc(v.nom||'')+(v.adr?' — '+esc(v.adr):'')+(v.date?' · '+esc(v.date):'')+"</div>";
+  SECTIONS.forEach(function(s){ var lignes=s[1].filter(function(k){ return v[k]; }).map(function(k){ return "<tr><td class='k'>"+esc(LIB[k])+"</td><td>"+esc(v[k]).replace(/\n/g,'<br>')+"</td></tr>"; });
+    if(s[0]==='Installation proposée' && $('kwc').textContent!=='—') lignes.splice(2,0,"<tr><td class='k'>Puissance totale</td><td>"+esc($('kwc').textContent)+"</td></tr>");
+    if(s[0]==='Bâtiment et toiture') pans().forEach(function(p,i){ lignes.push("<tr><td class='k'>Pan "+(i+1)+"</td><td>"+[p.surf?p.surf+' m²':'',p.or!==''?'orientation '+p.or+'°':'',p.inc!==''?'inclinaison '+p.inc+'°':''].filter(Boolean).join(' · ')+"</td></tr>"); });
+    if(lignes.length) h+="<h2>"+esc(s[0])+"</h2><table>"+lignes.join('')+"</table>"; });
+  if(PHOTOS.length) h+="<h2>Photos</h2><div class='ph'>"+PHOTOS.map(function(p){ return "<img src='"+p+"'>"; }).join('')+"</div>";
+  return h+"<div class='pied'>Swiss Solar System Sàrl — dossier d'étude technique établi par "+esc(v.interlocuteur||'—')+". Document technique : il ne constitue pas une offre.</div>"; }
+function signaler(format){ try{ parent.postMessage({type:'sss_dossier',format:format,titre:titre()},location.origin); }catch(e){} }
+function generer(){ var v=valeurs(); if(!v.nom){ alert('Indique au moins le client.'); return; } $('doc').innerHTML=documentHtml(); sauver(); signaler('pdf'); setTimeout(function(){ window.print(); },60); }
+function telecharger(){ var v=valeurs(); if(!v.nom){ alert('Indique au moins le client.'); return; }
+  var css=[].map.call(document.querySelectorAll('style'),function(s){ return s.textContent; }).join('\n').replace(/@media print\{/,'@media all{');
+  var html="<!doctype html><html lang='fr'><head><meta charset='utf-8'><title>"+esc(titre())+"</title><style>"+css+"</style></head><body><div id='doc' style='display:block;max-width:820px;margin:20px auto'>"+documentHtml()+"</div></body></html>";
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([html],{type:'text/html'})); a.download=titre().replace(/[\\/:*?"<>|]+/g,'-')+'.html'; document.body.appendChild(a); a.click(); a.remove(); signaler('html'); }
+var PREFILL=null;
+function appliquerPrefill(){ if(!PREFILL) return; ['nom','adr','interlocuteur','date'].forEach(function(k){ if(PREFILL[k]!=null && PREFILL[k]!=='') $(k).value=PREFILL[k]; }); sauver(); }
+window.addEventListener('message',function(e){ if(e.origin!==location.origin) return; var d=e.data||{}; if(d.type!=='sss_prefill') return;
+  var change=PREFILL && PREFILL.nom!==d.nom; PREFILL=d; if(change){ CHAMPS.forEach(function(k){ if(['interlocuteur','date'].indexOf(k)<0) $(k).value=''; }); $('pans').innerHTML=''; ajouterPan(); PHOTOS=[]; $('vign').innerHTML=''; calc(); }
+  appliquerPrefill(); });
+document.addEventListener('input',sauver); document.addEventListener('change',sauver);
+if(!charger()) ajouterPan();
+try{ parent.postMessage({type:'sss_gen_ready'},location.origin); }catch(e){}
+</script>
+</body>
+</html>

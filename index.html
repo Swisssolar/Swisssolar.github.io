@@ -6604,6 +6604,111 @@ async function sssRetMsgOk(id){ var r=await db.rpc('sss_com_message_traiter',{p_
 
 /* SSS-BASE-COM-FIN */
 
+/* SSS-RECHERCHE-DEBUT */
+/* ==========================================================================
+   SSS OS — Recherche globale (migration 0039, 09.10.2026).
+   « Je tape 3 lettres → je touche → je suis dans le dossier. »
+   * Accueil : barre de recherche en tête (ordinateur et téléphone) ; partout : loupe 🔎 dans la barre du haut
+     (panneau centré sur ordinateur, plein écran sur téléphone) ; raccourcis Ctrl+K et « / ».
+   * Résultats : Nom / « Type · Localité · Statut » ; clients suivis de leurs projets ; ↑ ↓ Entrée Échap.
+   * Données : RPC sss_recherche (droits de la personne connectée : RLS + vues cloisonnées ; aucun montant).
+   * Retour arrière (navigateur / téléphone) après ouverture d'un dossier → retour à la recherche, même texte.
+   ========================================================================== */
+var SSSRG = { q: '', res: [], i: -1, t: null, n: 0, ouvert: false };
+function sssRgCss(){ if(document.getElementById('ssrg-css')) return; var s=document.createElement('style'); s.id='ssrg-css'; s.textContent=
+  ".ssrg{position:relative;max-width:760px;margin:0 auto 16px;text-align:left}.ssrg-in{width:100%;min-height:50px;font-size:16px;padding:0 16px 0 44px;border-radius:14px;border:1px solid var(--line,#8885);background:var(--card,transparent);color:inherit;box-sizing:border-box}"
+ +".ssrg-ico{position:absolute;left:15px;top:14px;font-size:18px;opacity:.7;pointer-events:none}.ssrg-res{margin-top:6px;border:1px solid var(--line,#8885);border-radius:14px;background:var(--card,#111);overflow:hidden;max-height:62vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.28)}"
+ +".ssrg-res:empty{display:none}.ssrg-it{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line,#8883);background:transparent;color:inherit;padding:11px 16px;min-height:58px;cursor:pointer;font:inherit}"
+ +".ssrg-it:last-child{border-bottom:0}.ssrg-it.sel,.ssrg-it:hover{background:rgba(127,127,127,.14)}.ssrg-it b{display:block;font-size:16px;line-height:1.3}.ssrg-it span{display:block;font-size:13.5px;color:var(--text-3,#999);margin-top:2px}"
+ +".ssrg-it.sous{padding-left:34px;min-height:52px}.ssrg-it.sous b{font-size:15px}.ssrg-vide{padding:14px 16px;font-size:14px;color:var(--text-3,#999)}"
+ +".ssrg-ov{position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;padding:9vh 16px 16px}.ssrg-ov .ssrg{width:100%;max-width:700px;margin:0}"
+ +".ssrg-ov .ssrg-res{max-height:70vh}.ssrg-btn{font-size:17px}"
+ +"@media (max-width:760px){.ssrg-ov{padding:0;background:var(--bg,#111)}.ssrg-ov .ssrg{max-width:none;padding:10px 12px;box-sizing:border-box;height:100%;display:flex;flex-direction:column}"
+ +".ssrg-ov .ssrg-res{max-height:none;flex:1;border:0;box-shadow:none;border-radius:0;margin-top:8px}.ssrg-ov .ssrg-ico{left:27px;top:24px}.ssrg-ferme{display:block!important}}"
+ +"@media (min-width:761px){#ssrg-hub .ssrg-res{position:absolute;left:0;right:0;z-index:60}}"
+ +".ssrg-ferme{display:none;position:absolute;right:20px;top:18px;border:0;background:transparent;color:inherit;font-size:22px;min-width:44px;min-height:44px}";
+  document.head.appendChild(s); }
+
+function sssRgHtml(id){ return "<div class='ssrg' id='"+id+"'><span class='ssrg-ico'>🔎</span><input class='ssrg-in' type='search' enterkeyhint='search' autocomplete='off' autocorrect='off' spellcheck='false' "
+  +"placeholder='Rechercher un client, un prospect, un projet, un SAV…' aria-label='Recherche globale' oninput=\"sssRgSaisie(this)\" onkeydown=\"sssRgTouche(event,this)\">"
+  +"<button class='ssrg-ferme' onclick='sssRgFermer()' aria-label='Fermer'>✕</button><div class='ssrg-res' role='listbox'></div></div>"; }
+
+/* barre en tête de l'accueil */
+function sssRgAccueil(){ try{ var m=document.getElementById('main'); if(!m || document.getElementById('ssrg-hub')) return; sssRgCss();
+  var d=document.createElement('div'); d.innerHTML=sssRgHtml('ssrg-hub'); var el=d.firstChild; el.style.margin='14px auto 18px';
+  // juste sous « Bonjour … / Choisis un service » (en tête d'accueil), sinon tout en haut
+  var h=[].filter.call(m.querySelectorAll('h1,h2'),function(x){ return /^Bonjour/.test((x.textContent||'').trim()); })[0];
+  if(h){ var apres=(h.nextElementSibling && (h.nextElementSibling.textContent||'').length<120 && h.nextElementSibling.tagName==='DIV')?h.nextElementSibling:h; apres.parentNode.insertBefore(el, apres.nextSibling); }
+  else m.insertBefore(el, m.firstChild); }catch(e){} }
+/* loupe dans la barre du haut (tous les écrans) */
+function sssRgLoupe(){ try{ if(document.getElementById('ssrg-loupe')) return; var u=document.querySelector('#app .topbar .userchip'); if(!u) return;
+  var b=document.createElement('button'); b.id='ssrg-loupe'; b.className='iconbtn ssrg-btn'; b.title='Rechercher (Ctrl+K)'; b.setAttribute('aria-label','Rechercher'); b.textContent='🔎'; b.onclick=function(){ sssRgOuvrir(''); };
+  u.parentNode.insertBefore(b,u); }catch(e){} }
+function sssRgOuvrir(q){ sssRgCss(); sssRgFermer(); var ov=document.createElement('div'); ov.className='ssrg-ov'; ov.id='ssrg-ov'; ov.onclick=function(e){ if(e.target===ov) sssRgFermer(); };
+  ov.innerHTML=sssRgHtml('ssrg-pan'); document.body.appendChild(ov); var i=ov.querySelector('.ssrg-in'); SSSRG.ouvert=true;
+  if(q){ i.value=q; sssRgSaisie(i,true); } setTimeout(function(){ try{ i.focus(); }catch(e){} },30); }
+function sssRgFermer(){ var o=document.getElementById('ssrg-ov'); if(o) o.remove(); SSSRG.ouvert=false; }
+
+function sssRgSaisie(inp,tout_de_suite){ var q=(inp.value||'').trim(); SSSRG.q=q; clearTimeout(SSSRG.t); var box=inp.parentNode.querySelector('.ssrg-res');
+  if(q.length<2 && q.replace(/\D/g,'').length<3){ box.innerHTML=''; SSSRG.res=[]; return; }
+  SSSRG.t=setTimeout(function(){ sssRgChercher(q,box); }, tout_de_suite?0:160); }
+async function sssRgChercher(q,box){ var n=++SSSRG.n; var r=await db.rpc('sss_recherche',{p_q:q,p_lim:30}); if(n!==SSSRG.n) return;   // seule la dernière frappe compte
+  if(r.error){ box.innerHTML="<div class='ssrg-vide'>Recherche indisponible : "+esc(r.error.message)+"</div>"; return; }
+  // clients suivis de leurs projets / chantiers (si plusieurs projets : chacun est une ligne)
+  var L=r.data||[], out=[], vus={}; L.forEach(function(x){ if(x.kind==='client'){ out.push(x); L.filter(function(y){ return (y.kind==='projet'||y.kind==='chantier') && y.contact_id===x.id; }).forEach(function(y){ y._sous=true; out.push(y); vus[y.id]=1; }); } });
+  L.forEach(function(x){ if(x.kind!=='client' && !vus[x.id]) out.push(x); });
+  SSSRG.res=out; SSSRG.i=out.length?0:-1; sssRgPeindre(box); }
+var SSSRG_ETAPES={vendu:'projet vendu',perdu:'perdu',rdv_honore:'RDV honoré',devis:'devis',dossier_complet:'dossier complet',installe:'installé','installé':'installé',termine:'terminé'};
+function sssRgLib(x){
+  var typ={client:'Client',prospect:'Prospect'+(x.detail?' '+x.detail:''),projet:'Projet'+(x.detail?' '+x.detail.toUpperCase():''),chantier:'Chantier'+(x.detail?' '+x.detail.toUpperCase():''),sav:'SAV'+(x.detail?' — '+x.detail:'')}[x.kind]||x.kind;
+  var st=x.statut; if(x.kind==='prospect' && typeof sssPrLib==='function' && typeof SSSPR_STATUTS!=='undefined') st=sssPrLib(SSSPR_STATUTS,st); else if(st) st=SSSRG_ETAPES[st]||String(st).replace(/_/g,' ');
+  if(x.kind==='client' && x.nb_projets>1) st=(st?st+' · ':'')+x.nb_projets+' projets';
+  return [typ,x.localite,st].filter(Boolean).join(' · '); }
+function sssRgPeindre(box){ if(!box) return; var L=SSSRG.res;
+  if(!L.length){ box.innerHTML="<div class='ssrg-vide'>Aucun résultat pour « "+esc(SSSRG.q)+" ».</div>"; return; }
+  box.innerHTML=L.map(function(x,i){ return "<button class='ssrg-it"+(x._sous?' sous':'')+(i===SSSRG.i?' sel':'')+"' role='option' onmousedown='event.preventDefault()' onclick='sssRgAller("+i+")'>"
+    +"<b>"+(x._sous?'↳ ':'')+esc(x.titre||'—')+"</b><span>"+esc(sssRgLib(x))+"</span></button>"; }).join(''); }
+function sssRgTouche(e,inp){ var box=inp.parentNode.querySelector('.ssrg-res'); var n=SSSRG.res.length;
+  if(e.key==='ArrowDown'){ e.preventDefault(); if(n){ SSSRG.i=(SSSRG.i+1)%n; sssRgPeindre(box); sssRgVoir(box); } }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); if(n){ SSSRG.i=(SSSRG.i-1+n)%n; sssRgPeindre(box); sssRgVoir(box); } }
+  else if(e.key==='Enter'){ e.preventDefault(); if(SSSRG.i>=0) sssRgAller(SSSRG.i); }
+  else if(e.key==='Escape'){ e.preventDefault(); if(document.getElementById('ssrg-ov')) sssRgFermer(); else { inp.value=''; box.innerHTML=''; SSSRG.res=[]; inp.blur(); } } }
+function sssRgVoir(box){ var s=box.querySelector('.sel'); if(s) try{ s.scrollIntoView({block:'nearest'}); }catch(e){} }
+
+/* ouvrir le bon dossier selon le type et le profil */
+function sssRgRole(){ return (typeof ME!=='undefined'&&ME)?ME.role:''; }
+function sssRgFicheClient(cid){ var r=sssRgRole();
+  if(['superadmin','direction','commercial'].indexOf(r)>=0){ SSSBC.sel=cid; window.__ssbc_keep=true; go('base_clients'); return; }
+  if(typeof openContact==='function') openContact(cid); }
+function sssRgAller(i){ var x=SSSRG.res[i]; if(!x) return; var q=SSSRG.q, r=sssRgRole(), staff=['superadmin','direction','admin'].indexOf(r)>=0 || (typeof ME!=='undefined'&&ME&&ME.acces_admin);
+  try{ history.replaceState({ssrg:q},''); history.pushState({ssrgFiche:x.kind},''); }catch(e){}
+  sssRgFermer(); try{ var a=document.querySelector('#ssrg-hub .ssrg-res'); if(a) a.innerHTML=''; }catch(e){}
+  if(x.kind==='client') return sssRgFicheClient(x.id);
+  if(x.kind==='prospect'){ go('prospects'); setTimeout(function(){ SSSPR.sel=x.id; sssPrFiche(x.id); },350); return; }
+  if(x.kind==='projet' || x.kind==='chantier'){
+    if(['technicien','soustraitant','backoffice'].indexOf(r)>=0 && typeof installOpen==='function') return installOpen(x.id);
+    if(staff && x.admin_statut && typeof admGo==='function'){ go('admin'); setTimeout(function(){ admGo(x.id,x.admin_statut); },300); return; }
+    if(staff && x.kind==='chantier' && typeof installOpen==='function') return installOpen(x.id);
+    if(x.contact_id) return sssRgFicheClient(x.contact_id);
+    return; }
+  if(x.kind==='sav'){ go(staff?'sav':'tech_sav'); setTimeout(function(){ if(typeof savOpen==='function') savOpen(x.id); },500); return; }
+}
+/* retour arrière (navigateur / bouton du téléphone) : on revient à la recherche, avec le même texte */
+window.addEventListener('popstate',function(e){ var st=e.state||{}; if(typeof st.ssrg==='string'){
+  try{ if(typeof goHub==='function' && (typeof servicesAvail!=='function' || servicesAvail().length>1)){ goHub(); setTimeout(function(){ var i=document.querySelector('#ssrg-hub .ssrg-in'); if(i){ i.value=st.ssrg; sssRgSaisie(i,true); i.focus(); } else sssRgOuvrir(st.ssrg); },120); }
+       else sssRgOuvrir(st.ssrg); }catch(err){ sssRgOuvrir(st.ssrg); } } });
+document.addEventListener('keydown',function(e){ var tag=(e.target&&e.target.tagName)||'';
+  if((e.ctrlKey||e.metaKey) && (e.key==='k'||e.key==='K')){ e.preventDefault(); var h=document.querySelector('#ssrg-hub .ssrg-in'); if(h) h.focus(); else sssRgOuvrir(''); }
+  else if(e.key==='/' && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(e.target&&e.target.isContentEditable)){ e.preventDefault(); var h2=document.querySelector('#ssrg-hub .ssrg-in'); if(h2) h2.focus(); else sssRgOuvrir(''); } });
+
+(function(){
+  try{ var _hub=renderHub; renderHub=function(){ var r=_hub.apply(this,arguments); try{ sssRgAccueil(); sssRgLoupe(); }catch(e){} return r; }; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ sssRgLoupe(); }catch(e){} return r; }; }catch(e){}
+  try{ var _t=setInterval(function(){ if(document.querySelector('#app .topbar .userchip')){ sssRgLoupe(); clearInterval(_t); } },800); setTimeout(function(){ clearInterval(_t); },60000); }catch(e){}
+})();
+
+/* SSS-RECHERCHE-FIN */
+
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
 function go(v){ try{ if(typeof gwClean==='function') gwClean(); }catch(_e){}
