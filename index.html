@@ -2337,6 +2337,9 @@ function renderNav(){
     ['tech_sav','SAV en cours','<svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4l-4.6 4.6 2 2 4.6-4.6a4 4 0 0 1 5.4-5.4l-2.2 2.2-1.8-1.8 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
     ['tech_materiel','Outillage','<svg viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',['superadmin','direction','technicien']],
     ['prospects','Prospects','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>',['superadmin','direction','commercial']],
+    ['base_clients','Clients','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',['superadmin','direction','commercial']],
+    ['planning_com','Planning installateurs','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',['superadmin','direction','commercial']],
+    ['rapport_com','Reporting commercial','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>',['superadmin','direction']],
     ['mes_fiches','Mes fiches de salaire','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',['technicien','supply_chain','soustraitant','backoffice','commercial','admin']],
     ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
@@ -2424,7 +2427,7 @@ function renderNav(){
   const itemMap={}; items.forEach(function(it){ if(it&&it[0]) itemMap[it[0]]=it; });
   const isDir=['superadmin','direction'].includes(ME.role);
   const GROUPS_COM=[
-    {id:'g1',title:'Activité',keys:['prospects','agenda','contacts']},
+    {id:'g1',title:'Activité',keys:['prospects','base_clients','planning_com','agenda','contacts']},
     {id:'g2',title:'Ventes & dossiers',keys:['devis','relances','vivier','retours','avalider','generateur']},
     {id:'g4',title:'Ressources',keys:['temoins','support','tarifs']}
   ];
@@ -5673,7 +5676,7 @@ function sssNavNettoyer(){
 function sssCtrlLiens(){
   var m=document.getElementById('main'); if(!m||document.getElementById('sss-ctrl-liens')) return;
   var h=m.querySelector('.page-head'); var html="<div id='sss-ctrl-liens' style='display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px'>"
-    +"<button class='relbtn' onclick=\"go('prospects')\">📇 Prospects</button><button class='relbtn' onclick=\"go('equipe_rh')\">🧑‍💼 Équipe & RH</button><button class='relbtn' onclick=\"go('utilisation')\">👥 Utilisation de SSS OS</button><button class='relbtn' onclick=\"go('sante')\">🩺 Santé du système</button><button class='relbtn' onclick=\"go('marges')\">📊 Coûts & marges</button></div>";
+    +"<button class='relbtn' onclick=\"go('prospects')\">📇 Prospects</button><button class='relbtn' onclick=\"go('rapport_com')\">📈 Reporting commercial</button><button class='relbtn' onclick=\"go('equipe_rh')\">🧑‍💼 Équipe & RH</button><button class='relbtn' onclick=\"go('utilisation')\">👥 Utilisation de SSS OS</button><button class='relbtn' onclick=\"go('sante')\">🩺 Santé du système</button><button class='relbtn' onclick=\"go('marges')\">📊 Coûts & marges</button></div>";
   if(h) h.insertAdjacentHTML('afterend',html); else m.insertAdjacentHTML('afterbegin',html);
 }
 function sssRpc(nom,args){ return db.rpc(nom,args||{}).then(function(r){ return r.error?null:r.data; },function(){ return null; }); }
@@ -6110,7 +6113,7 @@ function sssPrSel(id,L,v,vide){ return "<select id='"+id+"' style='min-height:38
 function sssPrV(id){ var e=document.getElementById(id); return e?(''+(e.value||'')).trim():''; }
 
 async function renderProspects(){
-  var m=document.getElementById('main'); if(!m) return;
+  var m=document.getElementById('main'); if(!m) return; if(typeof sssCss==='function') sssCss();
   if(SSSPR.sel) return sssPrFiche(SSSPR.sel);
   await sssPrUsers();
   var tabs=[['liste','Prospects'],['tableau','Tableau de bord']];
@@ -6136,12 +6139,16 @@ function sssPrListe(){
     if(F.commercial && (F.commercial==='aucun'?p.commercial_id:p.commercial_id!==F.commercial)) return false;
     if(F.source && p.source!==F.source) return false; if(F.statut && p.statut!==F.statut) return false; if(F.categorie && p.categorie!==F.categorie) return false;
     if(F.canton && p.canton!==F.canton) return false;
+    if(F.rapide==='apport' && p.origine_commerciale!=='apport_commercial') return false;
+    if(F.rapide==='rdv' && p.statut!=='rdv_fixe') return false; if(F.rapide==='vendu' && p.statut!=='vendu') return false; if(F.rapide==='perdu' && p.statut!=='perdu') return false;
+    if(F.localite && (p.localite||'').toLowerCase().indexOf(F.localite.toLowerCase())<0) return false;
     if(F.periode && (now-new Date(p.recu_at).getTime())>Number(F.periode)*864e5) return false;
     if(F.q){ var q=F.q.toLowerCase(); if(((p.nom||'')+' '+(p.prenom||'')+' '+(p.localite||'')+' '+(p.npa||'')+' '+(p.telephone||'')+' '+(p.email||'')+' '+(p.source_ref||'')+' '+p.numero).toLowerCase().indexOf(q)<0) return false; }
     return true; });
+  if(typeof sssMobile==='function' && sssMobile()){ sssPrCartes(box,L); return; }
   var chip=function(k,t){ return "<button class='relbtn"+(F.rapide===k?' win':'')+"' onclick=\"SSSPR.f.rapide=(SSSPR.f.rapide==='"+k+"'?'':'"+k+"');sssPrListe()\">"+t+"</button>"; };
   var sel=function(k,L2,vide){ return "<select onchange=\"SSSPR.f."+k+"=this.value;sssPrListe()\" style='width:auto;min-height:36px;font-size:13px'><option value=''>"+vide+"</option>"+L2.map(function(x){ return "<option value='"+esc(x[0])+"'"+(F[k]===x[0]?' selected':'')+">"+esc(x[1])+"</option>"; }).join('')+"</select>"; };
-  var h="<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>"+chip('nouveau','🆕 Nouveaux')+chip('non_appele','📵 Jamais appelés')+chip('retard','⏰ Rappel en retard')+(sssPrPatron()?chip('sans_commercial','👤 Sans commercial'):'')+chip('historique','🗂 Import historique devis.ch 2026')+chip('nouveaux_leads','⚡ Nouveaux leads (hors historique)')+"</div>"
+  var h="<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'>"+chip('nouveau','🆕 Nouveaux')+chip('non_appele','📵 Jamais appelés')+chip('retard','⏰ Rappel en retard')+(sssPrPatron()?chip('sans_commercial','👤 Sans commercial'):'')+chip('apport','★ Apports')+chip('historique','🗂 Import historique devis.ch 2026')+chip('nouveaux_leads','⚡ Nouveaux leads (hors historique)')+"</div>"
     +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center'><input placeholder='Rechercher (nom, localité, tél., n°…)' value=\""+esc(F.q)+"\" oninput=\"SSSPR.f.q=this.value;clearTimeout(window.__sspr_t);window.__sspr_t=setTimeout(sssPrListe,250)\" style='max-width:260px;min-height:36px'>"
     +(sssPrPatron()?sel('commercial',[['aucun','— sans commercial —']].concat(coms),'Tous les commerciaux'):'')+sel('source',SSSPR_SOURCES,'Toutes les sources')+sel('statut',SSSPR_STATUTS.map(function(x){ return [x[0],x[1]]; }),'Tous les statuts')
     +sel('categorie',SSSPR_CATS,'Tous les types')+sel('canton',cantons.sort().map(function(c){ return [c,c]; }),'Tous les cantons')
@@ -6150,7 +6157,7 @@ function sssPrListe(){
   h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Prospect</th><th>Localité</th><th>Type</th><th>Source</th><th>Reçu</th><th>Statut</th><th>Commercial</th><th>Dernière activité</th><th>Prochaine action</th><th>Rappel</th><th>Appel</th></tr></thead><tbody>"
     +L.map(function(p){ var retard=p.prochain_rappel && new Date(p.prochain_rappel).getTime()<now && ['vendu','perdu','hors_cible'].indexOf(p.statut)<0;
       var attente=!p.premier_contact_at ? (now-new Date(p.recu_at).getTime())/36e5 : null;
-      return "<tr style='cursor:pointer' onclick=\"SSSPR.sel='"+p.id+"';sssPrFiche('"+p.id+"')\"><td><b>"+esc(sssPrNom(p))+"</b><div style='font-size:11px;color:var(--text-3)'>n° "+p.numero+(p.telephone?' · '+esc(p.telephone):'')+"</div>"+(p.importe_le?"<div style='font-size:10.5px;color:#b45309;font-weight:700'>"+esc(p.campagne||'Import historique')+" · avant SSS OS</div>":'')+"</td>"
+      return "<tr style='cursor:pointer' onclick=\"SSSPR.sel='"+p.id+"';sssPrFiche('"+p.id+"')\"><td><b>"+esc(sssPrNom(p))+"</b> "+(typeof sssApportBadge==='function'?sssApportBadge(p.apport_commercial_id,p.origine_commerciale,SSSPR.users):'')+"<div style='font-size:11px;color:var(--text-3)'>n° "+p.numero+(p.telephone?' · '+esc(p.telephone):'')+"</div>"+(p.importe_le?"<div style='font-size:10.5px;color:#b45309;font-weight:700'>"+esc(p.campagne||'Import historique')+" · avant SSS OS</div>":'')+"</td>"
         +"<td>"+esc([p.npa,p.localite].filter(Boolean).join(' ')||'—')+"</td><td>"+esc(sssPrLib(SSSPR_CATS,p.categorie))+"</td><td>"+esc(sssPrLib(SSSPR_SOURCES,p.source))+"</td>"
         +"<td>"+sssPrDate(p.recu_at,!(p.source_infos&&p.source_infos.heure_inconnue))+"</td><td>"+sssPrStatut(p.statut)+"</td><td>"+esc(p.commercial_id?sssPrUser(p.commercial_id):'—')+"</td><td>"+sssPrDate(p.dernier_evenement_at)+"</td>"
         +"<td>"+esc(p.prochaine_action||'—')+"</td><td style='"+(retard?'color:#e5484d;font-weight:700':'')+"'>"+sssPrDate(p.prochain_rappel)+"</td>"
@@ -6168,14 +6175,15 @@ async function sssPrFiche(id){
   var E=R[1].data||[], RDV=R[2].data||[], DB=R[3].data||[]; SSSPR.p=p; SSSPR.E=E;
   document.getElementById('sspr-t').textContent=sssPrNom(p);
   var sec=function(t,c,extra){ return "<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left'><div style='display:flex;align-items:center;gap:8px;margin-bottom:8px'><div style='font-weight:800;flex:1'>"+t+"</div>"+(extra||'')+"</div>"+c+"</div>"; };
-  var kv=function(k,v){ return "<div style='display:flex;gap:10px;padding:3px 0;font-size:13.5px'><div style='width:150px;color:var(--text-3)'>"+k+"</div><div style='flex:1'>"+v+"</div></div>"; };
+  var kv=function(k,v){ return "<div style='display:flex;gap:10px;padding:3px 0;font-size:13.5px'><div style='width:130px;flex:none;color:var(--text-3)'>"+k+"</div><div style='flex:1'>"+v+"</div></div>"; };
   var inconnu="<span style='color:var(--text-3)'>inconnu</span>";
   var tel=p.telephone?"<a href='"+telHref(p.telephone)+"' class='btn' style='text-decoration:none;min-height:40px;display:inline-flex;align-items:center;background:#16a34a;color:#fff' onclick=\"setTimeout(function(){sssPrAppelResultat('"+p.id+"')},1200)\">📞 Appeler "+esc(p.telephone)+"</a>":"";
-  var h="<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px'>"+tel+"<button class='relbtn' onclick=\"sssPrAppelResultat('"+p.id+"')\">✍️ Résultat d’appel</button><button class='relbtn' onclick=\"sssPrNote('"+p.id+"')\">📝 Note</button>"
+  var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'>"+sssPrStatut(p.statut)+" <span style='font-size:13px;color:var(--text-3)'>🏷 "+esc(sssPrLib(SSSPR_SOURCES,p.source))+"</span> "+(typeof sssApportBadge==='function'?sssApportBadge(p.apport_commercial_id,p.origine_commerciale,SSSPR.users):'')+"</div>"
+    +"<div class='ssc-fiche-act' style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px'>"+tel+"<button class='relbtn' onclick=\"sssPrAppelResultat('"+p.id+"')\">✍️ Résultat d’appel</button><button class='relbtn' onclick=\"sssPrNote('"+p.id+"')\">📝 Note</button>"
     +"<button class='relbtn' onclick=\"sssPrRappel('"+p.id+"')\">⏰ Rappel</button><button class='relbtn' onclick=\"sssPrRdv('"+p.id+"')\">📅 Rendez-vous</button><button class='relbtn' onclick=\"sssPrOffre('"+p.id+"')\">📄 Offre envoyée</button>"
     +(sssPrPatron()&&!p.affaire_id?"<button class='relbtn win' onclick=\"sssPrConvertir('"+p.id+"')\">➜ Convertir en client / projet</button>":"")+"</div>";
   if(p.source==='devis.ch' && !p.telephone && !p.email && !p.importe_le) h+="<div class='card' style='padding:10px 14px;margin-bottom:12px;border-left:4px solid #e0a52b;text-align:left;font-size:13.5px'>⏳ <b>Coordonnées en cours de récupération</b> depuis devis.ch (automatique, quelques minutes au plus). Rien à saisir.</div>";
-  h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px'>";
+  h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:12px'>";
   var SI=p.source_infos||{};
   h+="<div>"+sec('Coordonnées',kv('Nom',esc(((p.prenom||'')+' '+(p.nom||'')).trim())||inconnu)+(p.societe?kv('Société',esc(p.societe)):'')+kv('Téléphone',(p.telephone?"<a href='"+telHref(p.telephone)+"'>"+esc(p.telephone)+"</a>":inconnu)
       +(SI.telephone_invalide?" <span style='font-size:11.5px;color:#e5484d'>(signalé invalide par devis.ch)</span>":'')+((SI.autres_telephones||[]).length?"<div style='font-size:12.5px'>autre : "+SI.autres_telephones.map(function(t){ return "<a href='"+telHref(t)+"'>"+esc(t)+"</a>"; }).join(', ')+"</div>":''))
@@ -6256,9 +6264,39 @@ function sssPrFormCoord(p){ p=p||{}; var i=function(k,lab,t){ return sssPrChamp(
 function sssPrModifier(id){ sssPrModal('Coordonnées et demande',sssPrFormCoord(SSSPR.p),"sssPrModifierOk('"+id+"')"); }
 function sssPrLireCoord(){ var d={}; ['prenom','nom','telephone','email','rue','npa','localite','canton','demande','categorie'].forEach(function(k){ d[k]=sssPrV('sspr-'+k); }); return d; }
 async function sssPrModifierOk(id){ if(await sssPrAct(id,'modifier',sssPrLireCoord())) sssPrApres(id); }
-function sssPrNouveau(){ sssPrModal('Nouveau prospect',sssPrChamp('Source',sssPrSel('sspr-source',SSSPR_SOURCES,'telephone'))+sssPrFormCoord({}),'sssPrNouveauOk()'); }
-async function sssPrNouveauOk(){ var d=sssPrLireCoord(); d.source=sssPrV('sspr-source'); if(d.categorie==='a_verifier') delete d.categorie;
-  var r=await db.rpc('sss_prospect_creer',{p:d}); if(r.error){ alert('Impossible : '+r.error.message); return; } closeModal(); SSSPR.sel=r.data; sssPrFiche(r.data); }
+function sssPrNouveau(){ var i=function(k,lab,t,ph){ return sssPrChamp(lab,"<input id='sspr-"+k+"' type='"+(t||'text')+"' "+(ph?"placeholder='"+ph+"'":'')+" autocomplete='off'>"); };
+  sssPrModal('Nouveau prospect',"<div class='grid2'>"+i('prenom','Prénom')+i('nom','Nom')+i('telephone','Téléphone','tel','079 …')+i('email','E-mail','email')+"</div>"+i('rue','Adresse')+"<div class='grid2'>"+i('npa','NPA','text','1000')+i('localite','Localité')+"</div>"
+    +sssPrChamp('Demande',"<textarea id='sspr-demande' rows='2' placeholder='ex. panneaux solaires + batterie sur villa'></textarea>")+sssPrChamp('Source',sssPrSel('sspr-source',SSSPR_SOURCES,sssPrPatron()?'telephone':'recommandation'))
+    +sssPrChamp('Note',"<textarea id='sspr-note' rows='2'></textarea>")+"<div id='sspr-dbl'></div>"+(sssPrPatron()?'':"<div style='font-size:12px;color:var(--text-3)'>La provenance est enregistrée automatiquement par le système.</div>"),'sssPrNouveauOk()'); }
+async function sssPrNouveauOk(lie){ var d={}; ['prenom','nom','telephone','email','rue','npa','localite','demande','source','note'].forEach(function(k){ var v=sssPrV('sspr-'+k); if(v) d[k]=v; }); if(lie===true) d.opportunite_liee=true;
+  var r=await db.rpc('sss_prospect_creer',{p:d});
+  if(r.error){ if(/déjà existant/.test(r.error.message||'')){ var D=[]; try{ D=JSON.parse(r.error.details||'[]'); }catch(e){} if(typeof sssDoublons==='function'){ sssDoublons('sspr-dbl',D,'sssPrNouveauOk(true)'); return; } } alert('Impossible : '+r.error.message); return; }
+  closeModal(); SSSPR.sel=r.data; sssPrFiche(r.data); }
+function sssPrCartes(box,L){ if(typeof sssCss==='function') sssCss(); var F=SSSPR.f; SSSPR.nCartes=SSSPR.nCartes||100; var vis=L.slice(0,SSSPR.nCartes);
+  var nF=['rapide','statut','source','categorie','localite','commercial'].filter(function(k){ return F[k]; }).length;
+  var h="<div class='ssc-top'><input placeholder='Nom, téléphone, localité, n°…' value=\""+esc(F.q)+"\" oninput=\"SSSPR.f.q=this.value;clearTimeout(window.__sspr_t);window.__sspr_t=setTimeout(sssPrListe,250)\"><button class='relbtn' onclick='sssPrFiltres()'>Filtres"+(nF?' ('+nF+')':'')+"</button></div>"
+    +"<div style='font-size:13px;color:var(--text-3);margin-bottom:8px'>"+L.length+" prospect(s)</div>";
+  if(!L.length){ box.innerHTML=h+"<div class='empty'>Aucun prospect dans cette sélection.</div>"; return; }
+  h+="<div class='ssc-cards'>"+vis.map(function(p){ var ap=p.origine_commerciale==='apport_commercial'; var resp=p.commercial_id?sssPrUser(p.commercial_id):'non attribué';
+    return "<div class='ssc-card"+(ap?' apport':'')+"'><div style='cursor:pointer' onclick=\"SSSPR.sel='"+p.id+"';sssPrFiche('"+p.id+"')\"><div style='display:flex;gap:8px;align-items:flex-start'><h4 style='flex:1'>"+esc(sssPrNom(p))+"</h4>"+sssPrStatut(p.statut)+"</div>"
+      +"<div class='ssc-sub'>"+esc([p.localite,sssPrLib(SSSPR_CATS,p.categorie)].filter(Boolean).join(' · '))+"</div>"
+      +"<div class='ssc-l'>"+sssTel(p.telephone)+"</div><div class='ssc-l'>📍 "+esc([p.rue,[p.npa,p.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'adresse inconnue')+"</div>"
+      +"<div class='ssc-l'>🏷 "+esc(sssPrLib(SSSPR_SOURCES,p.source))+(p.importe_le?' · historique':'')+" "+sssApportBadge(p.apport_commercial_id,p.origine_commerciale,SSSPR.users)+"</div>"
+      +"<div class='ssc-l'>👤 "+esc(resp)+"</div>"+(p.prochaine_action||p.prochain_rappel?"<div class='ssc-l'>📅 "+esc(p.prochaine_action||'Rappel')+(p.prochain_rappel?' · '+sssPrDate(p.prochain_rappel):'')+"</div>":'')+"</div>"
+      +"<div class='ssc-btns'>"+(p.telephone?"<a class='appel' href='"+telHref(p.telephone)+"' onclick=\"SSSPR.p=null;setTimeout(function(){sssPrAppelResultat('"+p.id+"')},1200)\">📞 Appeler</a>":"<button disabled>📞</button>")
+      +"<button onclick=\"sssPrNote('"+p.id+"')\">📝 Note</button><button onclick=\"sssPrRappel('"+p.id+"')\">⏰ Rappel</button><button onclick=\"SSSPR.p=SSSPR.liste.filter(function(x){return x.id==='"+p.id+"'})[0];sssPrRdv('"+p.id+"')\">📅 RDV</button></div></div>"; }).join('')+"</div>";
+  if(L.length>vis.length) h+="<button class='btn btn-ghost' style='width:100%;min-height:48px;margin-top:10px' onclick='SSSPR.nCartes+=100;sssPrListe()'>Afficher 100 de plus ("+(L.length-vis.length)+" restants)</button>";
+  box.innerHTML=h; }
+function sssPrFiltres(){ var F=SSSPR.f; var ch=function(k,t){ return "<button class='relbtn"+(F.rapide===k?' win':'')+"' onclick=\"SSSPR.f.rapide=(SSSPR.f.rapide==='"+k+"'?'':'"+k+"');sssSheetFermer();sssPrListe()\">"+t+"</button>"; };
+  var o=function(L,v){ return L.map(function(x){ return "<option value='"+esc(x[0])+"'"+(v===x[0]?' selected':'')+">"+esc(x[1])+"</option>"; }).join(''); };
+  sssSheet("<h3 style='margin:0 0 12px'>Filtres</h3><div class='ssc-chips'>"+ch('nouveau','🆕 Nouveaux')+ch('non_appele','📵 À appeler / jamais appelés')+ch('retard','⏰ Rappel en retard')+ch('rdv','📅 RDV fixé')+ch('vendu','✔ Vendus')+ch('perdu','✖ Perdus')+ch('apport','★ Apports')+(sssPrPatron()?ch('sans_commercial','👤 Sans commercial'):'')+"</div>"
+    +"<label>Statut</label><select id='sspr-fs'>"+o([['','Tous']].concat(SSSPR_STATUTS.map(function(x){ return [x[0],x[1]]; })),F.statut)+"</select>"
+    +"<label>Source</label><select id='sspr-fo'>"+o([['','Toutes']].concat(SSSPR_SOURCES),F.source)+"</select>"
+    +"<label>Type</label><select id='sspr-fc'>"+o([['','Tous']].concat(SSSPR_CATS),F.categorie)+"</select>"
+    +"<label>Localité</label><input id='sspr-fl' value=\""+esc(F.localite||'')+"\" placeholder='ex. Lausanne'>"
+    +"<label>Période</label><select id='sspr-fp'>"+o([['1','Aujourd’hui'],['7','7 jours'],['30','30 jours'],['90','90 jours'],['3650','Tout']],F.periode)+"</select>"
+    +"<div style='display:flex;gap:8px'><button class='btn btn-ghost' style='flex:1;min-height:46px' onclick=\"SSSPR.f={rapide:'',commercial:'',source:'',statut:'',periode:'3650',canton:'',q:SSSPR.f.q,categorie:'',localite:''};sssSheetFermer();sssPrListe()\">Effacer</button>"
+    +"<button class='btn' style='flex:1;min-height:46px' onclick=\"SSSPR.f.statut=sssPrV('sspr-fs');SSSPR.f.source=sssPrV('sspr-fo');SSSPR.f.categorie=sssPrV('sspr-fc');SSSPR.f.localite=sssPrV('sspr-fl');SSSPR.f.periode=sssPrV('sspr-fp');sssSheetFermer();sssPrListe()\">Appliquer</button></div>"); }
 
 async function sssPrTableau(){
   var r=await db.rpc('sss_prospects_tableau',{p_jours:90}); var box=document.getElementById('sspr-c'); if(!box||VIEW!=='prospects') return; box.className='';
@@ -6293,6 +6331,187 @@ async function sssPrTableau(){
 })();
 
 /* SSS-PROSPECTS-FIN */
+
+/* SSS-BASE-COM-DEBUT */
+/* ==========================================================================
+   SSS OS — Poste commercial « base complète » (migration 0037, 09.10.2026).
+   * Clients (base commerciale) : tous les clients (lecture via RLS), recherche, cartes sur téléphone / tableau sur
+     ordinateur, fiche avec Appeler · Note · Rappel · RDV (sss_contact_action, historisé), projets SANS montant
+     (vue affaires_vue_commerciale), création rapide avec contrôle des doublons (sss_contact_creer).
+   * Planning installateurs : vue planning_installateurs en lecture seule (date, heure, chantier, adresse, équipe).
+   * Reporting commercial : direction seulement (sss_commercial_rapport) — aucune commission calculée.
+   La provenance « ★ Apport » est fixée par la base : l'écran ne fait que l'afficher.
+   ========================================================================== */
+var SSSBC = { f: { q: '', source: '', apport: '', localite: '', statut: '' }, liste: [], aff: {}, users: null, sel: null };
+var SSSBC_APPEL = [['client_joint','Client joint'],['pas_de_reponse','Pas de réponse'],['message_laisse','Message laissé'],['rappeler','Rappeler'],['rdv_fixe','RDV fixé'],['pas_interesse','Pas intéressé'],['mauvais_numero','Mauvais numéro']];
+function sssMobile(){ try{ return window.matchMedia('(max-width: 760px)').matches; }catch(e){ return (window.innerWidth||1000)<=760; } }
+function sssCss(){ if(document.getElementById('ssc-css')) return; var s=document.createElement('style'); s.id='ssc-css'; s.textContent=
+  ".ssc-apport{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:800;background:#db277722;color:#db2777;border:1px solid #db277766;white-space:nowrap}"
+ +".ssc-cards{display:flex;flex-direction:column;gap:10px}.ssc-card{border:1px solid var(--line,#8884);border-radius:14px;padding:13px 14px;background:var(--bg-2,transparent);text-align:left}"
+ +".ssc-card.apport{border-left:5px solid #db2777}.ssc-card h4{margin:0 0 2px;font-size:17px;line-height:1.25}.ssc-sub{font-size:14px;color:var(--text-3);margin-bottom:8px}"
+ +".ssc-l{font-size:15px;line-height:1.5;word-break:break-word}.ssc-l a{text-decoration:none;color:inherit;font-weight:800}.ssc-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}"
+ +".ssc-btns button,.ssc-btns a{min-height:46px;border-radius:11px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;text-decoration:none;border:1px solid var(--line,#8884);background:transparent;color:inherit;padding:0 4px}"
+ +".ssc-btns .appel{background:#16a34a;color:#fff;border-color:#16a34a}.ssc-top{display:flex;gap:8px;align-items:center;margin-bottom:10px}.ssc-top input{flex:1;min-height:44px;font-size:16px}"
+ +".ssc-top button{min-height:44px;white-space:nowrap}.ssc-sheet-bg{position:fixed;inset:0;background:#0007;z-index:9998}.ssc-sheet{position:fixed;left:0;right:0;bottom:0;max-height:85vh;overflow:auto;z-index:9999;"
+ +"background:var(--bg,#111);border-radius:18px 18px 0 0;padding:16px 16px 24px;box-shadow:0 -8px 30px #0006}.ssc-sheet select,.ssc-sheet input{width:100%;min-height:46px;font-size:16px;margin-bottom:10px}"
+ +".ssc-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}.ssc-chips button{min-height:42px;padding:0 13px;border-radius:999px;font-size:14px}"
+ +"@media (max-width:760px){.ssc-fiche-act{display:grid!important;grid-template-columns:repeat(2,1fr);gap:8px}.ssc-fiche-act>*{min-height:48px;justify-content:center;font-size:15px}"
+ +"#main .modal input,#main .modal select,#main .modal textarea{font-size:16px}}";
+  document.head.appendChild(s); }
+function sssApportBadge(apportId, origine, users){ if(origine!=='apport_commercial') return ''; var u=(users||[]).filter(function(x){ return x.id===apportId; })[0];
+  return "<span class='ssc-apport' title='Prospect / client apporté personnellement (provenance fixée par la base)'>★ Apport "+esc(u?(u.prenom||'commercial'):'commercial')+"</span>"; }
+function sssTel(t){ return t?"<a href='"+telHref(t)+"'>📞 "+esc(t)+"</a>":"<span style='color:var(--text-3)'>📞 inconnu</span>"; }
+async function sssBcUsers(){ if(SSSBC.users) return SSSBC.users; var r=await db.from('utilisateurs').select('id,prenom,nom,role'); SSSBC.users=r.data||[]; return SSSBC.users; }
+function sssBcPatron(){ return typeof ME!=='undefined' && ME && ['superadmin','direction'].indexOf(ME.role)>=0; }
+
+/* ----------------------------- Clients (base commerciale) ----------------------------- */
+async function renderBaseClients(){
+  var m=document.getElementById('main'); if(!m) return; sssCss();
+  if(SSSBC.sel) return sssBcFiche(SSSBC.sel);
+  m.innerHTML="<div class='page-head'><h2>Clients</h2><div class='spacer'></div><button class='btn' style='min-height:42px;width:auto;padding:0 16px' onclick='sssBcNouveau()'>+ Nouveau client</button></div><div id='ssbc-c' class='loading'>Chargement…</div>";
+  await sssBcUsers();
+  var R=await Promise.all([db.from('contacts').select('id,prenom,nom,telephone,email,adresse,npa,localite,source,created_at,origine_commerciale,apport_commercial_id,prochaine_action,prochain_rappel,dernier_contact_at,commercial_id').order('created_at',{ascending:false}).limit(3000),
+    db.from('affaires_vue_commerciale').select('contact_id,type,etape,date_signature,installe,statut_global').limit(5000)]);
+  var box=document.getElementById('ssbc-c'); if(!box||VIEW!=='base_clients') return; box.className='';
+  if(R[0].error){ box.innerHTML="<div class='empty'>"+esc(R[0].error.message)+"</div>"; return; }
+  SSSBC.liste=R[0].data||[]; SSSBC.aff={}; (R[1].data||[]).forEach(function(a){ (SSSBC.aff[a.contact_id]=SSSBC.aff[a.contact_id]||[]).push(a); });
+  sssBcListe();
+}
+function sssBcStatut(c){ var a=(SSSBC.aff[c.id]||[]); if(!a.length) return 'Contact'; if(a.some(function(x){ return x.installe; })) return 'Installé'; if(a.some(function(x){ return x.date_signature; })) return 'Signé'; return a[0].etape||'En cours'; }
+function sssBcListe(){
+  var box=document.getElementById('ssbc-c'); if(!box) return; var F=SSSBC.f, mob=sssMobile();
+  var L=SSSBC.liste.filter(function(c){
+    if(F.apport==='oui' && c.origine_commerciale!=='apport_commercial') return false; if(F.apport==='non' && c.origine_commerciale==='apport_commercial') return false;
+    if(F.source && (c.source||'')!==F.source) return false; if(F.localite && (c.localite||'').toLowerCase().indexOf(F.localite.toLowerCase())<0) return false;
+    if(F.statut && sssBcStatut(c)!==F.statut) return false;
+    if(F.q){ var q=F.q.toLowerCase(), qd=q.replace(/\D/g,''); var t=((c.prenom||'')+' '+(c.nom||'')+' '+(c.email||'')+' '+(c.adresse||'')+' '+(c.npa||'')+' '+(c.localite||'')+' '+(c.source||'')).toLowerCase();
+      if(t.indexOf(q)<0 && !(qd.length>=4 && (c.telephone||'').replace(/\D/g,'').indexOf(qd)>=0)) return false; }
+    return true; });
+  var sources=[]; SSSBC.liste.forEach(function(c){ if(c.source && sources.indexOf(c.source)<0) sources.push(c.source); }); sources.sort();
+  var nF=['source','apport','localite','statut'].filter(function(k){ return F[k]; }).length;
+  var h="<div class='ssc-top'><input placeholder='Nom, téléphone, e-mail, adresse, localité…' value=\""+esc(F.q)+"\" oninput=\"SSSBC.f.q=this.value;clearTimeout(window.__ssbc_t);window.__ssbc_t=setTimeout(sssBcListe,250)\">"
+    +"<button class='relbtn' onclick='sssBcFiltres()'>Filtres"+(nF?' ('+nF+')':'')+"</button></div>"
+    +"<div style='font-size:13px;color:var(--text-3);margin-bottom:8px'>"+L.length+" client(s)"+(F.apport==='oui'?' · ★ apports':'')+"</div>";
+  SSSBC.sources=sources; var vis=L.slice(0,300);
+  if(!L.length){ box.innerHTML=h+"<div class='empty'>Aucun client dans cette sélection.</div>"; return; }
+  if(mob){
+    h+="<div class='ssc-cards'>"+vis.map(function(c){ var ap=c.origine_commerciale==='apport_commercial';
+      return "<div class='ssc-card"+(ap?' apport':'')+"'><div onclick=\"SSSBC.sel='"+c.id+"';sssBcFiche('"+c.id+"')\" style='cursor:pointer'><h4>"+esc(((c.prenom||'')+' '+(c.nom||'')).trim()||'—')+"</h4>"
+        +"<div class='ssc-sub'>"+esc([c.localite,sssBcStatut(c)].filter(Boolean).join(' · '))+"</div>"
+        +"<div class='ssc-l'>"+sssTel(c.telephone)+"</div><div class='ssc-l'>📍 "+esc([c.adresse,[c.npa,c.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'adresse inconnue')+"</div>"
+        +"<div class='ssc-l'>🏷 "+esc(c.source||'client SSS')+" "+sssApportBadge(c.apport_commercial_id,c.origine_commerciale,SSSBC.users)+"</div>"
+        +(c.prochaine_action||c.prochain_rappel?"<div class='ssc-l'>📅 "+esc(c.prochaine_action||'Rappel')+(c.prochain_rappel?' · '+sssPrDate(c.prochain_rappel):'')+"</div>":'')+"</div>"
+        +"<div class='ssc-btns'>"+(c.telephone?"<a class='appel' href='"+telHref(c.telephone)+"' onclick=\"setTimeout(function(){sssBcAppel('"+c.id+"')},1200)\">📞 Appeler</a>":"<button disabled>📞</button>")
+        +"<button onclick=\"sssBcNote('"+c.id+"')\">📝 Note</button><button onclick=\"sssBcRappel('"+c.id+"')\">⏰ Rappel</button><button onclick=\"sssBcRdv('"+c.id+"')\">📅 RDV</button></div></div>"; }).join('')+"</div>";
+  } else {
+    h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Client</th><th>Téléphone</th><th>E-mail</th><th>Adresse</th><th>Source</th><th>Statut</th><th>Entrée</th><th>Dernière interaction</th><th>Prochaine action</th></tr></thead><tbody>"
+      +vis.map(function(c){ return "<tr style='cursor:pointer"+(c.origine_commerciale==='apport_commercial'?';box-shadow:inset 4px 0 #db2777':'')+"' onclick=\"SSSBC.sel='"+c.id+"';sssBcFiche('"+c.id+"')\"><td><b>"+esc(((c.prenom||'')+' '+(c.nom||'')).trim()||'—')+"</b> "+sssApportBadge(c.apport_commercial_id,c.origine_commerciale,SSSBC.users)+"</td>"
+        +"<td>"+(c.telephone?"<a href='"+telHref(c.telephone)+"' onclick='event.stopPropagation()'>"+esc(c.telephone)+"</a>":'—')+"</td><td>"+esc(c.email||'—')+"</td><td>"+esc([c.adresse,[c.npa,c.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'—')+"</td>"
+        +"<td>"+esc(c.source||'client SSS')+"</td><td>"+esc(sssBcStatut(c))+"</td><td>"+sssPrDate(c.created_at,false)+"</td><td>"+sssPrDate(c.dernier_contact_at)+"</td><td>"+esc(c.prochaine_action||'—')+(c.prochain_rappel?' · '+sssPrDate(c.prochain_rappel):'')+"</td></tr>"; }).join('')+"</tbody></table></div>";
+  }
+  if(L.length>vis.length) h+="<div style='font-size:13px;color:var(--text-3);margin-top:8px'>"+(L.length-vis.length)+" autre(s) : affine la recherche.</div>";
+  box.innerHTML=h;
+}
+function sssBcFiltres(){ var F=SSSBC.f; var o=function(L,v){ return L.map(function(x){ return "<option value='"+esc(x[0])+"'"+(v===x[0]?' selected':'')+">"+esc(x[1])+"</option>"; }).join(''); };
+  sssSheet("<h3 style='margin:0 0 12px'>Filtres</h3><label>Provenance</label><select id='ssbc-fa'>"+o([['','Toutes'],['oui','★ Apports personnels'],['non','Clients SSS']],F.apport)+"</select>"
+    +"<label>Source</label><select id='ssbc-fs'>"+o([['','Toutes']].concat((SSSBC.sources||[]).map(function(s){ return [s,s]; })),F.source)+"</select>"
+    +"<label>Statut</label><select id='ssbc-ft'>"+o([['','Tous'],['Contact','Contact'],['Signé','Signé'],['Installé','Installé']],F.statut)+"</select>"
+    +"<label>Localité</label><input id='ssbc-fl' value=\""+esc(F.localite)+"\" placeholder='ex. Lausanne'>"
+    +"<div style='display:flex;gap:8px'><button class='btn btn-ghost' style='flex:1;min-height:46px' onclick=\"SSSBC.f={q:SSSBC.f.q,source:'',apport:'',localite:'',statut:''};sssSheetFermer();sssBcListe()\">Effacer</button>"
+    +"<button class='btn' style='flex:1;min-height:46px' onclick=\"SSSBC.f.apport=sssPrV('ssbc-fa');SSSBC.f.source=sssPrV('ssbc-fs');SSSBC.f.statut=sssPrV('ssbc-ft');SSSBC.f.localite=sssPrV('ssbc-fl');sssSheetFermer();sssBcListe()\">Appliquer</button></div>"); }
+function sssSheet(h){ sssSheetFermer(); var bg=document.createElement('div'); bg.className='ssc-sheet-bg'; bg.id='ssc-sheet-bg'; bg.onclick=sssSheetFermer; var s=document.createElement('div'); s.className='ssc-sheet'; s.id='ssc-sheet'; s.innerHTML=h; document.body.appendChild(bg); document.body.appendChild(s); }
+function sssSheetFermer(){ ['ssc-sheet','ssc-sheet-bg'].forEach(function(i){ var e=document.getElementById(i); if(e) e.remove(); }); }
+
+async function sssBcFiche(id){
+  var m=document.getElementById('main'); if(!m) return; sssCss(); await sssBcUsers();
+  m.innerHTML="<div class='page-head'><button class='iconbtn' onclick=\"SSSBC.sel=null;renderBaseClients()\" title='Retour'>←</button><h2 id='ssbc-t'>Client</h2></div><div id='ssbc-f' class='loading'>Chargement…</div>";
+  var R=await Promise.all([db.from('contacts').select('*').eq('id',id).maybeSingle(), db.from('contact_evenements').select('*').eq('contact_id',id).order('at',{ascending:false}).limit(200),
+    db.from('affaires_vue_commerciale').select('*').eq('contact_id',id)]);
+  var box=document.getElementById('ssbc-f'); if(!box||VIEW!=='base_clients') return; box.className='';
+  var c=R[0].data; if(!c){ box.innerHTML="<div class='empty'>Client introuvable ou non accessible.</div>"; return; } SSSBC.c=c;
+  var nom=((c.prenom||'')+' '+(c.nom||'')).trim()||'—'; document.getElementById('ssbc-t').textContent=nom;
+  var kv=function(k,v){ return "<div style='display:flex;gap:10px;padding:4px 0;font-size:15px;flex-wrap:wrap'><div style='min-width:120px;color:var(--text-3)'>"+k+"</div><div style='flex:1;min-width:0;word-break:break-word'>"+v+"</div></div>"; };
+  var sec=function(t,x){ return "<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>"+t+"</div>"+x+"</div>"; };
+  var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'>"+"<span style='font-size:13px;color:var(--text-3)'>🏷 "+esc(c.source||'client SSS')+" · entré le "+sssPrDate(c.created_at,false)+"</span> "+sssApportBadge(c.apport_commercial_id,c.origine_commerciale,SSSBC.users)+"</div>"
+    +"<div class='ssc-fiche-act' style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px'>"+(c.telephone?"<a class='btn' style='text-decoration:none;min-height:44px;display:inline-flex;align-items:center;background:#16a34a;color:#fff;width:auto;padding:0 14px' href='"+telHref(c.telephone)+"' onclick=\"setTimeout(function(){sssBcAppel('"+c.id+"')},1200)\">📞 Appeler</a>":'')
+    +"<button class='relbtn' onclick=\"sssBcAppel('"+c.id+"')\">✍️ Résultat d’appel</button><button class='relbtn' onclick=\"sssBcNote('"+c.id+"')\">📝 Note</button><button class='relbtn' onclick=\"sssBcRappel('"+c.id+"')\">⏰ Rappel</button><button class='relbtn' onclick=\"sssBcRdv('"+c.id+"')\">📅 RDV</button></div>";
+  h+=sec('Coordonnées',kv('Nom',esc(nom))+kv('Téléphone',c.telephone?"<a href='"+telHref(c.telephone)+"'>"+esc(c.telephone)+"</a>":'inconnu')+(c.telephone2?kv('Téléphone 2',"<a href='"+telHref(c.telephone2)+"'>"+esc(c.telephone2)+"</a>"):'')
+      +kv('E-mail',c.email?"<a href='mailto:"+esc(c.email)+"'>"+esc(c.email)+"</a>":'inconnu')+kv('Adresse',esc([c.adresse,[c.npa,c.localite].filter(Boolean).join(' '),c.canton].filter(Boolean).join(', ')||'inconnue'))
+      +kv('Dernière interaction',sssPrDate(c.dernier_contact_at))+kv('Prochaine action',esc(c.prochaine_action||'—')+(c.prochain_rappel?' · '+sssPrDate(c.prochain_rappel):'')));
+  var A=R[2].data||[]; h+=sec('Projets',A.length?A.map(function(a){ return "<div style='font-size:14px;padding:3px 0'>• "+esc(a.type||'projet')+" — "+esc(a.etape||'')+(a.date_signature?' · signé le '+sssPrDate(a.date_signature,false):'')+(a.installe?' · installé':'')+(a.nb_panneaux?' · '+a.nb_panneaux+' panneaux':'')+(a.capacite_kwh?' · batterie '+a.capacite_kwh+' kWh':'')+"</div>"; }).join(''):"<div style='font-size:14px;color:var(--text-3)'>Aucun projet.</div>");
+  var TY={creation:'🆕 Création',appel:'📞 Appel',note:'📝 Note',rappel:'⏰ Rappel',rdv:'📅 Rendez-vous',prochaine_action:'➡️ Prochaine action',provenance:'★ Provenance'};
+  var E=R[1].data||[]; h+=sec('Historique ('+E.length+')',E.length?E.map(function(e){ return "<div style='border-left:3px solid var(--line,#8886);padding:5px 10px;margin:6px 0;font-size:14px'><b>"+(TY[e.type]||e.type)+"</b> <span style='color:var(--text-3)'>"+sssPrDate(e.at)+" · "+esc(e.auteur_id?sssPrUser2(e.auteur_id):'système')+"</span>"
+      +(e.resultat?"<div>"+esc(sssPrLib(SSSBC_APPEL,e.resultat))+"</div>":'')+(e.echeance?"<div>échéance : "+sssPrDate(e.echeance)+"</div>":'')+(e.contenu?"<div style='white-space:pre-wrap'>"+esc(e.contenu)+"</div>":'')+"</div>"; }).join(''):"<div style='font-size:14px;color:var(--text-3)'>Aucun événement.</div>");
+  box.innerHTML=h;
+}
+function sssPrUser2(id){ var u=(SSSBC.users||[]).filter(function(x){ return x.id===id; })[0]; return u?((u.prenom||'')+' '+(u.nom||'')).trim():'…'; }
+async function sssBcAct(id,action,d){ var r=await db.rpc('sss_contact_action',{p_id:id,p_action:action,d:d||{}}); if(r.error){ alert('Impossible : '+r.error.message); return null; } closeModal(); if(VIEW==='base_clients'){ if(SSSBC.sel===id) sssBcFiche(id); else renderBaseClients(); } return r.data; }
+function sssBcAppel(id){ window.__ssbc_r=null; sssPrModal('Résultat de l’appel',"<div class='ssc-chips'>"+SSSBC_APPEL.map(function(x){ return "<button class='relbtn' onclick=\"window.__ssbc_r='"+x[0]+"';[].forEach.call(this.parentNode.children,function(b){b.classList.remove('win')});this.classList.add('win');document.getElementById('ssbc-rr').style.display=('"+x[0]+"'==='rappeler'?'block':'none')\">"+x[1]+"</button>"; }).join('')+"</div>"
+  +"<div id='ssbc-rr' style='display:none'>"+sssPrChamp('Rappeler le',sssPrDt('ssbc-ech'))+"</div>"+sssPrChamp('Note',"<textarea id='ssbc-n' rows='3' maxlength='4000'></textarea>"),"sssBcAppelOk('"+id+"')"); }
+async function sssBcAppelOk(id){ if(!window.__ssbc_r){ alert('Choisis le résultat de l’appel.'); return; } var d={resultat:window.__ssbc_r,note:sssPrV('ssbc-n')}; if(d.resultat==='rappeler') d.echeance=sssPrIso('ssbc-ech'); await sssBcAct(id,'appel',d); }
+function sssBcNote(id){ sssPrModal('Nouvelle note',sssPrChamp('Note',"<textarea id='ssbc-n' rows='4' maxlength='4000'></textarea>"),"sssBcAct('"+id+"','note',{note:sssPrV('ssbc-n')})"); }
+function sssBcRappel(id){ sssPrModal('Programmer un rappel',sssPrChamp('Date et heure',sssPrDt('ssbc-ech'))+sssPrChamp('Action',"<input id='ssbc-a' value='Rappeler'>")+sssPrChamp('Note',"<textarea id='ssbc-n' rows='2'></textarea>"),"sssBcAct('"+id+"','rappel',{echeance:sssPrIso('ssbc-ech'),action:sssPrV('ssbc-a'),note:sssPrV('ssbc-n')})"); }
+function sssBcRdv(id){ sssPrModal('Rendez-vous',sssPrChamp('Date et heure',sssPrDt('ssbc-d'))+sssPrChamp('Type',sssPrSel('ssbc-ty',[['visite','Visite'],['etude','Étude'],['signature','Signature'],['telephone','Téléphone'],['visio','Visio'],['autre','Autre']],'visite'))
+  +sssPrChamp('Adresse (si différente)',"<input id='ssbc-ad'>")+sssPrChamp('Note',"<textarea id='ssbc-n' rows='2'></textarea>")
+  +"<div style='font-size:13px;margin-top:4px'><a href='#' onclick=\"closeModal();go('planning_com');return false\">Voir le planning des installateurs</a></div>","sssBcAct('"+id+"','rdv',{debut:sssPrIso('ssbc-d'),type:sssPrV('ssbc-ty'),adresse:sssPrV('ssbc-ad'),note:sssPrV('ssbc-n')})"); }
+function sssBcForm(){ var i=function(k,lab,t,ph){ return sssPrChamp(lab,"<input id='ssbc-"+k+"' type='"+(t||'text')+"' "+(ph?"placeholder='"+ph+"'":'')+" autocomplete='off'>"); };
+  return "<div class='grid2'>"+i('prenom','Prénom')+i('nom','Nom *')+i('telephone','Téléphone','tel','079 …')+i('email','E-mail','email')+"</div>"+i('adresse','Adresse')+"<div class='grid2'>"+i('npa','NPA','text','1000')+i('localite','Localité')+"</div>"; }
+function sssBcNouveau(){ sssPrModal('Nouveau client',sssBcForm()+sssPrChamp('Source',"<input id='ssbc-source' placeholder='recommandation, réseau, salon…'>")+sssPrChamp('Note',"<textarea id='ssbc-n' rows='2'></textarea>")
+  +"<div id='ssbc-dbl'></div><div style='font-size:12px;color:var(--text-3)'>La provenance est enregistrée automatiquement par le système.</div>","sssBcNouveauOk()"); }
+function sssBcLire(){ var d={}; ['prenom','nom','telephone','email','adresse','npa','localite','source'].forEach(function(k){ var v=sssPrV('ssbc-'+k); if(v) d[k]=v; }); d.note=sssPrV('ssbc-n'); return d; }
+async function sssBcNouveauOk(){ var d=sssBcLire(); var r=await db.rpc('sss_contact_creer',{p:d}); if(r.error){ alert('Impossible : '+r.error.message); return; }
+  if(r.data && r.data.ok===false){ sssDoublons('ssbc-dbl',r.data.doublons,null); return; }
+  closeModal(); SSSBC.sel=r.data.id; window.__ssbc_keep=true; go('base_clients'); }
+/* doublons : fiche existante (et, pour un prospect, possibilité d'une nouvelle opportunité liée) */
+function sssDoublons(boxId,D,opportunite){ var b=document.getElementById(boxId); if(!b) return;
+  b.innerHTML="<div style='border:2px solid #e0a52b;border-radius:10px;padding:10px 12px;margin:8px 0;text-align:left'><b>⚠️ Contact/prospect déjà existant</b><div style='font-size:13px;color:var(--text-3);margin:3px 0 6px'>Impossible de le créer à nouveau : ouvre la fiche existante.</div>"
+   +(D||[]).map(function(x){ return "<div style='font-size:14px;padding:4px 0'>"+(x.type==='contact'?'Client':'Prospect')+" : <b>"+esc(x.nom||'')+"</b> "+esc(x.localite||'')+" <span style='color:var(--text-3)'>("+esc(x.raison||'')+(x.source?', '+esc(x.source):'')+")</span> "
+     +"<button class='relbtn' style='padding:3px 10px' onclick=\"closeModal();"+(x.type==='contact'?"SSSBC.sel='"+x.id+"';window.__ssbc_keep=true;go('base_clients')":"go('prospects');setTimeout(function(){SSSPR.sel='"+x.id+"';sssPrFiche('"+x.id+"')},400)")+"\">Ouvrir</button></div>"; }).join('')
+   +(opportunite?"<button class='relbtn' style='margin-top:6px' onclick=\""+opportunite+"\">➕ Nouvelle demande du même client (opportunité liée, provenance d’origine conservée)</button>":'')+"</div>"; try{ b.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} }
+
+/* ----------------------------- Planning installateurs (lecture seule) ----------------------------- */
+async function renderPlanningCom(){
+  var m=document.getElementById('main'); if(!m) return; sssCss();
+  m.innerHTML="<div class='page-head'><h2>Planning installateurs</h2></div><div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>Lecture seule : pour placer un rendez-vous commercial au bon moment. Le planning des équipes se modifie depuis la direction.</div><div id='sspc-c' class='loading'>Chargement…</div>";
+  var auj=new Date(); auj.setHours(0,0,0,0); var fin=new Date(auj.getTime()+60*864e5); var iso=function(d){ return d.toISOString().slice(0,10); };
+  var r=await db.from('planning_installateurs').select('*').gte('date_fin',iso(auj)).lte('date_debut',iso(fin)).order('date_debut').limit(500);
+  var box=document.getElementById('sspc-c'); if(!box||VIEW!=='planning_com') return; box.className='';
+  if(r.error){ box.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  var L=r.data||[]; if(!L.length){ box.innerHTML="<div class='empty'>Aucune intervention planifiée dans les 60 prochains jours.</div>"; return; }
+  var parJour={}; L.forEach(function(x){ (parJour[x.date_debut]=parJour[x.date_debut]||[]).push(x); });
+  box.innerHTML=Object.keys(parJour).sort().map(function(j){ return "<div style='font-weight:800;margin:14px 0 6px'>"+new Date(j+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})+"</div>"
+    +"<div class='ssc-cards'>"+parJour[j].map(function(x){ return "<div class='ssc-card'><div style='font-weight:800;font-size:15px'>"+esc(x.intervention)+(x.heure_debut?' · '+esc(x.heure_debut)+(x.heure_fin?'–'+esc(x.heure_fin):''):'')+(x.date_fin&&x.date_fin!==x.date_debut?' · jusqu’au '+sssPrDate(x.date_fin,false):'')+(x.fait?' · ✔ fait':'')+"</div>"
+      +"<div class='ssc-l'>"+esc(x.chantier||'')+"</div><div class='ssc-l'>📍 "+esc([x.adresse,[x.npa,x.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'—')+"</div><div class='ssc-l'>👷 "+esc((x.installateurs||[]).join(', ')||'équipe non indiquée')+"</div></div>"; }).join('')+"</div>"; }).join('');
+}
+
+/* ----------------------------- Reporting commercial (direction) ----------------------------- */
+async function renderRapportCom(){
+  var m=document.getElementById('main'); if(!m) return; sssCss();
+  if(!sssBcPatron()){ m.innerHTML="<div class='empty'>Réservé à la direction.</div>"; return; }
+  var us=((await db.from('utilisateurs').select('id,prenom,nom,role,actif').eq('role','commercial')).data)||[];
+  m.innerHTML="<div class='page-head'><h2>Reporting commercial</h2></div><div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px'>"+(us.length?us.map(function(u){ return "<button class='relbtn' onclick=\"sssRapport('"+u.id+"')\">"+esc((u.prenom||'')+' '+(u.nom||''))+"</button>"; }).join(''):"<div class='empty'>Aucun compte commercial.</div>")+"</div><div id='ssrc-c'></div>";
+  if(us.length) sssRapport(us[0].id);
+}
+async function sssRapport(uid){ var box=document.getElementById('ssrc-c'); if(!box) return; box.innerHTML="<div class='loading'>Chargement…</div>";
+  var r=await db.rpc('sss_commercial_rapport',{p_user:uid,p_jours:90}); if(r.error){ box.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; } var R=r.data||{};
+  var carte=function(l,v,c){ return "<div class='card' style='padding:10px 14px;min-width:150px'><div style='font-size:12px;color:var(--text-3)'>"+l+"</div><div style='font-size:22px;font-weight:800;"+(c?'color:'+c:'')+"'>"+(v==null?'—':v)+"</div></div>"; };
+  var chf=function(v){ return v==null?'—':Number(v).toLocaleString('de-CH',{maximumFractionDigits:0})+' CHF'; }; var C=R.comparaison||{};
+  box.innerHTML="<div style='font-size:13px;color:var(--text-3);margin-bottom:8px'>"+esc(R.utilisateur||'')+" · 90 derniers jours (activité) · "+esc(R.remarque||'')+"</div>"
+    +"<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px'>"+carte('Appels',R.appels)+carte('Prospects contactés',R.prospects_contactes)+carte('Clients contactés',R.clients_contactes)+carte('RDV pris',R.rdv_pris)+carte('Offres',R.offres)+carte('Ventes',R.ventes,'#16a34a')
+    +carte('Délai moyen 1er appel',sssPrDuree(R.delai_premier_appel_min))+"</div>"
+    +"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px'><div class='card' style='padding:12px 15px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Leads SSS traités</div><div>Leads : <b>"+((C.sss||{}).leads_traites||0)+"</b> · ventes : <b>"+((C.sss||{}).ventes||0)+"</b></div><div>CA signé HT : <b>"+chf(R.ca_leads_sss_ht_signe)+"</b></div></div>"
+    +"<div class='card' style='padding:12px 15px;text-align:left;border-left:5px solid #db2777'><div style='font-weight:800;margin-bottom:6px'><span class='ssc-apport'>★ Apports personnels</span></div><div>Leads : <b>"+((C.apport||{}).leads||0)+"</b> ("+((R.leads_apportes||{}).prospects||0)+" prospects, "+((R.leads_apportes||{}).clients||0)+" clients) · ventes : <b>"+(R.ventes_apport||0)+"</b></div><div>CA signé HT : <b>"+chf(R.ca_apport_ht_signe)+"</b></div></div></div>"; }
+
+(function(){
+  try{ VUE_ROLES.base_clients=['superadmin','direction','commercial']; VUE_ROLES.planning_com=['superadmin','direction','commercial']; VUE_ROLES.rapport_com=['superadmin','direction'];
+       ['base_clients','planning_com','rapport_com'].forEach(function(k){ VUE_SERVICES[k]=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant']; }); }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='base_clients'){ if(!window.__ssbc_keep) SSSBC.sel=null; window.__ssbc_keep=false; renderBaseClients(); } else if(VIEW==='planning_com') renderPlanningCom(); else if(VIEW==='rapport_com') renderRapportCom(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+  // barre du bas d'un(e) commercial(e) : son poste de travail (les autres profils gardent la leur)
+  try{ var _d=TABS_DEFAUT.commercial; Object.defineProperty(TABS_DEFAUT,'commercial',{configurable:true,enumerable:true,get:function(){ return (typeof ME!=='undefined'&&ME&&ME.role==='commercial')?['prospects','base_clients','agenda','planning_com']:_d; }}); }catch(e){}
+  try{ var _w=sssMobile(); window.addEventListener('resize',function(){ var m=sssMobile(); if(m===_w) return; _w=m; try{ if(VIEW==='base_clients' && !SSSBC.sel) sssBcListe(); if(VIEW==='prospects' && !SSSPR.sel && SSSPR.onglet==='liste') sssPrListe(); }catch(e){} }); }catch(e){}
+})();
+
+/* SSS-BASE-COM-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
