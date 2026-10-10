@@ -1395,7 +1395,7 @@ async function FIN_ITEMS_LIVE(list){
           var o=(a.bexio_offer_id!=null)?M[String(a.bexio_offer_id)]:null;
           if(!_fusible&&o&&o.ok&&[1,2].indexOf(Number(o.kb_item_status_id))>=0&&!a.fin_acompte_paye&&!a.fin_solde_paye){
             var sv=Object.assign({},a.suivi||{});
-            if(!sv._annule){ sv._annule=true; sv._annule_at=new Date().toISOString(); sv._annule_auto=true; sv._to_delete=true; sv._to_delete_at=new Date().toISOString(); sv._to_delete_reason='Devis plus confirm\u00e9 sur Bexio (en suspens)'; try{ db.from('affaires').update({suivi:sv}).eq('id',a.id).then(function(){},function(){}); }catch(_e){} }
+            if(!sv._annule){ sv._annule=true; sv._annule_at=new Date().toISOString(); sv._annule_auto=true; sv._to_delete=true; sv._to_delete_at=new Date().toISOString(); sv._to_delete_reason='Devis plus confirm\u00e9 sur Bexio (en suspens)'; /* SSS-FINITEMS-RO : plus d'annulation automatique écrite en base (audit 10.10.2026) — le dossier est seulement masqué du compte */ }
             return false;
           }
           return true;
@@ -1526,10 +1526,10 @@ async function _bubbleNotifRun(){
     var acompteToCall=_FIT.filter(function(l){ return l.indexOf('Acompte')===0; }).length;
     finPend=_FIT.length;
     try{ FIN_DOT_ITEMS=_FIT; }catch(_e){}
-    if(acompteToCall) out.push(['\uD83D\uDCDE',acompteToCall+" acompte(s) \u00e0 appeler","enterService('financier')"]);
+    /* audit 10.10.2026 : ancien compteur « acomptes à appeler » retiré (cases payé non fiables) */
     var vtFact=_FIT.filter(function(l){ return l.indexOf('Facture VT')===0; }).length;
     if(vtFact) out.push(['\uD83D\uDCD0',vtFact+" facture(s) VT \u00e0 \u00E9tablir (client non sign\u00E9)","enterService('financier')"]);
-    if(finPend) out.push(['\uD83D\uDCB0',finPend+" dossier(s) \u2014 suivi financier \u00e0 faire","enterService('financier')"]);
+    /* audit 10.10.2026 : « suivi financier à faire » retiré (doublon des factures VT, renvoyait vers l'archive) */
   }
   if(['superadmin','direction'].indexOf(ME.role)>=0){
     try{ var _mu=await pushMuets(); if(_mu.length) out.push(['\uD83D\uDD15',_mu.length+" salari\u00e9(s) ne re\u00e7oivent aucune notification","notifQuiManque()"]); }catch(_e){}
@@ -2401,7 +2401,7 @@ function hubAfterRender(av){
     function setDot(k,n,items){ var card=document.getElementById('hubcard-'+k); if(!card)return; var b=card.querySelector('.hubdot'); if(n>0){ if(!b){ b=document.createElement('span'); b.className='hubdot'; b.style.cssText='position:absolute;top:12px;right:12px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e5484d;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:default'; card.appendChild(b);} b.textContent=n; var _it=(items&&items.length)?items:[n+' à traiter']; b.onmouseenter=function(){ hubTip(this,_it); }; b.onmouseleave=function(){ hubTipHide(); }; } else if(b){ b.remove(); } }
     setDot('commercial', (NAV_ALERTS.agenda||0)+(NAV_ALERTS.relances||0)+(NAV_ALERTS.retours||0), (NAV_ALERTS.retours>0?tip.commercial.concat([NAV_ALERTS.retours+' dossier(s) renvoyé(s) à corriger']):tip.commercial));
     setDot('rh', tip.rh.length, tip.rh);
-    try{ db.from('affaires').select('id,etape,avant_app,admin_statut,suivi,acompte_sans,fin_acompte_paye,fin_solde_paye,bexio_offer_id,contact:contact_id(nom,prenom,email)').eq('transfere_admin',true).then(async function(r){ var it=await FIN_ITEMS_LIVE(((r&&r.data)||[])); var _nrc=0; try{ var _rr=await db.from('remboursements_clients').select('id').neq('statut','rembourse'); _nrc=((_rr&&_rr.data)||[]).length; }catch(_e){} setDot('financier',it.length+_nrc, (_nrc?[_nrc+' remboursement(s) client à faire']:[]).concat(it)); },function(){}); }catch(e){}
+    try{ db.from('affaires').select('id,etape,avant_app,admin_statut,suivi,acompte_sans,fin_acompte_paye,fin_solde_paye,bexio_offer_id,contact:contact_id(nom,prenom,email)').eq('transfere_admin',true).then(async function(r){ var it=(await FIN_ITEMS_LIVE(((r&&r.data)||[]))).filter(function(l){ return String(l).indexOf('Facture VT')===0; }); /* SSS-FINITEMS-RO : l'ancien « acomptes à appeler » (archive) n'alimente plus la pastille */ var _nrc=0; try{ var _rr=await db.from('remboursements_clients').select('id').neq('statut','rembourse'); _nrc=((_rr&&_rr.data)||[]).length; }catch(_e){} setDot('financier',it.length+_nrc, (_nrc?[_nrc+' remboursement(s) client à faire']:[]).concat(it)); },function(){}); }catch(e){}
     try{ db.from('affaires').select('id,avant_app,admin_statut,suivi').eq('transfere_admin',true).then(function(r){ var rows=((r&&r.data)||[]).filter(function(a){return !a.avant_app;}); var n=rows.filter(function(a){return a.admin_statut!=='accepte' && a.admin_statut!=='termine' && a.admin_statut!=='annule' && !(a.suivi&&(a.suivi._a_valider||a.suivi._to_delete||a.suivi._annule));}).length; var nd=rows.filter(function(a){return a.suivi&&a.suivi._to_delete&&a.suivi._cancel_valide&&!(a.suivi._deleted_confirmed_at);}).length; var nc=(window.CMD_PEND||0);
       db.from('signalements').select('id').eq('statut','nouveau').then(function(sg){ var ns=((sg&&sg.data)||[]).length; setDot('admin',n+nd+nc+ns, (ns?[ns+' problème(s) client signalé(s)']:[]).concat(nc?[nc+' commande(s) de matériel à valider']:[]).concat(nd?[nd+' dossier(s) à supprimer (vente annulée)']:[]).concat(n?[n+' dossier(s) reçu(s) à traiter']:[])); },function(){ setDot('admin',n+nd+nc, (nc?[nc+' commande(s) de matériel à valider']:[]).concat(nd?[nd+' dossier(s) à supprimer (vente annulée)']:[]).concat(n?[n+' dossier(s) reçu(s) à traiter']:[])); });
     },function(){}); }catch(e){}
@@ -2461,7 +2461,7 @@ function renderNav(){
     ['vehicule','Véhicule','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16V8h11v8M14 11h4l3 3v2h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg>',['superadmin','direction','technicien']],
     ['signalements_t','Signalements','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4.5M12 17.4v.1"/></svg>',['superadmin','direction','technicien']],
     ['notifications','Notifications','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0v4l2 3H4l2-3V9Z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>',null],
-    ['financier','Acompte / Solde','<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M8 7h6a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'],
+    ['financier','Ancien Acompte / Solde (archive)','<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M8 7h6a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'],
     ['fin_dash','Tableau de bord','<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="9" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="5" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="12" width="7" height="9" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="16" width="7" height="5" rx="1" stroke="currentColor" stroke-width="2"/></svg>'],
     ['fin_charges','Charges','<svg viewBox="0 0 24 24" fill="none"><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'],
     ['fin_quittances','Quittances carte société','<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 7h8M8 11h8M8 15h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'],
@@ -2549,7 +2549,7 @@ function renderNav(){
   let GROUPS_TECH= techExterne()
     ? [ {id:'gtech',title:'Mes chantiers',keys:['tech_today','tech_pv','tech_bat','tech_sav','repasser','tech_termines']}, {id:'gtbo',title:'Mon back-office',keys:['commandes','st_remb']} ]
     : [ {id:'gtech',title:'Technique',keys:['techdash','tech_today','tech_search','tech_pv','tech_bat','tech_sav','repasser','tech_termines','tech_materiel']}, {id:'gtstk',title:'Stock & fournitures',keys:['stock','commandes']}, {id:'gtequipe',title:'Équipe terrain',keys:['mon_planning','mes_chantiers','tech_quittances','tech_conges','mes_demandes','signalements_t','vehicule','pointage']} ].concat( ME.role==='technicien' ? [] : [{id:'gtst',title:'Sous-traitants',keys:['stmissions','st_remb']}] ); if(ME.role==='technicien' && !techExterne()) GROUPS_TECH=SSS_MENU_TECH.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(ME.role==='supply_chain' && typeof SSS_MENU_SUPPLY!=='undefined') GROUPS_TECH=SSS_MENU_SUPPLY.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(['superadmin','direction'].indexOf(ME.role)>=0) GROUPS_TECH.forEach(function(g){ if(g.id==='gtstk'){ ['sc_chantiers','sc_achats'].forEach(function(k){ if(g.keys.indexOf(k)<0) g.keys.push(k); }); } });
-  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','fin_clients','fin_fourn','fin_fisc','marges','prix_sss','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
+  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_clients','fin_fourn','fin_fisc','fin_dash','marges','prix_sss','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash'] }, {id:'gfin_arch',title:'Archives',keys:['financier']} ];
   const GROUPS_BACK=[ {id:'gback',title:'Mes tâches',keys:['botaches']} ];
   const avail=servicesAvail();
   if(avail.indexOf(SERVICE)<0) SERVICE=avail[0];
@@ -5871,6 +5871,14 @@ async function renderSante(){
   if(r.error){ m.innerHTML="<div class='page-head'><h2>Santé du système</h2></div><div class='card' style='padding:16px'>"+esc(r.error.message)+"</div>"; return; }
   var d=r.data||{}, G=SSS_ETAT_COUL[d.etat_global]||SSS_ETAT_COUL.ok;
   var h="<div class='page-head'><h2>Santé du système</h2></div><div class='card' style='padding:14px 16px;margin-bottom:12px;text-align:left;border-left:4px solid "+G[1]+"'><div style='font-size:18px;font-weight:800'>"+G[0]+" "+G[2]+"</div><div style='font-size:12px;color:var(--text-3)'>contrôlé le "+sssQuand(d.calcule_le)+" · <a href='#' onclick='renderSante();return false'>recontrôler</a></div></div>";
+  // boîte e-mail : synchronisation seule (la lecture des factures a sa propre ligne) — « aucun nouveau message » ≠ « échec »
+  var ms=await sssRpc('sss_mail_sante');
+  if(ms){ var EM=SSS_ETAT_COUL[ms.etat==='ok'?'ok':'action']||SSS_ETAT_COUL.ok; var dm=[];
+    if(ms.dossiers_synchronises&&[].concat(ms.dossiers_synchronises).length) dm.push('dossiers synchronisés : '+esc([].concat(ms.dossiers_synchronises).join(', ')));
+    if(ms.dernier_message_recu) dm.push('dernier message reçu : '+sssQuand(ms.dernier_message_recu));
+    if(ms.echecs_suivis) dm.push(ms.echecs_suivis+' échec(s) de suite');
+    if(ms.tache_planifiee_active===false) dm.push('tâche planifiée inactive');
+    h+="<div class='card' style='padding:10px 14px;margin-bottom:12px;text-align:left;display:flex;gap:12px;align-items:center;border-left:4px solid "+EM[1]+"'><div style='font-size:20px'>✉️</div><div style='min-width:0'><div style='font-weight:700'>Boîte e-mail — "+esc(String(ms.texte||''))+"</div><div style='font-size:12px;color:var(--text-3)'>"+dm.join(' · ')+"</div></div></div>"; }
   h+=(d.items||[]).map(function(i){ var E=SSS_ETAT_COUL[i.etat]||SSS_ETAT_COUL.ok; var det=[];
     if(i.derniere_reussite!==undefined) det.push('dernière réussite : '+sssQuand(i.derniere_reussite)); if(i.valeur!==undefined) det.push('valeur : '+i.valeur+(i.total!==undefined?' / '+i.total:'')); if(i.message) det.push(esc(String(i.message).slice(0,160)));
     return "<div class='card' style='padding:10px 14px;margin-bottom:8px;text-align:left;display:flex;gap:12px;align-items:center'><div style='font-size:20px'>"+E[0]+"</div><div style='min-width:0'><div style='font-weight:700'>"+esc(i.libelle)+"</div><div style='font-size:12px;color:var(--text-3)'>"+det.join(' · ')+"</div></div></div>"; }).join('');
@@ -7259,8 +7267,19 @@ async function sssFcConfAnnuler(cid,id){ if(!confirm('Retirer cette confirmation
   try{ var _fi=FIN_ITEMS; FIN_ITEMS=function(list){ return _fi(list).filter(function(x){ return !!x.vtfact; }); }; }catch(e){}
   // tableau de bord financier : les encaissements clients « prouvés » sont dans Facturation clients (bandeau)
   try{ var _rd=renderFinDash; renderFinDash=async function(){ var r=await _rd.apply(this,arguments); try{ var h=document.querySelector('#main .page-head'); if(h&&VIEW==='fin_dash'&&!document.getElementById('sssfc-dash')) h.insertAdjacentHTML('afterend',"<div id='sssfc-dash' style='display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px'><button class='btn' style='width:auto;padding:9px 14px' onclick=\"go('fin_clients')\">💶 Facturation clients — chiffres prouvés</button><button class='btn-out' style='width:auto;padding:9px 14px' onclick=\"go('fin_fourn')\">🧾 Factures fournisseurs / À payer</button><span style='font-size:11.5px;color:var(--text-3);align-self:center'>Les cartes « acomptes / soldes en suspens » ci-dessous viennent de l'ancien suivi : indicatives seulement.</span></div>"); }catch(e){} return r; }; }catch(e){}
-  // ancien écran « Acompte / Solde » : bandeau d'archive en tête (l'écran reste consultable, rien n'est supprimé)
-  try{ var _rf=renderFinance; renderFinance=async function(){ var r=await _rf.apply(this,arguments); try{ var h=document.querySelector('#main .page-head h2'); if(h&&VIEW==='financier'&&!document.getElementById('sssfc-archive')){ h.textContent='Acompte / Solde (ancien écran — archive)'; h.insertAdjacentHTML('afterend',"<div id='sssfc-archive' style='background:rgba(224,165,43,.12);border:1px solid #e0a52b;border-radius:10px;padding:10px 12px;font-size:12.5px;margin:8px 0 12px'>⚠️ Cet écran repose sur les anciennes cases « payé » : ses compteurs ne sont plus des indicateurs officiels. Les chiffres prouvés sont dans <a href='#' onclick=\"go('fin_clients');return false\" style='color:var(--green);font-weight:700'>Facturation clients</a>.</div>"); } }catch(e){} return r; }; }catch(e){}
+  // ancien écran « Acompte / Solde » = ARCHIVE 100 % lecture seule (audit 10.10.2026) : les écritures internes sont neutralisées
+  // dans index.html (sssFinRO) ; ici le bandeau, la désactivation de toutes les commandes et le blocage des actions par clic
+  var ARCH_TXT="🗄️ ARCHIVE — lecture seule — ne pas utiliser pour la situation financière actuelle.";
+  try{ var _rf=renderFinance; renderFinance=async function(){ var r=await _rf.apply(this,arguments); try{
+      var h=document.querySelector('#main .page-head h2'); if(h&&VIEW==='financier'&&!document.getElementById('sssfc-archive')){ h.textContent='Ancien Acompte / Solde (archive)';
+        h.insertAdjacentHTML('afterend',"<div id='sssfc-archive' style='background:rgba(229,72,77,.10);border:2px solid #e5484d;border-radius:10px;padding:12px 14px;font-size:13px;margin:8px 0 12px'><b>"+ARCH_TXT+"</b><div style='margin-top:4px;font-size:12px'>Cet écran montre l'ancien suivi (cases « payé ») tel qu'il était. Aucune donnée n'est modifiée en l'ouvrant. Situation actuelle : <a href='#' onclick=\"go('fin_clients');return false\" style='color:var(--green);font-weight:700'>Facturation clients</a>.</div></div>"); }
+      if(VIEW==='financier') document.querySelectorAll('#fin-list button, #fin-list textarea, #fin-list input, #fin-list select, #fin-list a.relbtn').forEach(function(x){ if(/^(tel|mailto):/.test(x.getAttribute&&x.getAttribute('href')||'')) return; x.disabled=true; x.style.opacity='.45'; x.style.pointerEvents='none'; x.title='Archive en lecture seule'; });
+    }catch(e){} return r; }; }catch(e){}
+  var ro=function(nom){ try{ var orig=window[nom]; if(typeof orig!=='function') return; window[nom]=function(){ alert(ARCH_TXT+"\nAction désactivée : utilise Facturation clients."); return Promise.resolve(); }; }catch(e){} };
+  ['finMarkAtt','finUnmarkAtt','finMarkPaidManual','finAnnulerVente','finRestaurerVente','finSaveNote','finMakeInvoice','finToggle','finVtFactDone','finVtFactAnnuler'].forEach(ro);
+  // le service Financier s'ouvre sur Facturation clients (plus jamais sur l'archive) ; onglets mobiles alignés
+  try{ var _sd=serviceDefault; serviceDefault=function(s){ if(s==='financier'){ try{ if(vuePermise('fin_clients')) return 'fin_clients'; }catch(e){} return 'fin_dash'; } return _sd.apply(this,arguments); }; }catch(e){}
+  try{ TABS_DEFAUT.financier=['fin_clients','fin_fourn','fin_fisc','fin_remb']; }catch(e){}
 })();
 
 /* SSS-FACTURATION-FIN */
@@ -12162,7 +12181,7 @@ async function admRetTechPhotos(id){
   if(!ph.length){ el.innerHTML="<div class='empty'>Aucune photo individuelle sur ce retour.</div>"; return; }
   var out=[];
   for(var i=0;i<ph.length;i++){ var p=ph[i]||{}; var u=(p.url&&!/^data:/.test(p.url))?p.url:'';
-    if(!u&&p.path){ try{ var su=await db.storage.from('voix').createSignedUrl(p.path,3600); u=(su&&su.data&&su.data.signedUrl)||''; }catch(e){} }
+    if(!u&&p.path){ try{ var su=await db.storage.from('voix').createSignedUrl(p.path,600); u=(su&&su.data&&su.data.signedUrl)||''; }catch(e){} }
     if(!u&&p.url) u=p.url;
     out.push({u:u,slot:p.slot||('Photo '+(i+1))});
   }
@@ -13340,7 +13359,7 @@ async function vidEnvoyer(affId, file, prefixe){
 }
 async function vidOuvrir(chemin){
   try{
-    var su=await db.storage.from('voix').createSignedUrl(chemin,3600);
+    var su=await db.storage.from('voix').createSignedUrl(chemin,600);
     if(su&&su.data&&su.data.signedUrl){ window.open(su.data.signedUrl,'_blank'); return; }
   }catch(e){}
   alert("Vidéo introuvable — elle a peut-être été supprimée.");
@@ -13369,7 +13388,7 @@ async function phToStorage(affId,list){ var out=[]; list=list||[]; for(var i=0;i
   if(p.url&&/^data:/.test(p.url)){ try{ var bl=await (await fetch(p.url)).blob(); var path=p.path||('vtph/'+affId+'/'+Date.now()+'_'+i+'.jpg'); var r=await db.storage.from('voix').upload(path,bl,{upsert:true,contentType:'image/jpeg'}); if(!r.error){ out.push({slot:p.slot,path:path}); continue; } }catch(e){} out.push({slot:p.slot,url:p.url,path:p.path}); }
   else out.push(p); } return out; }
 async function phHydrate(list){ var out=[]; list=list||[]; for(var i=0;i<list.length;i++){ var p=Object.assign({},list[i]||{});
-  if(!p.url&&p.path){ try{ var su=await db.storage.from('voix').createSignedUrl(p.path,3600); if(su&&su.data&&su.data.signedUrl){ var bl=await (await fetch(su.data.signedUrl)).blob(); p.url=await new Promise(function(res){ var rd=new FileReader(); rd.onload=function(){res(rd.result);}; rd.readAsDataURL(bl); }); } }catch(e){} }
+  if(!p.url&&p.path){ try{ var su=await db.storage.from('voix').createSignedUrl(p.path,600); if(su&&su.data&&su.data.signedUrl){ var bl=await (await fetch(su.data.signedUrl)).blob(); p.url=await new Promise(function(res){ var rd=new FileReader(); rd.onload=function(){res(rd.result);}; rd.readAsDataURL(bl); }); } }catch(e){} }
   out.push(p); } return out; }
 function _vtResize(file,cb){ var rd=new FileReader(); rd.onload=function(){ var img=new Image(); img.onload=function(){ var w=img.width,hh=img.height,max=1400; if(w>max){ hh=Math.round(hh*max/w); w=max; } var cv=document.createElement('canvas'); cv.width=w; cv.height=hh; cv.getContext('2d').drawImage(img,0,0,w,hh); cb(cv.toDataURL('image/jpeg',0.7)); }; img.src=rd.result; }; rd.readAsDataURL(file); }
 function vtAddPhoto(si,pi,inp){ if(!inp.files||!inp.files[0]) return; var slot=VT_FORM[si].photos[pi]; _vtResize(inp.files[0],function(url){ VT_PHOTOS=VT_PHOTOS.filter(function(p){return p.slot!==slot;}); var obj={slot:slot,url:url}; VT_PHOTOS.push(obj); vtSecPhotos(si); vtAnnotate(obj,function(nu){ obj.url=nu; vtSecPhotos(si); }); }); try{ inp.value=''; }catch(e){} }
@@ -16003,6 +16022,8 @@ async function finRestaurerVente(id){
   try{ var r=await db.from('affaires').select('suivi').eq('id',id).maybeSingle(); var sv=Object.assign({},(r&&r.data&&r.data.suivi)||{}); delete sv._annule; delete sv._annule_at; delete sv._annule_auto; delete sv._to_delete; delete sv._to_delete_at; delete sv._to_delete_reason; var u=await db.from('affaires').update({suivi:sv}).eq('id',id); if(u&&u.error){ alert('Action impossible.'); return; } }catch(e){ alert('Action impossible.'); return; }
   renderFinance();
 }
+/* SSS-ARCHIVE-RO : l'ancien écran Acompte / Solde n'écrit plus jamais en base (audit 10.10.2026) */
+function sssFinRO(t){ var noop=function(){ var p=Promise.resolve({data:null,error:null}); var o={eq:function(){return o;},in:function(){return o;},select:function(){return o;},match:function(){return o;},then:function(a,b){return p.then(a,b);},catch:function(b){return p.catch(b);}}; try{ console.info('[archive lecture seule] écriture ignorée sur '+t); }catch(_e){} return o; }; return {update:noop,insert:noop,upsert:noop,delete:noop}; }
 async function renderFinance(){
   $('#main').innerHTML='<div class="page-head"><h2>Acompte / Solde</h2></div><div id="fin-list" class="loading">Chargement…</div>';
   const {data,error}=await db.from('affaires').select('*, contact:contact_id(nom,prenom,localite,npa,telephone,email,bexio_contact_id)').eq('transfere_admin',true).order('transfere_admin_at',{ascending:false});
@@ -16024,7 +16045,7 @@ async function renderFinance(){
         if(_a.admin_statut==='accepte'||_a.admin_statut==='termine'||_a.admin_statut==='annule') continue;
         if(!_a.transfere_admin && !_sv._dir_valide_at){
           var _nsv=Object.assign({},_sv); _nsv._a_valider=true;
-          try{ await db.from('affaires').update({transfere_admin:true, transfere_admin_at:new Date().toISOString(), suivi:_nsv}).eq('id',_a.id); _a.transfere_admin=true; _a.suivi=_nsv; }catch(e){}
+          try{ await sssFinRO('affaires').update({transfere_admin:true, transfere_admin_at:new Date().toISOString(), suivi:_nsv}).eq('id',_a.id); _a.transfere_admin=true; _a.suivi=_nsv; }catch(e){}
         }
         data.push(_a);
       }
@@ -16048,7 +16069,7 @@ async function renderFinance(){
           var vraie=d[String(lot[k].inv)];
           if(!vraie) continue;
           var patch={}; patch[lot[k].champ]=vraie+'T12:00:00Z';
-          try{ await db.from('affaires').update(patch).eq('id',lot[k].id); }catch(_e){}
+          try{ await sssFinRO('affaires').update(patch).eq('id',lot[k].id); }catch(_e){}
         }
       }
     }catch(_e){}
@@ -16075,16 +16096,16 @@ async function renderFinance(){
     /* MSB / partenaires : AUCUNE écriture automatique (ni annulation, ni case payé déduite d'une facture « la plus proche ») */
     if(!finDansVue(a,'direct')){ a._horsDirect=true; return; }
     var _oo=(a.bexio_offer_id!=null)?OSTAT[String(a.bexio_offer_id)]:null; a._notConf=!!(!_fusibleF&&!_acteF(a)&&_oo&&_oo.ok&&[1,2].indexOf(Number(_oo.kb_item_status_id))>=0&&!a.fin_acompte_paye&&!a.fin_solde_paye&&!(a.suivi&&a.suivi._vt_anticipee));
-    if(a._notConf && !(a.suivi&&a.suivi._annule)){ var _sca=Object.assign({},a.suivi||{}); _sca._annule=true; _sca._annule_at=new Date().toISOString(); _sca._annule_auto=true; _sca._to_delete=true; _sca._to_delete_at=new Date().toISOString(); _sca._to_delete_reason='Devis plus confirm\u00e9 sur Bexio (en suspens)'; a.suivi=_sca; try{ db.from('affaires').update({suivi:_sca}).eq('id',a.id).then(function(){},function(){}); }catch(_e){} }
-    else if(_oo&&_oo.ok&&Number(_oo.kb_item_status_id)===3 && a.suivi&&a.suivi._annule_auto){ var _scb=Object.assign({},a.suivi||{}); delete _scb._annule; delete _scb._annule_at; delete _scb._annule_auto; delete _scb._to_delete; delete _scb._to_delete_at; delete _scb._to_delete_reason; a.suivi=_scb; try{ db.from('affaires').update({suivi:_scb}).eq('id',a.id).then(function(){},function(){}); }catch(_e){} }
-    if(!a.acompte_sans){ var la=bxLookup(a,'acompte'); a._ac=la; if(la.has){ if(la.paid&&!a.fin_acompte_paye){ a.fin_acompte_paye=true; _dtQ.push({id:a.id,inv:la.id,champ:'fin_acompte_paye_at'}); db.from('affaires').update({fin_acompte_paye:true,fin_acompte_paye_at:new Date().toISOString()}).eq('id',a.id).then(function(){},function(){}); } else if(!la.paid&&a.fin_acompte_paye){ a.fin_acompte_paye=false; db.from('affaires').update({fin_acompte_paye:false,fin_acompte_paye_at:null}).eq('id',a.id).then(function(){},function(){}); } } }
-    if(a.acompte_sans || (a.suivi&&(a.suivi.install_fige||a.suivi.install_done||a.suivi._install_notif))){ var ls=bxLookup(a,'solde'); a._sol=ls; if(ls.has){ if(ls.paid&&!a.fin_solde_paye){ a.fin_solde_paye=true; _dtQ.push({id:a.id,inv:ls.id,champ:'fin_solde_paye_at'}); db.from('affaires').update({fin_solde_paye:true,fin_solde_paye_at:new Date().toISOString()}).eq('id',a.id).then(function(){},function(){}); } else if(!ls.paid&&a.fin_solde_paye){ a.fin_solde_paye=false; db.from('affaires').update({fin_solde_paye:false,fin_solde_paye_at:null}).eq('id',a.id).then(function(){},function(){}); } } }
+    if(a._notConf && !(a.suivi&&a.suivi._annule)){ var _sca=Object.assign({},a.suivi||{}); _sca._annule=true; _sca._annule_at=new Date().toISOString(); _sca._annule_auto=true; _sca._to_delete=true; _sca._to_delete_at=new Date().toISOString(); _sca._to_delete_reason='Devis plus confirm\u00e9 sur Bexio (en suspens)'; a.suivi=_sca; try{ sssFinRO('affaires').update({suivi:_sca}).eq('id',a.id).then(function(){},function(){}); }catch(_e){} }
+    else if(_oo&&_oo.ok&&Number(_oo.kb_item_status_id)===3 && a.suivi&&a.suivi._annule_auto){ var _scb=Object.assign({},a.suivi||{}); delete _scb._annule; delete _scb._annule_at; delete _scb._annule_auto; delete _scb._to_delete; delete _scb._to_delete_at; delete _scb._to_delete_reason; a.suivi=_scb; try{ sssFinRO('affaires').update({suivi:_scb}).eq('id',a.id).then(function(){},function(){}); }catch(_e){} }
+    if(!a.acompte_sans){ var la=bxLookup(a,'acompte'); a._ac=la; if(la.has){ if(la.paid&&!a.fin_acompte_paye){ a.fin_acompte_paye=true; _dtQ.push({id:a.id,inv:la.id,champ:'fin_acompte_paye_at'}); sssFinRO('affaires').update({fin_acompte_paye:true,fin_acompte_paye_at:new Date().toISOString()}).eq('id',a.id).then(function(){},function(){}); } else if(!la.paid&&a.fin_acompte_paye){ a.fin_acompte_paye=false; sssFinRO('affaires').update({fin_acompte_paye:false,fin_acompte_paye_at:null}).eq('id',a.id).then(function(){},function(){}); } } }
+    if(a.acompte_sans || (a.suivi&&(a.suivi.install_fige||a.suivi.install_done||a.suivi._install_notif))){ var ls=bxLookup(a,'solde'); a._sol=ls; if(ls.has){ if(ls.paid&&!a.fin_solde_paye){ a.fin_solde_paye=true; _dtQ.push({id:a.id,inv:ls.id,champ:'fin_solde_paye_at'}); sssFinRO('affaires').update({fin_solde_paye:true,fin_solde_paye_at:new Date().toISOString()}).eq('id',a.id).then(function(){},function(){}); } else if(!ls.paid&&a.fin_solde_paye){ a.fin_solde_paye=false; sssFinRO('affaires').update({fin_solde_paye:false,fin_solde_paye_at:null}).eq('id',a.id).then(function(){},function(){}); } } }
   });
   /* La commission tombe sur le mois OU LE CLIENT A PAYE, pas sur le jour ou
      l'application s'en aperçoit. On repasse donc chercher la vraie date de
      versement dans Bexio : sans ça, un acompte encaissé le 13 juillet mais
      constaté le 25 août atterrissait sur la paie d'août. */
-  if(_dtQ.length) finDatesReelles(_dtQ);
+  /* archive lecture seule : finDatesReelles(_dtQ) désactivé */
   var acomptes=rows.filter(function(a){ var _vta=a.vt_anticipee!=null?a.vt_anticipee:!!(a.suivi&&a.suivi._vt_anticipee);
     /* VT anticipee mais client signe entre-temps : l'acompte est du normalement */
     if(_vta && (vtSigne(a) || (a.suivi&&a.suivi._vt_fact_annulee))) _vta=false;
@@ -16192,7 +16213,7 @@ async function renderFinance(){
   var solToCall=soldes.filter(function(a){return !(a.suivi&&a.suivi.solde_att);});
   var solWait=soldes.filter(function(a){return a.suivi&&a.suivi.solde_att && !estEnRetard(a);});
   var nCall=acToCall.length+solToCall.length;
-  var html=chips+"<div style='background:linear-gradient(135deg,rgba(229,72,77,.14),transparent 70%);border:1px solid #5a2a27;border-radius:14px;padding:14px 16px;margin-bottom:16px'><div style='font-weight:800;font-size:16px;color:#ff8a83'>\ud83d\udd34 \u00c0 APPELER \u2014 "+nCall+" paiement(s) \u00e0 lancer</div>"+(FIN_VUE==='direct'?"<div style='font-size:12px;color:var(--text-3);margin-top:3px'>Clients SSS direct uniquement \u2014 My Solar Battery et partenaires sont dans leurs vues.</div>":"")+"</div>";
+  var html=chips+"<div style='background:linear-gradient(135deg,rgba(229,72,77,.14),transparent 70%);border:1px solid #5a2a27;border-radius:14px;padding:14px 16px;margin-bottom:16px'><div style='font-weight:800;font-size:16px;color:#ff8a83'>\ud83d\uddc4 ARCHIVE \u2014 "+nCall+" \u00e9l\u00e9ment(s) de l'ancien suivi (lecture seule, non utilis\u00e9s)</div>"+(FIN_VUE==='direct'?"<div style='font-size:12px;color:var(--text-3);margin-top:3px'>Clients SSS direct uniquement \u2014 My Solar Battery et partenaires sont dans leurs vues.</div>":"")+"</div>";
   // \ud83d\udcd0 Factures VT \u2014 visites techniques faites AVANT signature, client n'a pas sign\u00e9 : \u00e0 facturer, ne pas oublier
   var vtFactList=rows.filter(function(a){ var sv=a.suivi||{}; if(finEstMsb(a)||!finDansVue(a,FIN_VUE)) return false; return sv._vt_anticipee && sv.vt_done && !sv._vt_fact_ok && !sv._vt_fact_annulee && !vtSigne(a) && !sv._annule && a.admin_statut!=='annule'; });
   if(vtFactList.length){
@@ -17131,20 +17152,25 @@ async function quitConfirm(){
   var four=g('qc-four'); var cat=g('qc-cat')||'Autre'; var f=QUIT_FILE;
   if(!montant){ msg($('#qc-msg'),'Indique le montant.','err'); return; }
   if(!four){ msg($('#qc-msg'),'Indique le fournisseur.','err'); return; }
+  /* SSS-QUIT-COFFRE */ if(!f){ msg($('#qc-msg'),'La photo ou le PDF de la quittance est obligatoire : pas de justificatif sans original.','err'); return; }
   var b=document.getElementById('qc-go'); if(b){ b.disabled=true; b.textContent='Enregistrement…'; }
-  var mois=date.slice(0,7); var path=null;
+  var mois=date.slice(0,7); var path=null; var _err=null;
   try{
     if(f){ var isPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
       var _scan=!!((document.getElementById('qc-scan')||{}).checked);
       var b64=isPdf?await quitFichierEnB64(f):await quitImageEnJpeg(f,_scan); if(!b64&&!isPdf) b64=await quitFichierEnB64(f);
       if(b64){ var _d=quitDossierMois(date);
         var fn=quitNomFichier(date,four,montant,cat,(ME&&ME.nom_complet)||((ME&&ME.prenom?ME.prenom+' ':'')+((ME&&ME.nom)||'')).trim()||(ME&&ME.email)||'Inconnu',isPdf?'.pdf':'.jpg');
-        path=_d.mois+'/'+fn;
-        try{ await db.functions.invoke('dropbox',{body:{action:'mkdir',paths:[QUIT_RACINE,_d.annee,_d.mois]}}); }catch(_e){}
-        var ok=await dbxUpload(path,b64); if(!ok) path=null;
-      } }
-  }catch(e){ path=null; }
-  var row={commercial_id:ME.id,date:date,montant:montant,mois:mois,rembourse:true,fournisseur:four,categorie:cat,source:'carte_societe',statut_bexio:'a_saisir',fichier_dropbox:path};
+        /* original dans le coffre privé « quittances » : <uid>/carte_societe/<année>/<fichier> */
+        var _bin=atob(b64), _u8=new Uint8Array(_bin.length); for(var _i=0;_i<_bin.length;_i++) _u8[_i]=_bin.charCodeAt(_i);
+        var _nom=String(fn).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_').slice(0,120);
+        path=ME.id+'/carte_societe/'+date.slice(0,4)+'/'+Date.now()+'_'+_nom;
+        var _up=await db.storage.from('quittances').upload(path,_u8,{contentType:isPdf?'application/pdf':'image/jpeg',upsert:false});
+        if(_up&&_up.error){ _err=_up.error.message||String(_up.error); path=null; }
+      } else { _err='fichier illisible'; } }
+  }catch(e){ _err=(e&&e.message)||String(e); path=null; }
+  if(!path){ if(b){ b.disabled=false; b.textContent='Enregistrer'; } msg($('#qc-msg'),"Le justificatif n'a pas pu être enregistré dans le coffre ("+(_err||'erreur inconnue')+") : rien n'a été créé, réessaie.",'err'); return; }
+  var row={commercial_id:ME.id,date:date,montant:montant,mois:mois,rembourse:true,fournisseur:four,categorie:cat,source:'carte_societe',statut_bexio:'a_saisir',fichier_url:path,fichier_dropbox:null};
   var ins; try{ ins=await db.from('quittances').insert(row); }catch(e){ ins={error:e}; }
   if(ins&&ins.error){ if(b){ b.disabled=false; b.textContent='Enregistrer'; } msg($('#qc-msg'),'Erreur : '+(ins.error.message||ins.error),'err'); return; }
   QUIT_FILE=null; try{ qpdbDel(); }catch(e){} closeModal();
@@ -17156,6 +17182,7 @@ function quitCarte(x,i){
   return "<div style='background:var(--card);border:1px solid var(--line);border-left:4px solid "+(saisi?'#16a34a':'#e0a52b')+";border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>"
    +"<div style='flex:1;min-width:170px'><b>"+quitMontant2(x.montant)+" CHF</b> <span style='color:var(--text-3)'>· "+esc(x.fournisseur||'—')+"</span><div style='font-size:12px;color:var(--text-3);margin-top:2px'>"+esc((''+(x.date||'')).slice(0,10))+" · "+esc(x.categorie||'Autre')+(saisi?(" · saisi dans Bexio"+(x.bexio_ref?(' ('+esc(x.bexio_ref)+')'):'')+(x.saisi_at?(' le '+(''+x.saisi_at).slice(0,10)):'')):'')+"</div></div>"
    +(saisi?"<span class='badge green'>✓ Bexio</span>":"<span class='badge gold'>⏳ à saisir</span>")
+   +(x.fichier_url?"<button class='relbtn' onclick=\"rhOpen('quittances','"+esc((''+x.fichier_url).replace(/'/g,"\\'"))+"')\" title='Ouvrir la pièce (coffre)'>📄</button>":"<span class='badge' style='background:rgba(229,72,77,.15);color:#e5484d' title='Aucun original enregistré'>sans pièce</span>") /* SSS-QUIT-PIECE */
    +(x.fichier_dropbox?"<button class='relbtn' onclick=\"quitOpenDossier('"+esc((''+x.fichier_dropbox).replace(/'/g,"\\'"))+"')\" title='Ouvrir la pièce dans Dropbox'>📁</button>":"")
    +"<button class='relbtn' onclick='quitEdit("+i+")'>✎</button>"
    +(!saisi?"<button class='relbtn win' onclick='quitTraiterOk("+i+")' title='Marquer comme saisie dans Bexio'>✓ Saisie</button>":"")
@@ -19996,7 +20023,7 @@ async function adminDossier(id){
   if(!a){ adminBack(); return; }
   // photos VT / chantier stockées par chemin → URL signée pour l'affichage
   try{ var _hydSets=[(a.suivi&&a.suivi.vt_data&&a.suivi.vt_data.__photos)||[],(a.suivi&&a.suivi.inst_data&&a.suivi.inst_data.__photos)||[]];
-    for(var _hs=0;_hs<_hydSets.length;_hs++){ var _pp=_hydSets[_hs]; for(var _i=0;_i<_pp.length;_i++){ var _p=_pp[_i]; if(_p&&!_p.url&&_p.path){ var _su=await db.storage.from('voix').createSignedUrl(_p.path,3600); if(_su&&_su.data&&_su.data.signedUrl) _p.url=_su.data.signedUrl; } } } }catch(e){}
+    for(var _hs=0;_hs<_hydSets.length;_hs++){ var _pp=_hydSets[_hs]; for(var _i=0;_i<_pp.length;_i++){ var _p=_pp[_i]; if(_p&&!_p.url&&_p.path){ var _su=await db.storage.from('voix').createSignedUrl(_p.path,600); if(_su&&_su.data&&_su.data.signedUrl) _p.url=_su.data.signedUrl; } } } }catch(e){}
   const c=a.contact||{}; const nom=((c.nom||'')+' '+(c.prenom||'')).trim()||'Client';
   const docs=((await db.from('documents').select('*').eq('affaire_id',id).order('created_at',{ascending:false}).then(r=>r,()=>({data:[]}))).data)||[];
   const e=ETAPES[a.etape]||[a.etape||'Reçu',''];
@@ -21851,7 +21878,7 @@ async function openRdv(id){
   }
   const dbOpts=DEBOUCHES.map(d=>'<option '+(r.debouche===d?'selected':'')+'>'+d+'</option>').join('');
   let audioHtml='';
-  if(r.note_vocale_url){ try{ const {data:su}=await db.storage.from('voix').createSignedUrl(r.note_vocale_url,3600); if(su&&su.signedUrl) audioHtml='<audio controls src="'+su.signedUrl+'" style="width:100%;margin-top:8px"></audio><button class="btn btn-ghost" style="margin-top:6px;width:auto;padding:6px 12px;font-size:12.5px" onclick="deleteVoice(\''+id+'\',\''+r.note_vocale_url+'\')">Supprimer la note vocale</button>'; }catch(e){} }
+  if(r.note_vocale_url){ try{ const {data:su}=await db.storage.from('voix').createSignedUrl(r.note_vocale_url,600); if(su&&su.signedUrl) audioHtml='<audio controls src="'+su.signedUrl+'" style="width:100%;margin-top:8px"></audio><button class="btn btn-ghost" style="margin-top:6px;width:auto;padding:6px 12px;font-size:12.5px" onclick="deleteVoice(\''+id+'\',\''+r.note_vocale_url+'\')">Supprimer la note vocale</button>'; }catch(e){} }
   const adr=[c.adresse,[c.npa,c.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'';
   const mapsHtml = adr? '<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(adr)+'" target="_blank" style="color:var(--green)">Ouvrir Maps</a> · <a href="https://waze.com/ul?q='+encodeURIComponent(adr)+'" target="_blank" style="color:var(--green)">Waze</a>' : '';
   /* Historique d'attribution — visible uniquement par la direction, au moment
@@ -21969,7 +21996,7 @@ async function rdvPhotosPaint(rdvId){
     var files=((r&&r.data)||[]).filter(function(f){ return f.name&&/\./.test(f.name); });
     if(!files.length){ box.innerHTML="<span style='color:var(--text-3);font-size:12px'>Aucune photo pour l'instant.</span>"; return; }
     var out=[];
-    for(var i=0;i<files.length;i++){ try{ var su=await db.storage.from('voix').createSignedUrl('photos/'+rdvId+'/'+files[i].name,3600); if(su&&su.data&&su.data.signedUrl) out.push({u:su.data.signedUrl,n:files[i].name}); }catch(e){} }
+    for(var i=0;i<files.length;i++){ try{ var su=await db.storage.from('voix').createSignedUrl('photos/'+rdvId+'/'+files[i].name,600); if(su&&su.data&&su.data.signedUrl) out.push({u:su.data.signedUrl,n:files[i].name}); }catch(e){} }
     box.innerHTML=out.map(function(x){
       var isVid=/\.(mp4|mov|m4v|webm|3gp|avi|mkv)$/i.test(x.n);
       var inner=isVid
@@ -22349,7 +22376,7 @@ async function saveDebrief(id, affaireId, contactId){
 async function histPlay(btn,path){
   try{
     btn.disabled=true; btn.textContent='Chargement…';
-    const {data:su}=await db.storage.from('voix').createSignedUrl(path,3600);
+    const {data:su}=await db.storage.from('voix').createSignedUrl(path,600);
     if(su&&su.signedUrl){ btn.outerHTML='<audio controls src="'+su.signedUrl+'" style="width:100%;margin-top:8px"></audio>'; }
     else { btn.disabled=false; btn.textContent='Note vocale indisponible'; }
   }catch(e){ btn.disabled=false; btn.textContent='Note vocale indisponible'; }
@@ -22377,7 +22404,7 @@ function recToggle(rdvId){
       const {error}=await db.storage.from('voix').upload(path,blob,{contentType:type,upsert:true});
       if(error){ alert('Erreur enregistrement : '+error.message); const b=document.getElementById('rec-btn'); if(b){ b.textContent='Enregistrer une note vocale'; b.style.background=''; b.style.color=''; } return; }
       await db.from('rendez_vous').update({note_vocale_url:path}).eq('id',rdvId);
-      let signed=''; try{ const {data:su}=await db.storage.from('voix').createSignedUrl(path,3600); signed=su?su.signedUrl:''; }catch(e){}
+      let signed=''; try{ const {data:su}=await db.storage.from('voix').createSignedUrl(path,600); signed=su?su.signedUrl:''; }catch(e){}
       setVocalField(rdvId, signed, path);
     };
     MEDIA.start();
@@ -22414,7 +22441,7 @@ async function trLoadRdvPhotos(affId){
       var files=((lr&&lr.data)||[]).filter(function(f){ return f.name && /\.(jpe?g|png|webp|heic|gif)$/i.test(f.name); });
       for(var j=0;j<files.length;j++){
         try{
-          var su=await db.storage.from('voix').createSignedUrl('photos/'+rvs[i].id+'/'+files[j].name,3600);
+          var su=await db.storage.from('voix').createSignedUrl('photos/'+rvs[i].id+'/'+files[j].name,600);
           if(su&&su.data&&su.data.signedUrl) TR_RDVPH.push({url:su.data.signedUrl,name:files[j].name});
         }catch(e){}
       }
@@ -22630,18 +22657,12 @@ async function doTransfer(){
   ].filter(Boolean);
   try{ const fiche=archivePdfBlob('Fiche client — '+nom+' ('+typeLabel+')',paras); if(fiche){ dbxPushClient(nom,typeLabel,'1 Documents & transfert','Fiche client.pdf',fiche); } }catch(e){}
   const remFull=[rem,(fourn?'Fournisseur: '+fourn:''),(compteur?'Compteur: '+compteur:''),(f_tel2?'2e tél: '+f_tel2:''),(subv?'Subv. communale: '+subv:''),((p==='bat'||p==='mixte')&&batType?'Batterie: '+batType:'')].filter(Boolean).join(' | ')||null;
-  var _curSv={}; try{ _curSv=((await db.from('affaires').select('suivi').eq('id',aff).maybeSingle()).data||{}).suivi||{}; }catch(_e){} _curSv._a_valider=true; delete _curSv._vt_anticipee; // signé → le dossier réintègre le circuit normal (acompte, financier)
-  const updFields={suivi:_curSv, type:p, montant_ttc:Number(prix), nb_panneaux:nbpv, panneau_type:((p==='pv'||p==='mixte')?(pvwVal||null):null), capacite_kwh:kwh, bat_type:((p==='bat'||p==='mixte')?(batType||null):null), onduleur:((p==='pv'||p==='mixte')?(ondVal||null):null), bat_phase:null, acompte_pct:acPct, acompte_sans:acSans, acompte_note:acNote, acompte_appel:acAppel, acompte_reserve_note:acReserve, origine:(($('#tr-origine')||{}).value||null), origine_valide:false, transfere_admin:true, transfere_admin_at:new Date().toISOString(), vt_anticipee:false, cas_particulier:cas.join(', ')||null, particularite_remarque:remFull, etape:'dossier_complet'};
-  let {error}=await db.from('affaires').update(updFields).eq('id',aff);
-  if(error && /(type|bat_type|onduleur|bat_phase|vt_anticipee|origine|column)/i.test(error.message||'')){ delete updFields.origine; delete updFields.origine_valide; delete updFields.vt_anticipee; delete updFields.bat_type; delete updFields.onduleur; delete updFields.bat_phase; delete updFields.acompte_pct; delete updFields.acompte_sans; delete updFields.acompte_note; delete updFields.acompte_appel; delete updFields.acompte_reserve_note; if(/type/i.test(error.message||'')) delete updFields.type; const _r2=await db.from('affaires').update(updFields).eq('id',aff); error=_r2.error; if(error){ delete updFields.type; const _r3=await db.from('affaires').update(updFields).eq('id',aff); error=_r3.error; } }
-  if(error){ // dernier recours : au minimum, marquer le dossier comme transmis (contrainte enum etape/type)
-    try{ var _minU=await db.from('affaires').update({suivi:_curSv, transfere_admin:true, transfere_admin_at:new Date().toISOString(), vt_anticipee:false, montant_ttc:Number(prix)}).eq('id',aff); if(!_minU.error){ error=null; } else { error=_minU.error; } }catch(_e){}
-  }
+  /* SSS-TRANSMETTRE-RPC */ const _trP={type:p, montant_ttc:Number(prix), nb_panneaux:nbpv, panneau_type:((p==='pv'||p==='mixte')?(pvwVal||null):null), capacite_kwh:kwh, bat_type:((p==='bat'||p==='mixte')?(batType||null):null), onduleur:((p==='pv'||p==='mixte')?(ondVal||null):null), acompte_pct:acPct, acompte_sans:acSans, acompte_note:acNote, acompte_appel:(acAppel==null?null:acAppel), acompte_reserve_note:acReserve, origine:(($('#tr-origine')||{}).value||null), cas_particulier:cas.join(', ')||null, particularite_remarque:remFull};
+  let {error}=await db.rpc('sss_com_transmettre',{p_affaire:aff, p:_trP});
   b.disabled=false; b.textContent='Transférer à l\'admin';
   if(error){ msg($('#tr-msg'),'Erreur : '+error.message,'err'); return; }
   closeModal(); closeDrawer();
-  try{ var _tv=(typeof PERF_CFG!=='undefined'&&PERF_CFG.tva)?PERF_CFG.tva:8.1; var _ttc=Number(prix)||0; var _ht=Math.round(_ttc/(1+_tv/100)*100)/100; var _rvsT=((await db.from('rendez_vous').select('id,score').eq('affaire_id',aff)).data)||[]; if(_rvsT.length){ for(var _j=0;_j<_rvsT.length;_j++){ var _scT=_rvsT[_j].score||{}; _scT._ca_ht=_ht; _scT._ca_ttc=_ttc; await db.from('rendez_vous').update({score:_scT, statut:'transmis'}).eq('id',_rvsT[_j].id); } } else { await db.from('rendez_vous').update({statut:'transmis'}).eq('affaire_id',aff); } }catch(_e){}
-  try{ var _sv=((await db.from('affaires').select('suivi').eq('id',aff).maybeSingle()).data||{}).suivi||{}; _sv._a_valider=true; await db.from('affaires').update({suivi:_sv}).eq('id',aff); }catch(_e){}
+  /* chiffre d'affaires du RDV, statut « transmis » et « à valider » : écrits par sss_com_transmettre côté serveur */
   try{ var _dir=await pushDirIds(); pushNotify(_dir, 'Nouveau dossier à valider', nom+' — '+typeLabel+' à contrôler avant l\'admin.', '/'); }catch(_e){}
   try{ var _og=(($('#tr-origine')||{}).value||''); if(_og==='porte_a_porte'||_og==='recommandation'){ var _dir8=await pushDirIds(); pushNotify(_dir8, '🔴 Origine 8 % à confirmer', nom+' — le commercial déclare « '+origineLbl(_og)+' ». À confirmer dans Contrôle dossiers.', '/'); } }catch(_e){}
   alert('Dossier transmis à l\'admin ✓\n'+n+' document(s) + fiche PDF déposés dans Dropbox → Clients/'+nom+' — '+typeLabel+'.');
@@ -24033,7 +24054,7 @@ async function stPaintPhotos(m){
   var box=document.getElementById('stph-'+m.id); if(!box) return;
   var ph=Array.isArray(m.photos)?m.photos:[]; if(!ph.length){ box.innerHTML="<span style='font-size:12px;color:var(--text-3)'>Aucune photo.</span>"; return; }
   var out=[];
-  for(var i=0;i<ph.length;i++){ try{ var su=await db.storage.from('voix').createSignedUrl(ph[i],3600); var u=su&&su.data&&su.data.signedUrl; if(u) out.push("<img src='"+u+"' onclick=\"window.open('"+u+"','_blank')\" style='width:74px;height:74px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer'>"); }catch(e){} }
+  for(var i=0;i<ph.length;i++){ try{ var su=await db.storage.from('voix').createSignedUrl(ph[i],600); var u=su&&su.data&&su.data.signedUrl; if(u) out.push("<img src='"+u+"' onclick=\"window.open('"+u+"','_blank')\" style='width:74px;height:74px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer'>"); }catch(e){} }
   box.innerHTML=out.join('')||"<span style='font-size:12px;color:var(--text-3)'>Aucune photo.</span>";
 }
 async function stAddPhotos(id,inp){
