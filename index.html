@@ -1252,11 +1252,111 @@ function vtSigne(a){
   if(a.bexio_offer_id && !a.avant_app) return true;
   return false;
 }
+/* Nature d'un projet (Direct SSS / sous-traitance MSB / Energy Léman / autre partenaire / à vérifier).
+   MSB = historique facturé à My Solar Battery : JAMAIS d'acompte, jamais dans les appels ni les chiffres SSS direct.
+   Source : sss_natures_affaires (super administrateur) ; sinon repli sur les mêmes règles que la base
+   (agenda MSB copié, adresse @mysolarbattery.ch, @energy-leman.ch). Lecture seule : rien n'est modifié ni supprimé. */
+var FIN_NAT=null, FIN_NAT_P=null;
+function finNatCharger(force){
+  if(force){ FIN_NAT_P=null; }
+  if(!FIN_NAT_P) FIN_NAT_P=Promise.resolve(db.rpc('sss_natures_affaires')).then(function(r){ FIN_NAT=(r&&!r.error&&r.data&&typeof r.data==='object')?r.data:(FIN_NAT||{}); return FIN_NAT; },function(){ FIN_NAT=FIN_NAT||{}; return FIN_NAT; });
+  return FIN_NAT_P;
+}
+function finNature(a){
+  var n=FIN_NAT&&a&&FIN_NAT[a.id]; if(n) return n;
+  var sv=(a&&a.suivi)||{}; var c=(a&&a.contact)||{}; var dom=(''+(c.email||'')).toLowerCase().split('@')[1]||'';
+  if(/msb/i.test(''+(sv._source||'')) || dom==='mysolarbattery.ch' || /my\s*solar\s*battery/i.test(''+(c.nom||''))) return 'sous_traitance_msb';
+  if(dom==='energy-leman.ch' || /energy\s*l[ée]man/i.test(''+(c.nom||''))) return 'energy_leman';
+  return 'direct_sss';
+}
+function finEstMsb(a){ return finNature(a)==='sous_traitance_msb'; }
+/* Vraies factures Bexio adressées aux partenaires (My Solar Battery, Energy Léman, autre partenaire) — lecture seule.
+   Elles restent visibles (vue MSB / partenaires / Tous) mais ne se mélangent jamais aux acomptes des clients SSS. */
+async function finFacturesPartenaires(){
+  var out={nat:{},noms:{},factures:[],ok:false};
+  try{
+    var p=await db.from('sss_partenaires').select('nature,contact_id,bexio_contact_id');
+    if(p&&p.error) return out;
+    var ps=((p&&p.data)||[]).filter(function(x){ return x.nature && x.nature!=='client_direct'; });
+    ps.forEach(function(x){ if(x.bexio_contact_id!=null&&x.bexio_contact_id!=='') out.nat[String(x.bexio_contact_id)]=x.nature; });
+    var cids=ps.map(function(x){ return x.contact_id; }).filter(Boolean);
+    if(cids.length){ var bc=await db.from('bexio_contacts').select('id,contact_id').in('contact_id',cids);
+      ((bc&&bc.data)||[]).forEach(function(b){ var x=ps.filter(function(y){ return y.contact_id===b.contact_id; })[0]; if(x && out.nat[String(b.id)]==null) out.nat[String(b.id)]=x.nature; }); }
+    var ids=Object.keys(out.nat).map(Number).filter(function(n){ return !isNaN(n); }); if(!ids.length){ out.ok=true; return out; }
+    var bn=await db.from('bexio_contacts').select('id,nom,prenom').in('id',ids);
+    ((bn&&bn.data)||[]).forEach(function(b){ out.noms[String(b.id)]=((b.nom||'')+' '+(b.prenom||'')).trim(); });
+    var f=await db.from('bexio_documents').select('id,numero,titre,contact_bexio_id,statut,date,echeance,total_ttc,paye,reste').eq('genre','facture').in('contact_bexio_id',ids).order('date',{ascending:false});
+    if(f&&f.error) return out;
+    out.factures=((f&&f.data)||[]).map(function(d){ d.nature=out.nat[String(d.contact_bexio_id)]; return d; });
+    var fids=out.factures.filter(function(d){ return Number(d.paye)>0; }).map(function(d){ return d.id; }); var enc={};
+    for(var i=0;i<fids.length;i+=150){ var pp=await db.from('bexio_paiements').select('facture_id,date').in('facture_id',fids.slice(i,i+150));
+      ((pp&&pp.data)||[]).forEach(function(x){ var k=String(x.facture_id); if(x.date && (!enc[k]||x.date>enc[k])) enc[k]=x.date; }); }
+    out.factures.forEach(function(d){ d.encaisse_le=enc[String(d.id)]||null; });
+    out.ok=true;
+  }catch(e){}
+  return out;
+}
+function finTableFactures(list,titre,noms){
+  var J=function(d){ return d?(''+d).slice(8,10)+'.'+(''+d).slice(5,7)+'.'+(''+d).slice(0,4):'—'; };
+  var M=function(n){ return (Number(n)||0).toLocaleString('fr-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var auj=new Date().toISOString().slice(0,10);
+  var comptees=list.filter(function(d){ return d.statut!=='brouillon'&&d.statut!=='annulee'; });
+  var ouv=comptees.filter(function(d){ return Number(d.reste)>0.004; });
+  var ret=ouv.filter(function(d){ return d.echeance && (''+d.echeance)<auj; });
+  var S=function(arr,k){ return arr.reduce(function(s,d){ return s+(Number(d[k])||0); },0); };
+  var lib={payee:'Payée',ouverte:'Ouverte',partielle:'Partielle',brouillon:'Brouillon',annulee:'Annulée'};
+  var h="<div style='font-weight:800;margin:22px 0 6px;font-size:15px'>"+titre+"</div>";
+  h+="<div style='font-size:12.5px;color:var(--text-3);margin-bottom:10px;line-height:1.6'>"+comptees.length+" facture(s) · "+comptees.filter(function(d){ return Number(d.reste)<=0.004; }).length+" payée(s) · "+ouv.length+" ouverte(s) dont "+ouv.filter(function(d){ return Number(d.paye)>0; }).length+" partielle(s) · <b style='color:"+(ret.length?'#e5484d':'inherit')+"'>"+ret.length+" en retard</b><br>Facturé "+M(S(comptees,'total_ttc'))+" CHF · encaissé "+M(S(comptees,'paye'))+" CHF · <b>reste dû "+M(S(ouv,'reste'))+" CHF</b></div>";
+  if(!list.length) return h+"<div class='empty'>Aucune facture.</div>";
+  var th="padding:7px 8px;text-align:left;font-size:11.5px;color:var(--text-3);border-bottom:1px solid var(--line);white-space:nowrap";
+  var td="padding:7px 8px;font-size:12.5px;border-bottom:1px solid var(--line);vertical-align:top";
+  var tri=list.slice().sort(function(a,b){ var ra=Number(a.reste)>0.004?0:1, rb=Number(b.reste)>0.004?0:1; return ra-rb || (''+(b.date||'')).localeCompare(''+(a.date||'')); });
+  h+="<div style='overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;max-width:100%'><table style='border-collapse:collapse;width:100%;min-width:980px'><thead><tr>"+
+    ['Client facturé','Chantier / client final','N°','Date','Montant','Échéance','Payé','Reste dû','Statut','Retard','Encaissé le'].map(function(x){ return "<th style='"+th+"'>"+x+"</th>"; }).join('')+"</tr></thead><tbody>"+
+    tri.map(function(d){ var r=Number(d.reste)||0; var j=(r>0.004&&d.echeance&&(''+d.echeance)<auj)?Math.floor((new Date(auj)-new Date((''+d.echeance).slice(0,10)))/86400000):0;
+      var st=(r>0.004&&Number(d.paye)>0)?'Partielle':(lib[d.statut]||d.statut||'?');
+      return "<tr"+(j?" style='background:rgba(229,72,77,.07)'":"")+"><td style='"+td+"'>"+esc(noms[String(d.contact_bexio_id)]||'')+"</td><td style='"+td+"'>"+esc(d.titre||'')+"</td><td style='"+td+";white-space:nowrap'>"+esc(d.numero||'')+"</td><td style='"+td+";white-space:nowrap'>"+J(d.date)+"</td><td style='"+td+";text-align:right;white-space:nowrap'>"+M(d.total_ttc)+"</td><td style='"+td+";white-space:nowrap'>"+J(d.echeance)+"</td><td style='"+td+";text-align:right;white-space:nowrap'>"+M(d.paye)+"</td><td style='"+td+";text-align:right;white-space:nowrap;font-weight:"+(r>0.004?'800':'400')+"'>"+M(r)+"</td><td style='"+td+"'>"+esc(st)+"</td><td style='"+td+";white-space:nowrap;color:"+(j?'#e5484d':'var(--text-3)')+"'>"+(j?j+' j':(r>0.004?'pas échue':'—'))+"</td><td style='"+td+";white-space:nowrap'>"+J(d.encaisse_le)+"</td></tr>"; }).join('')+"</tbody></table></div>";
+  return h;
+}
+/* Tableau de bord financier : périmètre choisi. SSS direct (défaut) = MSB ne compte jamais ;
+   Tous = chiffre d'affaires réel de Swiss Solar System, MSB compris (factures Bexio). */
+var FIN_DASH_VUE='direct';
+var FIN_DASH_LIB={direct:'SSS direct',msb:'My Solar Battery (sous-traitance)',partenaires:'Energy Léman & partenaires',tous:'Tous (CA réel SSS, MSB compris)'};
+function finDashChips(){
+  var c=function(v,l){ var on=FIN_DASH_VUE===v; return "<button type='button' onclick=\"FIN_DASH_VUE='"+v+"';FIN.dash()\" style='cursor:pointer;border:1px solid "+(on?'var(--green)':'var(--line)')+";border-radius:999px;padding:7px 13px;min-height:36px;font-weight:700;font-size:12.5px;"+(on?'background:var(--green);color:#fff':'background:var(--card);color:var(--text-3)')+"'>"+l+"</button>"; };
+  return "<div style='display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px'>"+c('direct','SSS direct')+c('msb','MSB · sous-traitance')+c('partenaires','Energy Léman & partenaires')+c('tous','Tous')+"</div>";
+}
+var FIN_NATURES_VUE={msb:['sous_traitance_msb'],partenaires:['energy_leman','autre_partenaire'],tous:['direct_sss','sous_traitance_msb','energy_leman','autre_partenaire','a_verifier']};
+/* additionne les sommes Bexio (fin_summary.par_nature) des natures de la vue */
+function finSommeNatures(par,vue){
+  if(!par) return null; var ns=FIN_NATURES_VUE[vue]; if(!ns) return null;
+  var out={}; ['acPaid','solPaid','acOpen','solOpen','allPaid','allOpen'].forEach(function(k){ out[k]={s:0,n:0}; ns.forEach(function(n){ var x=par[n]&&par[n][k]; if(x){ out[k].s=Math.round((out[k].s+(Number(x.s)||0))*100)/100; out[k].n+=(Number(x.n)||0); } }); });
+  return out;
+}
+/* encaissements mensuels réels (paiements Bexio) pour la vue MSB / partenaires / Tous */
+async function finEncMoisBexio(m12,lab,vue){
+  var ns=FIN_NATURES_VUE[vue]||[]; var part=await finFacturesPartenaires(); if(!part.ok) return m12.map(function(mm){ return [lab[mm[1]],0]; });
+  var de=m12[0][0]+'-'+String(m12[0][1]+1).padStart(2,'0')+'-01';
+  var f=await db.from('bexio_documents').select('id,contact_bexio_id').eq('genre','facture'); var natF={};
+  ((f&&f.data)||[]).forEach(function(d){ natF[String(d.id)]=part.nat[String(d.contact_bexio_id)]||'direct_sss'; });
+  var p=await db.from('bexio_paiements').select('facture_id,date,montant').gte('date',de); var v={};
+  ((p&&p.data)||[]).forEach(function(x){ if(ns.indexOf(natF[String(x.facture_id)])<0) return; var k=(''+x.date).slice(0,7); v[k]=(v[k]||0)+(Number(x.montant)||0); });
+  return m12.map(function(mm){ return [lab[mm[1]],Math.round(v[mm[0]+'-'+String(mm[1]+1).padStart(2,'0')]||0)]; });
+}
+/* vue choisie dans Acompte / Solde : 'direct' (défaut), 'msb', 'partenaires', 'tous' */
+var FIN_VUE='direct';
+function finDansVue(a,vue){ var n=finNature(a); vue=vue||'direct';
+  if(vue==='tous') return true;
+  if(vue==='msb') return n==='sous_traitance_msb';
+  if(vue==='partenaires') return n==='energy_leman'||n==='autre_partenaire';
+  return n!=='sous_traitance_msb'&&n!=='energy_leman'&&n!=='autre_partenaire'; }
 function FIN_ITEMS(list){
   var out=[];
   (list||[]).forEach(function(a){
     var sv=a.suivi||{};
     if(a.admin_statut==='annule' || sv._annule || sv._to_delete) return;
+    /* compteur (pastille, accueil) = SSS direct uniquement : MSB et partenaires n'ajoutent jamais d'appel */
+    if(!finDansVue(a,'direct')) return;
     /* VT anticipée : la visite n'est facturée que si le client ne signe PAS.
        Dès qu'il signe, la VT est absorbée par la vente — plus de facture VT, et le dossier
        reprend le parcours normal acompte / solde. */
@@ -1421,7 +1521,7 @@ async function _bubbleNotifRun(){
   }
   let finPend=0; var cmdPend=0; var admDel=0;
   if(dir || (Array.isArray(ME.services)&&ME.services.indexOf('financier')>=0)){
-    const _fa=(((await db.from('affaires').select('id,etape,avant_app,admin_statut,suivi,acompte_sans,acompte_appel,fin_acompte_paye,fin_solde_paye,bexio_offer_id,contact:contact_id(nom,prenom)').eq('transfere_admin',true).then(function(r){return r;},function(){return {data:[]};})).data)||[]);
+    const _fa=(((await db.from('affaires').select('id,etape,avant_app,admin_statut,suivi,acompte_sans,acompte_appel,fin_acompte_paye,fin_solde_paye,bexio_offer_id,contact:contact_id(nom,prenom,email)').eq('transfere_admin',true).then(function(r){return r;},function(){return {data:[]};})).data)||[]);
     var _FIT=await FIN_ITEMS_LIVE(_fa);
     var acompteToCall=_FIT.filter(function(l){ return l.indexOf('Acompte')===0; }).length;
     finPend=_FIT.length;
@@ -2301,7 +2401,7 @@ function hubAfterRender(av){
     function setDot(k,n,items){ var card=document.getElementById('hubcard-'+k); if(!card)return; var b=card.querySelector('.hubdot'); if(n>0){ if(!b){ b=document.createElement('span'); b.className='hubdot'; b.style.cssText='position:absolute;top:12px;right:12px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e5484d;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:default'; card.appendChild(b);} b.textContent=n; var _it=(items&&items.length)?items:[n+' à traiter']; b.onmouseenter=function(){ hubTip(this,_it); }; b.onmouseleave=function(){ hubTipHide(); }; } else if(b){ b.remove(); } }
     setDot('commercial', (NAV_ALERTS.agenda||0)+(NAV_ALERTS.relances||0)+(NAV_ALERTS.retours||0), (NAV_ALERTS.retours>0?tip.commercial.concat([NAV_ALERTS.retours+' dossier(s) renvoyé(s) à corriger']):tip.commercial));
     setDot('rh', tip.rh.length, tip.rh);
-    try{ db.from('affaires').select('id,etape,avant_app,admin_statut,suivi,acompte_sans,fin_acompte_paye,fin_solde_paye,bexio_offer_id,contact:contact_id(nom,prenom)').eq('transfere_admin',true).then(async function(r){ var it=await FIN_ITEMS_LIVE(((r&&r.data)||[])); var _nrc=0; try{ var _rr=await db.from('remboursements_clients').select('id').neq('statut','rembourse'); _nrc=((_rr&&_rr.data)||[]).length; }catch(_e){} setDot('financier',it.length+_nrc, (_nrc?[_nrc+' remboursement(s) client à faire']:[]).concat(it)); },function(){}); }catch(e){}
+    try{ db.from('affaires').select('id,etape,avant_app,admin_statut,suivi,acompte_sans,fin_acompte_paye,fin_solde_paye,bexio_offer_id,contact:contact_id(nom,prenom,email)').eq('transfere_admin',true).then(async function(r){ var it=await FIN_ITEMS_LIVE(((r&&r.data)||[])); var _nrc=0; try{ var _rr=await db.from('remboursements_clients').select('id').neq('statut','rembourse'); _nrc=((_rr&&_rr.data)||[]).length; }catch(_e){} setDot('financier',it.length+_nrc, (_nrc?[_nrc+' remboursement(s) client à faire']:[]).concat(it)); },function(){}); }catch(e){}
     try{ db.from('affaires').select('id,avant_app,admin_statut,suivi').eq('transfere_admin',true).then(function(r){ var rows=((r&&r.data)||[]).filter(function(a){return !a.avant_app;}); var n=rows.filter(function(a){return a.admin_statut!=='accepte' && a.admin_statut!=='termine' && a.admin_statut!=='annule' && !(a.suivi&&(a.suivi._a_valider||a.suivi._to_delete||a.suivi._annule));}).length; var nd=rows.filter(function(a){return a.suivi&&a.suivi._to_delete&&a.suivi._cancel_valide&&!(a.suivi._deleted_confirmed_at);}).length; var nc=(window.CMD_PEND||0);
       db.from('signalements').select('id').eq('statut','nouveau').then(function(sg){ var ns=((sg&&sg.data)||[]).length; setDot('admin',n+nd+nc+ns, (ns?[ns+' problème(s) client signalé(s)']:[]).concat(nc?[nc+' commande(s) de matériel à valider']:[]).concat(nd?[nd+' dossier(s) à supprimer (vente annulée)']:[]).concat(n?[n+' dossier(s) reçu(s) à traiter']:[])); },function(){ setDot('admin',n+nd+nc, (nc?[nc+' commande(s) de matériel à valider']:[]).concat(nd?[nd+' dossier(s) à supprimer (vente annulée)']:[]).concat(n?[n+' dossier(s) reçu(s) à traiter']:[])); });
     },function(){}); }catch(e){}
@@ -5793,7 +5893,7 @@ try{ syncBexioRdv = sssSyncOff(); }catch(e){}
 try{ reconcileBexioContacts = sssSyncOff(); }catch(e){}
 try{ dedupSignesSweep = async function(){}; }catch(e){}
 /* même liste de libellés que l'original, sans appel Bexio et sans annulation automatique */
-try{ FIN_ITEMS_LIVE = async function(list){ return FIN_ITEMS(list).map(function(x){ return x.label; }); }; }catch(e){}
+try{ FIN_ITEMS_LIVE = async function(list){ try{ await finNatCharger(); }catch(_e){} return FIN_ITEMS(list).map(function(x){ return x.label; }); }; }catch(e){}
 
 /* SSS-SYNC-OFF-FIN */
 
@@ -15457,6 +15557,7 @@ async function renderFinance(){
     }
   }catch(_e){}
   var rows=(data||[]).filter(function(x){ return !x.avant_app; });
+  try{ await finNatCharger(true); }catch(_e){}
   /* Un appel Bexio qui traine ne doit jamais bloquer la page : au-dela du delai,
      on affiche sans cette info — elle reviendra au prochain chargement. */
   var _finTo=function(p,ms){ return Promise.race([p.catch(function(){return null;}), new Promise(function(res){ setTimeout(function(){ res(null); }, ms); })]); };
@@ -15493,10 +15594,12 @@ async function renderFinance(){
   /* FUSIBLE : 3 dossiers ou plus « plus confirmés » d'un coup = reponse Bexio suspecte,
      on n'annule rien et on garde l'affichage normal. */
   var _acteF=function(a){ return a.admin_statut==='accepte'||a.admin_statut==='termine'; };
-  var _nbadF=rows.filter(function(a){ if(_acteF(a)) return false; var o=(a.bexio_offer_id!=null)?OSTAT[String(a.bexio_offer_id)]:null; return !!(o&&o.ok&&[1,2].indexOf(Number(o.kb_item_status_id))>=0&&!a.fin_acompte_paye&&!a.fin_solde_paye&&!(a.suivi&&a.suivi._vt_anticipee)); }).length;
+  var _nbadF=rows.filter(function(a){ if(_acteF(a)||!finDansVue(a,'direct')) return false; var o=(a.bexio_offer_id!=null)?OSTAT[String(a.bexio_offer_id)]:null; return !!(o&&o.ok&&[1,2].indexOf(Number(o.kb_item_status_id))>=0&&!a.fin_acompte_paye&&!a.fin_solde_paye&&!(a.suivi&&a.suivi._vt_anticipee)); }).length;
   var _fusibleF=(_nbadF>=3);
   var _dtQ=[];
   rows.forEach(function(a){
+    /* MSB / partenaires : AUCUNE écriture automatique (ni annulation, ni case payé déduite d'une facture « la plus proche ») */
+    if(!finDansVue(a,'direct')){ a._horsDirect=true; return; }
     var _oo=(a.bexio_offer_id!=null)?OSTAT[String(a.bexio_offer_id)]:null; a._notConf=!!(!_fusibleF&&!_acteF(a)&&_oo&&_oo.ok&&[1,2].indexOf(Number(_oo.kb_item_status_id))>=0&&!a.fin_acompte_paye&&!a.fin_solde_paye&&!(a.suivi&&a.suivi._vt_anticipee));
     if(a._notConf && !(a.suivi&&a.suivi._annule)){ var _sca=Object.assign({},a.suivi||{}); _sca._annule=true; _sca._annule_at=new Date().toISOString(); _sca._annule_auto=true; _sca._to_delete=true; _sca._to_delete_at=new Date().toISOString(); _sca._to_delete_reason='Devis plus confirm\u00e9 sur Bexio (en suspens)'; a.suivi=_sca; try{ db.from('affaires').update({suivi:_sca}).eq('id',a.id).then(function(){},function(){}); }catch(_e){} }
     else if(_oo&&_oo.ok&&Number(_oo.kb_item_status_id)===3 && a.suivi&&a.suivi._annule_auto){ var _scb=Object.assign({},a.suivi||{}); delete _scb._annule; delete _scb._annule_at; delete _scb._annule_auto; delete _scb._to_delete; delete _scb._to_delete_at; delete _scb._to_delete_reason; a.suivi=_scb; try{ db.from('affaires').update({suivi:_scb}).eq('id',a.id).then(function(){},function(){}); }catch(_e){} }
@@ -15511,10 +15614,13 @@ async function renderFinance(){
   var acomptes=rows.filter(function(a){ var _vta=a.vt_anticipee!=null?a.vt_anticipee:!!(a.suivi&&a.suivi._vt_anticipee);
     /* VT anticipee mais client signe entre-temps : l'acompte est du normalement */
     if(_vta && (vtSigne(a) || (a.suivi&&a.suivi._vt_fact_annulee))) _vta=false;
+    /* jamais d'acompte MSB, dans aucune vue ; les autres selon la vue choisie (SSS direct par défaut) */
+    if(finEstMsb(a) || !finDansVue(a,FIN_VUE)) return false;
     return !a.fin_acompte_paye && !a.acompte_sans && !(a.suivi&&a.suivi._annule) && !_vta && a.admin_statut!=='annule' && !a._notConf; });
   acomptes.sort(function(a,b){ var ra=(a.acompte_appel==='attente')?2:1, rb=(b.acompte_appel==='attente')?2:1; return ra-rb; });
   acomptes.sort(function(a,b){ return ((a.suivi&&a.suivi.acompte_att)?1:0)-((b.suivi&&b.suivi.acompte_att)?1:0); });
-  var soldes=(data||[]).filter(function(a){ if(a.fin_solde_paye||!a.suivi||a.suivi._annule||a.suivi._a_valider||a.admin_statut==='annule'||a._notConf) return false; return !!(a.suivi._install_notif||a.suivi.install_done||a.suivi.install_fige); });
+  /* soldes à appeler : jamais MSB (facturé à My Solar Battery, suivi dans « Factures MSB ») ; les autres selon la vue */
+  var soldes=(data||[]).filter(function(a){ if(finEstMsb(a) || !finDansVue(a,FIN_VUE)) return false; if(a.fin_solde_paye||!a.suivi||a.suivi._annule||a.suivi._a_valider||a.admin_statut==='annule'||a._notConf) return false; return !!(a.suivi._install_notif||a.suivi.install_done||a.suivi.install_fige); });
   soldes.sort(function(a,b){ return ((a.suivi&&a.suivi.solde_att)?1:0)-((b.suivi&&b.suivi.solde_att)?1:0); });
   function telnum(t){ return (''+(t||'')).replace(/[^\d+]/g,''); }
   function jsstr(x){ return (''+(x||'')).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
@@ -15591,14 +15697,30 @@ async function renderFinance(){
     if(c.bexio_contact_id!=null && EN_RETARD[String(c.bexio_contact_id)]) return true;
     var n1=_cle((c.nom||'')+(c.prenom||'')), n2=_cle((c.prenom||'')+(c.nom||''));
     return !!(n1 && (RET_NOMS[n1]||RET_NOMS[n2])); };
+  /* Factures adressées aux partenaires (My Solar Battery, Energy Léman, autre partenaire) : vraies factures, visibles
+     dans leur vue, mais JAMAIS mélangées aux retards / acomptes des clients SSS direct. */
+  var PART=await finFacturesPartenaires();
+  var _estPartRet=function(i){ return (i.contact_id!=null && !!PART.nat[String(i.contact_id)]) || /my\s*solar\s*battery|energy\s*l[ée]man|dave\s*elec/i.test(''+(i.name||'')); };
+  RETARDS=(FIN_VUE==='direct'||FIN_VUE==='tous')?RETARDS.filter(function(i){ return !_estPartRet(i); }):[];
+  var _fMsb=PART.factures.filter(function(d){ return d.nature==='sous_traitance_msb'; });
+  var _fPart=PART.factures.filter(function(d){ return d.nature==='energy_leman'||d.nature==='autre_partenaire'; });
+  var _ouvertes=function(l){ return l.filter(function(d){ return d.statut!=='brouillon'&&d.statut!=='annulee'&&Number(d.reste)>0.004; }); };
+  var _chip=function(v,l){ var on=FIN_VUE===v; return "<button type='button' onclick=\"FIN_VUE='"+v+"';renderFinance()\" style='cursor:pointer;border:1px solid "+(on?'var(--green)':'var(--line)')+";border-radius:999px;padding:7px 13px;min-height:36px;font-weight:700;font-size:12.5px;"+(on?'background:var(--green);color:#fff':'background:var(--card);color:var(--text-3)')+"'>"+l+"</button>"; };
+  var chips="<div style='display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px'>"+_chip('direct','SSS direct')+_chip('msb','MSB · sous-traitance')+_chip('partenaires','Energy Léman & partenaires')+_chip('tous','Tous')+"</div>";
+  if(FIN_VUE==='msb'){
+    L.className='';
+    L.innerHTML=chips+"<div style='background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 15px;font-size:12.5px;line-height:1.6'><b>My Solar Battery = historique de sous-traitance.</b> Ces factures sont adressées à My Solar Battery : <b>aucun acompte</b>, aucun appel client, et elles ne comptent jamais dans les chiffres SSS direct. Rien n'est supprimé.</div>"+
+      (PART.ok?finTableFactures(_fMsb,'🧾 Factures My Solar Battery (Bexio)',PART.noms):"<div class='empty' style='margin-top:14px'>Factures partenaires réservées au super administrateur.</div>");
+    return;
+  }
   var acToCall=acomptes.filter(function(a){return !(a.suivi&&a.suivi.acompte_att);});
   var acWait=acomptes.filter(function(a){return a.suivi&&a.suivi.acompte_att && !estEnRetard(a);});
   var solToCall=soldes.filter(function(a){return !(a.suivi&&a.suivi.solde_att);});
   var solWait=soldes.filter(function(a){return a.suivi&&a.suivi.solde_att && !estEnRetard(a);});
   var nCall=acToCall.length+solToCall.length;
-  var html="<div style='background:linear-gradient(135deg,rgba(229,72,77,.14),transparent 70%);border:1px solid #5a2a27;border-radius:14px;padding:14px 16px;margin-bottom:16px'><div style='font-weight:800;font-size:16px;color:#ff8a83'>\ud83d\udd34 \u00c0 APPELER \u2014 "+nCall+" paiement(s) \u00e0 lancer</div></div>";
+  var html=chips+"<div style='background:linear-gradient(135deg,rgba(229,72,77,.14),transparent 70%);border:1px solid #5a2a27;border-radius:14px;padding:14px 16px;margin-bottom:16px'><div style='font-weight:800;font-size:16px;color:#ff8a83'>\ud83d\udd34 \u00c0 APPELER \u2014 "+nCall+" paiement(s) \u00e0 lancer</div>"+(FIN_VUE==='direct'?"<div style='font-size:12px;color:var(--text-3);margin-top:3px'>Clients SSS direct uniquement \u2014 My Solar Battery et partenaires sont dans leurs vues.</div>":"")+"</div>";
   // \ud83d\udcd0 Factures VT \u2014 visites techniques faites AVANT signature, client n'a pas sign\u00e9 : \u00e0 facturer, ne pas oublier
-  var vtFactList=rows.filter(function(a){ var sv=a.suivi||{}; return sv._vt_anticipee && sv.vt_done && !sv._vt_fact_ok && !sv._vt_fact_annulee && !vtSigne(a) && !sv._annule && a.admin_statut!=='annule'; });
+  var vtFactList=rows.filter(function(a){ var sv=a.suivi||{}; if(finEstMsb(a)||!finDansVue(a,FIN_VUE)) return false; return sv._vt_anticipee && sv.vt_done && !sv._vt_fact_ok && !sv._vt_fact_annulee && !vtSigne(a) && !sv._annule && a.admin_statut!=='annule'; });
   if(vtFactList.length){
     html+="<div style='font-weight:800;margin:4px 0 10px;font-size:15px;color:#c084fc'>\ud83d\udcd0 Factures VT \u00e0 \u00e9tablir ("+vtFactList.length+") <span style='font-weight:400;font-size:12px;color:var(--text-3)'>\u2014 VT faite mais client non sign\u00e9 : facturer la visite</span></div>";
     html+="<div class='cards'>"+vtFactList.map(function(a){ var c=a.contact||{}; var nm=((c.nom||'?')+' '+(c.prenom||'')).trim(); var ph=c.telephone||'';
@@ -15612,9 +15734,14 @@ async function renderFinance(){
   html+="<div style='font-weight:800;margin:26px 0 10px;font-size:14px;color:var(--text-3)'>\u23f3 En attente de paiement ("+waitAll.length+") <span style='font-weight:400;font-size:12px'>\u2014 facture envoy\u00e9e, on attend le r\u00e8glement</span></div>";
   html+= waitAll.length ? "<div class='cards'>"+waitAll.map(function(x){return waitCard(x.a,x.k);}).join('')+"</div>" : "<div class='empty'>Rien en attente de paiement.</div>";
   html+="<div id='fin-overdue'></div>";
+  /* factures partenaires : séparées, jamais additionnées aux clients SSS direct */
+  if(FIN_VUE==='direct'){ var _om=_ouvertes(_fMsb), _op=_ouvertes(_fPart);
+    if(_om.length||_op.length) html+="<div style='margin:18px 0 0;font-size:12px;color:var(--text-3)'>Hors SSS direct (non compté ici) : "+(_om.length?"<a href='javascript:void(0)' onclick=\"FIN_VUE='msb';renderFinance()\" style='color:var(--green)'>"+_om.length+" facture(s) My Solar Battery ouverte(s)</a>":"")+(_om.length&&_op.length?" · ":"")+(_op.length?"<a href='javascript:void(0)' onclick=\"FIN_VUE='partenaires';renderFinance()\" style='color:var(--green)'>"+_op.length+" facture(s) partenaires ouverte(s)</a>":"")+"</div>"; }
+  if(PART.ok && (FIN_VUE==='partenaires'||FIN_VUE==='tous')) html+=finTableFactures(_fPart,'🧾 Factures Energy Léman & partenaires (Bexio)',PART.noms);
+  if(PART.ok && FIN_VUE==='tous') html+=finTableFactures(_fMsb,'🧾 Factures My Solar Battery (Bexio) — sous-traitance, jamais d’acompte',PART.noms);
   var notConfList=rows.filter(function(a){return a._notConf && !(a.suivi&&a.suivi._annule);});
   if(notConfList.length){ html+="<div style='font-weight:800;margin:26px 0 10px;font-size:15px;color:#ff8a83'>\ud83d\udeab Plus confirm\u00e9es sur Bexio ("+notConfList.length+") <span style='font-weight:400;font-size:12px;color:var(--text-3)'>\u2014 retir\u00e9es automatiquement des appels</span></div><div class='cards'>"+notConfList.map(function(a){return miniCard(a,'auto');}).join('')+"</div>"; }
-  var annulList=rows.filter(function(a){return a.suivi&&a.suivi._annule && a.admin_statut!=='annule';});
+  var annulList=rows.filter(function(a){ if(!finDansVue(a,FIN_VUE)) return false; return a.suivi&&a.suivi._annule && a.admin_statut!=='annule';});
   if(annulList.length){ html+="<div style='margin:34px 0 10px;border-top:1px dashed var(--line);padding-top:16px'><div style='font-weight:800;font-size:15px;color:var(--text-3);letter-spacing:.04em'>\ud83d\udeab VENTES ANNUL\u00c9ES ("+annulList.length+")</div><div style='font-size:12px;color:var(--text-3);margin-top:2px'>Ces dossiers ne comptent plus \u2014 ni appel, ni CA.</div></div><div class='cards'>"+annulList.map(function(a){return miniCard(a,'manual');}).join('')+"</div>"; }
   L.innerHTML=html;
   try{ (function(r){ var box=document.getElementById('fin-overdue'); if(!box) return; var inv=(r&&r.data&&r.data.invoices)||[]; if(!inv.length){ box.innerHTML=''; return; } function jd(d){ try{ return Math.max(0,Math.floor((Date.now()-new Date(d).getTime())/86400000)); }catch(_e){ return 0; } } box.innerHTML="<div style='font-weight:800;margin:22px 0 10px;font-size:15px'>🔴 Factures en retard — à relancer ("+inv.length+")</div><div class='cards'>"+inv.map(function(i){ var nm=esc(i.name||''); var mt=i.total?Math.round(i.total).toLocaleString('fr-CH')+' CHF':''; var ph=(''+(i.tel||'')); var em=(''+(i.mail||'')).replace(/'/g,''); var a=''; a+= ph ? ("<a href='tel:"+ph.replace(/[^\d+]/g,'')+"' class='relbtn' style='text-decoration:none'>📞 Appeler "+esc(ph)+"</a>") : ("<button class='relbtn' onclick=\"alert('Aucun numéro pour ce client dans Bexio.')\">📞 Pas de numéro</button>"); a+="<button class='relbtn' onclick=\"gmailCompose('"+em+"','Relance facture "+esc(i.nr||'')+"','Bonjour,',COMPTA_MAIL)\">✉️ Relancer</button>"; return "<div class='ccard' style='background:rgba(229,72,77,.10);border-color:#5a2a27'><div class='top'><b>"+nm+"</b><span style='color:#e5484d;font-size:12px;font-weight:700'>"+((i.jours!=null)?i.jours:jd(i.due))+" j de retard</span></div><div style='font-size:12.5px;color:var(--text-3);margin:4px 0 8px'>Facture "+esc(i.nr||'')+(mt?' · '+mt:'')+" · échéance "+esc((''+(i.due||'')).slice(0,10))+"</div><div style='display:flex;flex-wrap:wrap;gap:8px'>"+a+"</div></div>"; }).join('')+"</div>"; })({data:{invoices:RETARDS}}); }catch(_e){}
@@ -15675,7 +15802,7 @@ async function dash(){ load(); try{ await new Promise(function(_res){ finPullDB(
  var R=perRange(), A=R[0], B=R[1], plabel=R[2];
  var p=S._period||{mode:'month'};
  var pbtn=function(m,l){ return "<button onclick=\"FIN.setPer('"+m+"')\" style='cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-weight:600;font-size:12.5px;"+(p.mode===m?'background:var(--green);color:#fff;border-color:var(--green)':'background:var(--card);color:var(--text-3)')+"'>"+l+"</button>"; };
- var head="<div class='page-head'><h2>Tableau de bord financier</h2></div>";
+ var head="<div class='page-head'><h2>Tableau de bord financier</h2></div>"+finDashChips();
  var sel="<div style='"+CARD+";margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center'>"+
    "<span style='font-size:12px;color:var(--text-3);margin-right:2px'>Période :</span>"+
    pbtn('week','Semaine')+pbtn('month','Mois')+pbtn('year','Année')+pbtn('custom','Perso')+
@@ -15691,13 +15818,20 @@ async function dash(){ load(); try{ await new Promise(function(_res){ finPullDB(
  var rv=await safe(db.from('rendez_vous').select('debouche,signe_at,date_rdv,source,affaire:affaire_id(montant_ttc,montant_ht)').eq('type','rdv_commercial'));
  if(!rv.length) rv=await safe(db.from('rendez_vous').select('debouche,signe_at,date_rdv,source,affaire:affaire_id(montant_ttc,montant_ht)'));
  // ⚡ allégé : on ne charge que les 3 clés de « suivi » utilisées (le jsonb complet multipliait le temps par 10)
- var aff=await safe(db.from('affaires').select('id,montant_ttc,acompte_pct,acompte_sans,fin_acompte_paye,fin_acompte_paye_at,fin_solde_paye,fin_solde_paye_at,transfere_admin,avant_app,_an:suivi->_annule,_av:suivi->_a_valider,_in:suivi->>installe'));
- aff.forEach(function(a){ a.suivi={_annule:a._an,_a_valider:a._av,installe:a._in}; });
- var bx=null; try{ var _bx=await db.functions.invoke('bexio',{body:{action:'fin_summary',from:A,to:B}}); if(_bx&&_bx.data&&_bx.data.ok) bx=_bx.data.sums; }catch(e){}
+ var aff=await safe(db.from('affaires').select('id,montant_ttc,acompte_pct,acompte_sans,fin_acompte_paye,fin_acompte_paye_at,fin_solde_paye,fin_solde_paye_at,transfere_admin,avant_app,_an:suivi->_annule,_av:suivi->_a_valider,_in:suivi->>installe,_src:suivi->>_source,contact:contact_id(nom,email)'));
+ aff.forEach(function(a){ a.suivi={_annule:a._an,_a_valider:a._av,installe:a._in,_source:a._src}; });
+ /* chiffres SSS direct : les projets My Solar Battery / partenaires ne comptent jamais (ni encaissé, ni en suspens, ni courbe mensuelle) */
+ try{ await finNatCharger(); }catch(_e){} aff=aff.filter(function(a){ return finDansVue(a,'direct'); });
+ var bx=null, bxPar=null; try{ var _bx=await db.functions.invoke('bexio',{body:{action:'fin_summary',from:A,to:B}}); if(_bx&&_bx.data&&_bx.data.ok){ bx=_bx.data.sums; bxPar=_bx.data.par_nature||null; } }catch(e){}
+ /* périmètre MSB / partenaires / Tous : uniquement les vraies factures Bexio (jamais d'estimation d'acompte depuis les projets) */
+ var _vueD=FIN_DASH_VUE||'direct';
+ if(_vueD!=='direct'){ bx=finSommeNatures(bxPar,_vueD);
+   if(!bx){ var _bd=document.getElementById('fin-dash-body'); if(_bd){ _bd.className=''; _bd.innerHTML="<div class='empty'>Bexio momentanément indisponible : les chiffres My Solar Battery / partenaires / Tous viennent uniquement des factures Bexio. Réessaie dans un instant.</div>"; } return; } }
 
  var caVal=(typeof perfCAval==='function')?perfCAval:function(r){return Number(r.affaire&&(r.affaire.montant_ht||r.affaire.montant_ttc))||0;};
  var sd=function(r){ return r.signe_at?(''+r.signe_at).slice(0,10):(r.date_rdv||''); };
  var salesP=rv.filter(function(r){ return r.debouche==='Signé' && inR(sd(r),A,B); });
+ if(_vueD==='msb'||_vueD==='partenaires') salesP=[];   /* ventes signées = clients SSS ; les partenaires n'en ont pas */
  var caCom=salesP.reduce(function(s,r){return s+caVal(r);},0), nVentes=salesP.length;
 
  function amt(a){ var t=Number(a.montant_ttc)||0; var pct=a.acompte_sans?0:(a.acompte_pct!=null?a.acompte_pct:50); return {ac:t*pct/100, sol:t*(100-pct)/100}; }
@@ -15725,6 +15859,8 @@ async function dash(){ load(); try{ await new Promise(function(_res){ finPullDB(
  var _sameM=function(dt,yy,mo){ var ds=(''+(dt||'')).slice(0,10); return ds.slice(0,4)==String(yy)&&Number(ds.slice(5,7))===mo+1; };
  var caMois=_m12.map(function(mm){ var v=rv.filter(function(r){ return r.debouche==='Signé' && _sameM(sd(r),mm[0],mm[1]); }).reduce(function(s,r){return s+caVal(r);},0); return [_lab[mm[1]],v]; });
  var encMois=_m12.map(function(mm){ var v=0; aff.forEach(function(a){ if(a.avant_app) return; var m=amt(a); if(a.fin_acompte_paye&&_sameM(a.fin_acompte_paye_at,mm[0],mm[1])) v+=m.ac; if(a.fin_solde_paye&&_sameM(a.fin_solde_paye_at,mm[0],mm[1])) v+=m.sol; }); return [_lab[mm[1]],v]; });
+ if(_vueD!=='direct'){ try{ encMois=await finEncMoisBexio(_m12,_lab,_vueD); }catch(_e){} }
+ if(_vueD==='msb'||_vueD==='partenaires') caMois=caMois.map(function(x){ return [x[0],0]; });
 
  var kbig=function(val,lbl,col,sub){ return "<div style='"+CARD+"'><div style='font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)'>"+lbl+"</div><div style='font-size:30px;font-weight:800;color:"+(col||'var(--text)')+";line-height:1.1;margin-top:4px'>"+val+"</div>"+(sub?"<div style='color:var(--text-3);font-size:12px;margin-top:4px'>"+sub+"</div>":"")+"</div>"; };
  var b="";
@@ -15732,7 +15868,7 @@ async function dash(){ load(); try{ await new Promise(function(_res){ finPullDB(
    kbig(chf(caCom),'CA commercial — signé','var(--blue)',nVentes+' vente(s) '+plabel)+
    kbig(chf(caFacture),'CA facturé — '+(bx?'live Bexio':'estimé'),'var(--green)','toutes factures émises '+plabel)+
    kbig(chf(caReel),'CA encaissé','#2fa98a','réellement rentré '+plabel)+"</div>";
- b+="<div style='font-weight:700;margin:6px 0 8px;font-size:13.5px'>Encaissements dissociés — "+plabel+"</div>";
+ b+="<div style='font-weight:700;margin:6px 0 8px;font-size:13.5px'>Encaissements dissociés — "+plabel+" · <span style='color:var(--green)'>"+esc(FIN_DASH_LIB[_vueD])+"</span></div>";
  b+="<div style='"+grid(4)+";margin-bottom:6px'>"+
    kpi(chf(acRecu),'💶 Acomptes reçus','var(--green)').replace('</div></div>',"</div><div style='color:var(--text-3);font-size:11px'>"+nAc+" facture(s)</div></div>")+
    kpi(chf(solRecu),'🏁 Soldes reçus','var(--green)').replace('</div></div>',"</div><div style='color:var(--text-3);font-size:11px'>"+nSol+" facture(s)</div></div>")+
@@ -15749,7 +15885,7 @@ async function dash(){ load(); try{ await new Promise(function(_res){ finPullDB(
  }
  b+="<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:14px'>"+
    "<div style='"+CARD+"'><div style='font-weight:700;margin-bottom:8px'>CA commercial — 12 mois</div>"+svgBars(caMois,perfK,'#5b8def',240)+"</div>"+
-   "<div style='"+CARD+"'><div style='font-weight:700;margin-bottom:8px'>Encaissements — 12 mois</div>"+svgBars(encMois,perfK,'var(--green)',240)+"<div style='color:var(--text-3);font-size:11px;margin-top:4px'>Selon acomptes/soldes marqués payés.</div></div>"+
+   "<div style='"+CARD+"'><div style='font-weight:700;margin-bottom:8px'>Encaissements — 12 mois</div>"+svgBars(encMois,perfK,'var(--green)',240)+"<div style='color:var(--text-3);font-size:11px;margin-top:4px'>"+(_vueD==='direct'?"Selon acomptes/soldes marqués payés — clients SSS direct uniquement.":"Selon paiements reçus sur Bexio — "+esc(FIN_DASH_LIB[_vueD])+".")+"</div></div>"+
    "</div>";
  b+="<div style='"+CARD+";margin-bottom:12px'><div style='font-weight:700;margin-bottom:8px'>Coût d'acquisition — call center (saisie manuelle)</div>"+
    "<div style='"+grid(4)+"'>"+
@@ -16021,7 +16157,7 @@ function tClients(){ setTimeout(function(){ try{ tClientsLoad(); }catch(e){} },1
 async function tClientsLoad(){
  var el=document.getElementById('fin-chantiers'); if(!el) return;
  var data=[];
- try{ var r=await db.from('affaires').select('id,type,montant_ttc,montant_ht,acompte_pct,acompte_sans,suivi,fin_acompte_paye,fin_solde_paye,avant_app,transfere_admin_at,admin_statut,contact:contact_id(nom,prenom)').eq('transfere_admin',true).order('montant_ttc',{ascending:false}); data=(r.data||[]).filter(function(a){return a.admin_statut!=='annule' && !(a.suivi&&(a.suivi._annule||a.suivi._a_valider)) && ((typeof SSSH!=='undefined'&&SSSH.natures&&SSSH.natures[a.id]!==undefined)?SSSH.natures[a.id]==='direct_sss':!(a.suivi&&a.suivi._fin_b2b));}); }catch(e){ el.innerHTML="<div class='empty'>Impossible de charger les chantiers.</div>"; return; }
+ try{ var r=await db.from('affaires').select('id,type,montant_ttc,montant_ht,acompte_pct,acompte_sans,suivi,fin_acompte_paye,fin_solde_paye,avant_app,transfere_admin_at,admin_statut,contact:contact_id(nom,prenom,email)').eq('transfere_admin',true).order('montant_ttc',{ascending:false}); try{ await finNatCharger(); }catch(_e){} data=(r.data||[]).filter(function(a){return a.admin_statut!=='annule' && !(a.suivi&&(a.suivi._annule||a.suivi._a_valider)) && ((FIN_NAT&&FIN_NAT[a.id]!==undefined)?FIN_NAT[a.id]==='direct_sss':(finDansVue(a,'direct')&&!(a.suivi&&a.suivi._fin_b2b)));}); }catch(e){ el.innerHTML="<div class='empty'>Impossible de charger les chantiers.</div>"; return; }
  function caht(a){ return (a.montant_ht!=null&&a.montant_ht!=='')?(+a.montant_ht||0):((+a.montant_ttc||0)/1.081); }
  function statut(a){ var sv=a.suivi||{}; if(a.fin_solde_paye) return 'solde'; if(sv.installe||sv.install_done||sv._install_notif) return 'pose'; return 'apose'; }
  var rows=data.map(function(a){ var ht=caht(a); var ttc=+a.montant_ttc||0; var pct=a.acompte_sans?0:(a.acompte_pct!=null?a.acompte_pct:50); var ac=ttc*pct/100; var pv=(a.type==='pv'); var mat=Math.round(ht*(pv?0.40:0.18)); var nm=((a.contact&&((a.contact.nom||'')+' '+(a.contact.prenom||'')))||'').trim()||'\u2014'; return {id:a.id, cli:nm, ht:Math.round(ht), ac:Math.round(ac), mat:mat, st:statut(a), pv:pv, sol:Math.round(ttc-ac)}; });
