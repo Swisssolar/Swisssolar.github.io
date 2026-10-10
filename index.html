@@ -2443,6 +2443,8 @@ function renderNav(){
     ['mes_fiches','Mes fiches de salaire','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',['technicien','supply_chain','soustraitant','backoffice','commercial','admin']],
     ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
+    ['fin_clients','Facturation clients','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',['superadmin']],
+    ['fin_fourn','Factures fournisseurs / À payer','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',['superadmin']],
     ['marges','Coûts & Marges SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/></svg>',['superadmin']],
     ['prix_sss','Prix d’achat SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',['superadmin']],
     ['sc_chantiers','Chantiers à approvisionner','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>',['superadmin','direction','supply_chain']],
@@ -2546,7 +2548,7 @@ function renderNav(){
   let GROUPS_TECH= techExterne()
     ? [ {id:'gtech',title:'Mes chantiers',keys:['tech_today','tech_pv','tech_bat','tech_sav','repasser','tech_termines']}, {id:'gtbo',title:'Mon back-office',keys:['commandes','st_remb']} ]
     : [ {id:'gtech',title:'Technique',keys:['techdash','tech_today','tech_search','tech_pv','tech_bat','tech_sav','repasser','tech_termines','tech_materiel']}, {id:'gtstk',title:'Stock & fournitures',keys:['stock','commandes']}, {id:'gtequipe',title:'Équipe terrain',keys:['mon_planning','mes_chantiers','tech_quittances','tech_conges','mes_demandes','signalements_t','vehicule','pointage']} ].concat( ME.role==='technicien' ? [] : [{id:'gtst',title:'Sous-traitants',keys:['stmissions','st_remb']}] ); if(ME.role==='technicien' && !techExterne()) GROUPS_TECH=SSS_MENU_TECH.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(ME.role==='supply_chain' && typeof SSS_MENU_SUPPLY!=='undefined') GROUPS_TECH=SSS_MENU_SUPPLY.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(['superadmin','direction'].indexOf(ME.role)>=0) GROUPS_TECH.forEach(function(g){ if(g.id==='gtstk'){ ['sc_chantiers','sc_achats'].forEach(function(k){ if(g.keys.indexOf(k)<0) g.keys.push(k); }); } });
-  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','marges','prix_sss','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
+  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','fin_clients','fin_fourn','marges','prix_sss','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
   const GROUPS_BACK=[ {id:'gback',title:'Mes tâches',keys:['botaches']} ];
   const avail=servicesAvail();
   if(avail.indexOf(SERVICE)<0) SERVICE=avail[0];
@@ -5790,8 +5792,12 @@ async function sssPointDuJour(){
   var auj=new Date().toISOString().slice(0,10);
   var R=await Promise.all([sssRpc('sss_ia_point_du_jour'), sssRpc('sss_sante'), sssRpc('sss_marges_projets'), sssRpc('sss_usage_resume',{p_jours:7}),
     db.from('pointages').select('user_id,debut,fin').eq('jour',auj).is('annule_at',null).then(function(r){ return r.data||[]; },function(){ return []; }),
-    db.from('conges').select('commercial_id,du,au,statut').lte('du',auj).gte('au',auj).then(function(r){ return r.data||[]; },function(){ return []; })]);
-  var p=R[0]||{}, s=R[1]||{}, mg=R[2]||{}, u=R[3]||{}, poi=R[4], cg=R[5];
+    db.from('conges').select('commercial_id,du,au,statut').lte('du',auj).gte('au',auj).then(function(r){ return r.data||[]; },function(){ return []; }),
+    sssRpc('sss_fournisseurs_liste',{p_filtre:'a_payer',p_q:null,p_groupe:'tous'}), sssRpc('sss_facturation_clients',{p_vue:'direct'})]);
+  var p=R[0]||{}, s=R[1]||{}, mg=R[2]||{}, u=R[3]||{}, poi=R[4], cg=R[5], fourn=R[6]||{}, fcl=R[7]||{};
+  // « À payer » (argent qui sort, 0041) et « À encaisser » (argent qui entre, 0042) : deux blocs distincts, jamais additionnés
+  var fT=(fourn.totaux||{}).CHF||{}; var aPayerAuj=Number(fT.aujourdhui||0), aPayerRetard=Number(fT.retard||0), aPayer7=Number(fT.j7||0);
+  var fcT=fcl.totaux||{};
   var hote=document.getElementById('sss-pdj'); if(!hote) return;
   var cl=p.clients||{}, fo=p.fournisseurs||{}, sync=(s.etat_global||'ok'), E=SSS_ETAT_COUL[sync]||SSS_ETAT_COUL.ok;
   var aPayer=fo.total_ouvert; var aPayerTxt=(aPayer&&typeof aPayer==='object')?Object.keys(aPayer).map(function(d){ return d+' '+Number(aPayer[d]||0).toLocaleString('fr-CH',{maximumFractionDigits:0}); }).join(' + '):sssChf(aPayer);
@@ -5803,8 +5809,8 @@ async function sssPointDuJour(){
   var h="<div style='display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px'><div style='font-weight:800;font-size:16px'>Point du jour</div>"
     +"<button class='relbtn' onclick=\"go('sante')\" title='Santé du système'>"+E[0]+" Système : "+E[2]+"</button></div>";
   h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:10px'>"
-    +sssCarte('À encaisser (direct SSS)',sssChf(cl.total_a_encaisser||0),(retard?retard+' facture(s) en retard':'aucune en retard'),retard?'#e5484d':null,'controle')
-    +sssCarte('Factures fournisseurs ouvertes',aPayerTxt||'—','⚠️ peut inclure des factures déjà payées par versements','#e0a52b','controle')
+    +sssCarte('💶 À encaisser (clients SSS direct)',sssChf(fcT.reste_a_encaisser!=null?fcT.reste_a_encaisser:(cl.total_a_encaisser||0)),(fcT.n_en_retard?fcT.n_en_retard+' facture(s) en retard':(retard?retard+' facture(s) en retard':'aucune en retard'))+(fcT.reste_a_facturer?' · '+sssChf(fcT.reste_a_facturer)+' reste à facturer':''),(fcT.n_en_retard||retard)?'#e5484d':null,'fin_clients')
+    +sssCarte('🧾 À payer (fournisseurs)',(fourn.totaux?sssChf(aPayerAuj):(aPayerTxt||'—')),(fourn.totaux?(aPayerRetard?sssChf(aPayerRetard)+' en retard':'rien en retard')+' · '+sssChf(aPayer7)+' sous 7 j':'⚠️ ancien calcul'),aPayerRetard?'#e5484d':'#e0a52b','fin_fourn')
     +sssCarte('Acomptes / factures à envoyer',String(brouillons),'brouillons Bexio non envoyés',brouillons?'#3b82f6':null,'controle')
     +sssCarte('Clients à relancer',String(relances+attend),(attend?attend+' attendent NOTRE réponse':'offres sans réponse depuis 10 j'),(relances+attend)?'#e0a52b':null,'relances')
     +sssCarte('Chantiers à planifier',String(aPlanifier),'vendus sans date de pose',aPlanifier?'#3b82f6':null,'planning')
@@ -6900,6 +6906,363 @@ async function sssDocsTerrainCarte(affaireId){ var el=document.getElementById('s
       :"<div style='font-size:13.5px;color:var(--text-3)'>Aucun document pour ce chantier.</div>")+"</div>"; }
 
 /* SSS-DOCS-CHANTIER-FIN */
+
+/* SSS-FOURNISSEURS-DEBUT */
+/* ==========================================================================
+   SSS OS — « Factures fournisseurs / À payer » (0041) : l'argent qui doit SORTIR, strictement séparé de la facturation clients.
+   • toutes les factures que l'entreprise doit payer, quelle que soit leur origine : e-mail (lecture automatique existante),
+     📸 photo de courrier / capture / PDF (lecture par l'IA puis écran de confirmation), import ;
+   • statuts simples, niveaux de preuve (banque forte / à vérifier / décision de la direction), paiements partiels, catégories,
+     chantier(s) lié(s), doublons rattachés (jamais trois dettes), rappels par palier, export comptable (ZIP + CSV) ;
+   • direction (super administrateur, double authentification) seulement — la base refuse tout autre compte ;
+   • AUCUN paiement n'est exécuté, rien n'est écrit dans Bexio ni dans la banque : SSS OS dit quoi payer, quand, combien, pourquoi.
+   ========================================================================== */
+var SSSFO={filtre:'a_payer',groupe:'tous',q:'',data:null,sel:null,photo:null,aff:null};
+var SSSFO_ETAT={a_payer:['À payer','#3b82f6','💳'],echeance_proche:['Échéance proche','#e0a52b','⏰'],echue:['Échue','#e5484d','🔴'],partielle:['Partiellement payée','#e0a52b','◐'],
+  payee:['Payée','#22a06b','✓'],contestee:['Contestée','#c084fc','⚠️'],annulee:['Annulée','#8a8f98','✕'],doublon_potentiel:['Doublon potentiel','#e0a52b','⚠️'],
+  a_verifier:['À vérifier','#e0a52b','❓'],paiement_a_confirmer:['Paiement à confirmer','#e0a52b','❓'],recue:['Reçue — à confirmer','#3b82f6','📥'],ignoree:['Ignorée','#8a8f98','·']};
+var SSSFO_PREUVE={banque_fort:['Rapproché automatiquement — confiance forte','#22a06b'],a_verifier:['Rapprochement automatique — à vérifier','#e0a52b'],manuel:['Rapproché / confirmé par la direction','#3b82f6']};
+var SSSFO_MOYENS=[['banque','Virement bancaire'],['carte','Carte'],['cash','Espèces'],['compensation','Compensation / avoir'],['autre','Autre']];
+function sssFoJs(s){ return (''+(s==null?'':s)).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function sssFoM(n,dev){ if(n==null||n==='') return '—'; return (Number(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(dev||'CHF'); }
+function sssFoD(d){ if(!d) return '—'; var s=(''+d).slice(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(s)?s.slice(8,10)+'.'+s.slice(5,7)+'.'+s.slice(0,4):(''+d); }
+function sssFoPast(t,c,titre){ return "<span title=\""+esc(titre||'')+"\" style='display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:"+c+"22;color:"+c+";white-space:nowrap'>"+t+"</span>"; }
+function sssFoCat(k){ var c=((SSSFO.data&&SSSFO.data.categories)||[]).filter(function(x){ return x[0]===k; })[0]; return c?c[1]:(k||'—'); }
+function sssFoMobile(){ return window.innerWidth<760; }
+function sssFoJours(f){ if(f.jours==null) return "<span style='color:var(--text-3)'>sans échéance</span>"; var j=Number(f.jours); if(j<0) return "<b style='color:#e5484d'>"+(-j)+" j de retard</b>"; if(j===0) return "<b style='color:#e0a52b'>aujourd'hui</b>"; return "<span style='color:"+(j<=7?'#e0a52b':'var(--text-3)')+"'>dans "+j+" j</span>"; }
+
+/* ------------------------------------------------------------------ écran principal */
+async function renderFournisseurs(){
+  var m=document.getElementById('main'); if(!m) return;
+  if(!sssPatron()){ m.innerHTML="<div class='empty'>Réservé à la direction.</div>"; return; }
+  m.innerHTML="<div class='page-head'><h2>Factures fournisseurs / À payer</h2></div><div id='sssfo' class='loading'>Chargement…</div>";
+  await sssFoCharger();
+}
+async function sssFoCharger(){
+  var r=await db.rpc('sss_fournisseurs_liste',{p_filtre:SSSFO.filtre,p_q:SSSFO.q||null,p_groupe:SSSFO.groupe});
+  var h=document.getElementById('sssfo'); if(!h||VIEW!=='fin_fourn') return;
+  if(r.error){ h.className=''; h.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  SSSFO.data=r.data||{}; sssFoPeindre();
+}
+function sssFoPeindre(){
+  var h=document.getElementById('sssfo'); if(!h) return; var d=SSSFO.data||{}; var T=d.totaux||{}; var L=d.factures||[]; var rb=d.releves_bancaires||{};
+  var devs=Object.keys(T).sort(function(a,b){ return a==='CHF'?-1:b==='CHF'?1:a.localeCompare(b); });
+  var carte=function(t,v,sub,c,f){ return "<div class='card' onclick=\"SSSFO.filtre='"+f+"';sssFoCharger()\" style='cursor:pointer;padding:12px 14px;text-align:left;min-width:0;border-left:4px solid "+(c||'var(--line)')+"'><div style='font-size:11.5px;color:var(--text-3)'>"+t+"</div><div style='font-size:19px;font-weight:800;color:"+(c||'inherit')+";margin-top:2px'>"+v+"</div>"+(sub?"<div style='font-size:11.5px;color:var(--text-3);margin-top:2px'>"+sub+"</div>":"")+"</div>"; };
+  var html="<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px'>"
+    +"<button class='btn' style='width:auto;padding:10px 16px;min-height:44px' onclick='sssFoAjouter()'>📸 Ajouter une facture</button>"
+    +"<button class='btn-out' style='width:auto;padding:10px 14px;min-height:44px' onclick='sssFoLire(this)'>📥 Lire les e-mails</button>"
+    +(typeof sssFReleve==='function'?"<label class='btn-out' style='width:auto;padding:10px 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center'>🏦 Importer un relevé<input type='file' multiple style='display:none' onchange='sssFReleve(this)'></label>":"")
+    +"<button class='btn-out' style='width:auto;padding:10px 14px;min-height:44px' onclick='sssFoExport()'>📦 Exporter pour comptabilité</button></div>";
+  html+="<div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>Argent qui doit <b>sortir</b> — jamais mélangé à la facturation clients. "+(rb.lignes?"Relevés bancaires : "+rb.lignes+" mouvements jusqu'au "+sssFoD(rb.au)+".":"<b style='color:#e0a52b'>Aucun relevé bancaire importé.</b>")+" Dernière lecture des e-mails : "+(d.derniere_lecture_boite?sssFoD(d.derniere_lecture_boite):'jamais')+". Aucun paiement n'est exécuté par SSS OS.</div>";
+  devs.forEach(function(dev){ var t=T[dev]||{};
+    html+="<div style='font-weight:800;font-size:13px;margin:6px 0 6px'>"+esc(dev)+(dev!=='CHF'?" <span style='font-weight:400;color:var(--text-3)'>— devise séparée, jamais convertie</span>":"")+"</div>"
+      +"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px'>"
+      +carte('À payer aujourd’hui',sssFoM(t.aujourdhui,dev),null,'#e0a52b','aujourdhui')+carte('Dans 7 jours',sssFoM(t.j7,dev),null,'#3b82f6','7j')+carte('Dans 30 jours',sssFoM(t.j30,dev),null,'#3b82f6','30j')
+      +carte('En retard',sssFoM(t.retard,dev),(t.n_retard||0)+' facture(s)','#e5484d','echues')+carte('Total ouvert',sssFoM(t.ouvert,dev),(t.n_ouvert||0)+' facture(s)'+(t.sans_echeance?' · '+sssFoM(t.sans_echeance,dev)+' sans échéance':''),null,'a_payer')
+      +carte('À vérifier',sssFoM(t.a_verifier,dev),(t.n_a_verifier||0)+' document(s)','#e0a52b','a_verifier')+"</div>"; });
+  if(!devs.length) html+="<div class='empty' style='margin-bottom:10px'>Aucune facture fournisseur enregistrée.</div>";
+  var chip=function(k,l,on,act){ return "<button type='button' onclick=\""+act+"\" style='cursor:pointer;border:1px solid "+(on?'var(--green)':'var(--line)')+";border-radius:999px;padding:7px 12px;min-height:36px;font-weight:700;font-size:12.5px;"+(on?'background:var(--green);color:#fff':'background:var(--card);color:var(--text-3)')+"'>"+l+"</button>"; };
+  html+="<div style='display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px'>"+[['a_payer','À payer'],['aujourdhui','Aujourd’hui'],['7j','7 jours'],['30j','30 jours'],['echues','Échues'],['a_verifier','À vérifier'],['payees','Payées'],['toutes','Toutes']].map(function(x){ return chip(x[0],x[1],SSSFO.filtre===x[0],"SSSFO.filtre='"+x[0]+"';sssFoCharger()"); }).join('')+"</div>";
+  html+="<div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center'>"+[['tous','Tous'],['fournisseur','Fournisseurs'],['fiscal_social','Impôts / assurances sociales']].map(function(x){ return chip(x[0],x[1],SSSFO.groupe===x[0],"SSSFO.groupe='"+x[0]+"';sssFoCharger()"); }).join('')
+    +"<input id='sssfo-q' placeholder='Fournisseur, n°, montant, objet…' value=\""+esc(SSSFO.q||'')+"\" onkeydown=\"if(event.key==='Enter'){SSSFO.q=this.value.trim();sssFoCharger();}\" style='flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-size:13px;min-height:40px'></div>";
+  var nConf=L.filter(function(f){ return f.etat==='paiement_a_confirmer'; }).length;
+  if(nConf) html+="<div style='background:rgba(224,165,43,.12);border:1px solid #e0a52b;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px'>❓ <b>"+nConf+" facture(s)</b> avec un paiement seulement probable (rapprochement automatique sans preuve forte) : elles restent « à vérifier » tant que tu ne confirmes pas <b>chacune</b> dans sa fiche, ou qu'une preuve forte (IBAN, référence) n'est pas trouvée. Aucune confirmation en bloc.</div>";
+  if(!L.length) html+="<div class='empty'>Aucune facture dans cette vue.</div>";
+  else if(sssFoMobile()){
+    html+="<div class='cards'>"+L.map(function(f){ var e=SSSFO_ETAT[f.etat]||[f.etat,'#888','']; return "<div class='ccard' onclick=\"sssFoFiche('"+sssFoJs(f.id)+"')\" style='cursor:pointer;border-left:4px solid "+e[1]+"'><div class='top'><b>"+esc(f.fournisseur||'Créancier inconnu')+"</b>"+sssFoPast(e[2]+' '+e[0],e[1])+"</div>"
+      +"<div style='font-size:12.5px;margin:4px 0'>"+(f.numero?'N° '+esc(f.numero)+' · ':'')+sssFoD(f.date_facture)+"</div>"
+      +"<div style='display:flex;justify-content:space-between;align-items:baseline;gap:8px'><div><b style='font-size:16px'>"+sssFoM(f.reste!=null&&f.etat!=='payee'?f.reste:f.montant_ttc,f.devise)+"</b>"+(f.paye>0&&f.reste>0?" <span style='font-size:11.5px;color:var(--text-3)'>reste sur "+sssFoM(f.montant_ttc,f.devise)+"</span>":"")+"</div><div style='font-size:12px'>"+(f.echeance?'éch. '+sssFoD(f.echeance)+' · ':'')+sssFoJours(f)+"</div></div>"
+      +(f.resume||f.objet?"<div style='font-size:11.5px;color:var(--text-3);margin-top:4px'>"+esc(f.resume||f.objet)+"</div>":"")+"</div>"; }).join('')+"</div>";
+  } else {
+    var th="padding:7px 8px;text-align:left;font-size:11.5px;color:var(--text-3);border-bottom:1px solid var(--line);white-space:nowrap", td="padding:7px 8px;font-size:12.5px;border-bottom:1px solid var(--line);vertical-align:top";
+    html+="<div style='overflow-x:auto;border:1px solid var(--line);border-radius:12px'><table style='border-collapse:collapse;width:100%;min-width:1080px'><thead><tr>"+['Fournisseur','N° facture','Date','Échéance','Jours','Montant','Payé','Reste dû','Devise','Statut','Catégorie','Doc.'].map(function(x){ return "<th style='"+th+"'>"+x+"</th>"; }).join('')+"</tr></thead><tbody>"
+      +L.map(function(f){ var e=SSSFO_ETAT[f.etat]||[f.etat,'#888','']; return "<tr onclick=\"sssFoFiche('"+sssFoJs(f.id)+"')\" style='cursor:pointer"+(f.etat==='echue'?';background:rgba(229,72,77,.07)':'')+"'><td style='"+td+"'><b>"+esc(f.fournisseur||'Créancier inconnu')+"</b>"+(f.resume||f.objet?"<div style='font-size:11px;color:var(--text-3);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(f.resume||f.objet)+"</div>":"")+"</td><td style='"+td+"'>"+esc(f.numero||'—')+"</td><td style='"+td+";white-space:nowrap'>"+sssFoD(f.date_facture)+"</td><td style='"+td+";white-space:nowrap'>"+sssFoD(f.echeance)+"</td><td style='"+td+";white-space:nowrap'>"+sssFoJours(f)+"</td>"
+        +"<td style='"+td+";text-align:right;white-space:nowrap'>"+sssFoM(f.montant_ttc,'')+"</td><td style='"+td+";text-align:right;white-space:nowrap'>"+sssFoM(f.paye,'')+"</td><td style='"+td+";text-align:right;white-space:nowrap;font-weight:"+(f.reste>0?'800':'400')+"'>"+sssFoM(f.reste,'')+"</td><td style='"+td+"'>"+esc(f.devise)+"</td><td style='"+td+"'>"+sssFoPast(e[2]+' '+e[0],e[1])+(f.preuve?"<div style='margin-top:3px'>"+sssFoPast((SSSFO_PREUVE[f.preuve]||[f.preuve,'#888'])[0].split(' — ')[0],(SSSFO_PREUVE[f.preuve]||[f.preuve,'#888'])[1],(SSSFO_PREUVE[f.preuve]||[''])[0])+"</div>":"")+"</td>"
+        +"<td style='"+td+";font-size:11.5px'>"+esc(sssFoCat(f.categorie))+(f.categorie&&!f.categorie_choisie?" <span style='color:var(--text-3)' title='catégorie proposée automatiquement'>(auto)</span>":"")+"</td><td style='"+td+";white-space:nowrap'>"+(f.nb_docs?'📎 '+f.nb_docs:"<span style='color:#e5484d'>aucun</span>")+"</td></tr>"; }).join('')+"</tbody></table></div>";
+  }
+  h.className=''; h.innerHTML=html;
+}
+async function sssFoLire(b){ b.disabled=true; var t=b.textContent; b.textContent='Lecture…'; try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'factures',max:12,declenche:'manuel'}}); var d=(r&&r.data)||{}; if(d.ok===false) alert('Lecture impossible : '+(d.error||'erreur')); else alert('Lecture lancée : les nouvelles factures apparaissent dans quelques minutes (journal du Centre de contrôle).'); }catch(e){ alert('Lecture impossible : '+((e&&e.message)||e)); } b.disabled=false; b.textContent=t; }
+
+/* ------------------------------------------------------------------ fiche */
+async function sssFoFiche(id){
+  SSSFO.sel=id; var r=await db.rpc('sss_fournisseur_fiche',{p_id:id}); if(r.error||!r.data){ alert('Fiche introuvable'+(r.error?' : '+r.error.message:'')); return; }
+  var F=r.data, f=F.facture||{}; var e=SSSFO_ETAT[f.etat]||[f.etat,'#888','']; var cats=(SSSFO.data&&SSSFO.data.categories)||[];
+  var ligne=function(l,v){ return "<div style='display:flex;gap:10px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px'><span style='color:var(--text-3)'>"+l+"</span><span style='text-align:right'>"+v+"</span></div>"; };
+  var c="<div style='display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px'>"+sssFoPast(e[2]+' '+e[0],e[1])+(f.preuve?sssFoPast((SSSFO_PREUVE[f.preuve]||[f.preuve,'#888'])[0],(SSSFO_PREUVE[f.preuve]||[f.preuve,'#888'])[1]):'')+(f.rappel_recu?sssFoPast('rappel reçu du créancier','#e5484d'):'')+sssFoPast('source : '+(f.source==='mail'?'e-mail':f.source),'#8a8f98')+"</div>";
+  if(f.etat==='doublon_potentiel') c+="<div style='background:rgba(224,165,43,.12);border:1px solid #e0a52b;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px'>⚠️ <b>Doublon potentiel</b> d'une facture déjà connue. Rien n'a été fusionné automatiquement : <button class='relbtn' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'fusionner'})\">Même facture → rattacher le document</button> <button class='relbtn' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'separer'})\">Facture différente → garder les deux</button></div>";
+  if(f.etat==='recue') c+="<div style='background:rgba(59,130,246,.12);border:1px solid #3b82f6;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px'>📥 Facture déposée mais pas encore confirmée : <button class='relbtn' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'valider'})\">✓ Confirmer</button></div>";
+  if(f.preuve==='a_verifier'&&f.etat!=='payee') c+="<div style='background:rgba(224,165,43,.12);border:1px solid #e0a52b;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px'>❓ Le rapprochement automatique a trouvé un paiement "+(f.etat==='paiement_a_confirmer'?'qui solderait cette facture':'probable')+" (<i>"+esc((f.raisons||[]).join(' ; '))+"</i>), mais la preuve n'est pas forte (nom seul, débit anonyme, carte, reçu ou e-mail). La dette reste affichée tant que la direction ne confirme pas : <button class='relbtn' style='border-color:var(--green);color:var(--green)' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'confirmer_auto'})\">✓ Confirmer ce paiement</button></div>";
+  c+=ligne('Fournisseur',"<b>"+esc(f.fournisseur||'—')+"</b>")+ligne('N° facture',esc(f.numero||'—'))+ligne('Date',sssFoD(f.date_facture))+ligne('Échéance',sssFoD(f.echeance)+' · '+sssFoJours(f))
+    +ligne('Montant TTC',"<b>"+sssFoM(f.montant_ttc,f.devise)+"</b>"+(f.montant_ht!=null?" <span style='color:var(--text-3)'>(HT "+sssFoM(f.montant_ht,'')+(f.montant_tva!=null?', TVA '+sssFoM(f.montant_tva,''):'')+")</span>":""))
+    +ligne('Payé (prouvé)',sssFoM(f.paye,f.devise))+ligne('Reste dû',"<b style='color:"+(f.reste>0?'#e5484d':'var(--green)')+"'>"+sssFoM(f.reste,f.devise)+"</b>")
+    +(f.conditions_paiement?ligne('Conditions',esc(f.conditions_paiement)):'')+(f.reference?ligne('Référence QR / paiement',"<code style='font-size:12px'>"+esc(f.reference)+"</code>"):'')+(f.iban?ligne('IBAN',"<code style='font-size:12px'>"+esc(f.iban)+"</code>"):'')
+    +(f.resume||f.objet?ligne('Objet',esc(f.resume||f.objet)):'')+(f.raisons&&f.raisons.length?ligne('Rapprochement',"<span style='font-size:12px'>"+esc(f.raisons.join(' ; '))+"</span>"):'')+(f.contestation?ligne('Contestation',esc(f.contestation)):'')+(f.note?ligne('Note',esc(f.note)):'');
+  c+="<div style='display:flex;gap:10px;flex-wrap:wrap;margin:12px 0'><label style='font-size:12.5px;flex:1;min-width:200px'>Catégorie<br><select onchange=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'categorie',categorie:this.value})\" style='width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><option value=''>— à choisir"+(f.categorie&&!f.categorie_choisie?' (proposé : '+esc(sssFoCat(f.categorie))+')':'')+"</option>"+cats.map(function(x){ return "<option value='"+x[0]+"'"+(f.categorie_choisie&&f.categorie===x[0]?' selected':'')+">"+esc(x[1])+(x[2]==='fiscal_social'?' · impôts/social':'')+"</option>"; }).join('')+"</select></label>"
+    +"<div style='font-size:12.5px;flex:1;min-width:200px'>Chantier / projet lié<br><div id='sssfo-proj'>"+((f.projets||[]).map(function(p){ return "<span class='badge' style='background:rgba(34,160,107,.14);color:var(--green);margin:2px 4px 2px 0'>"+esc(p.libelle||p.affaire_id)+" <a href='#' onclick=\"sssFoProjet('"+sssFoJs(f.id)+"',null,'"+sssFoJs(p.affaire_id)+"');return false\" style='color:inherit;text-decoration:none'>✕</a></span>"; }).join('')||"<span style='color:var(--text-3)'>aucun</span>")+"</div><input list='sssfo-affs' placeholder='Nom du client… puis Entrée' onkeydown=\"if(event.key==='Enter'){sssFoProjet('"+sssFoJs(f.id)+"',this.value);}\" onfocus='sssFoAffaires()' style='width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);margin-top:4px'><datalist id='sssfo-affs'></datalist><div style='font-size:11px;color:var(--text-3)'>Jamais attribué automatiquement.</div></div></div>";
+  c+="<div style='font-weight:800;font-size:13px;margin:10px 0 6px'>📎 Documents ("+(F.documents||[]).length+")</div>"+((F.documents||[]).length?(F.documents||[]).map(function(d){ return "<div style='display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px'><span>"+(d.origine==='mail'?'✉️':d.origine==='photo'?'📸':'📄')+"</span><a href='#' onclick=\"sssFoDoc("+JSON.stringify(d).replace(/"/g,'&quot;')+");return false\" style='color:var(--green);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(d.nom||d.chemin||d.mail_id||'document')+"</a><span style='color:var(--text-3);font-size:11px'>"+sssFoD(d.created_at)+(d.chemin?'':' · pièce d’e-mail')+"</span></div>"; }).join(''):"<div style='color:#e5484d;font-size:12.5px'>Aucun document : ajoute l'original (📸) pour l'export comptable.</div>")
+    +"<div style='margin-top:6px'><button class='relbtn' onclick=\"sssFoAjouter('"+sssFoJs(f.id)+"')\">📸 Ajouter un document à cette facture</button></div>";
+  if((F.rattachees||[]).length) c+="<div style='font-size:12px;color:var(--text-3);margin-top:6px'>Autres pièces rattachées (doublons, rappels) : "+(F.rattachees||[]).map(function(z){ return esc((z.nature||'')+' '+(z.piece_nom||'')+' du '+sssFoD(z.recu_le)); }).join(' · ')+"</div>";
+  c+="<div style='font-weight:800;font-size:13px;margin:14px 0 6px'>💶 Paiements</div>";
+  var autoP=(f.paiement_auto&&f.paiement_auto.paiements)||(f.paiement_auto&&f.paiement_auto.id?[f.paiement_auto]:[]);
+  (autoP||[]).forEach(function(p){ c+="<div style='font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line)'>"+sssFoD(p.date)+" · "+sssFoM(Math.abs(Number(p.montant)||0),f.devise)+" · "+esc(p.source==='avoir'?'avoir':'banque')+" · "+sssFoPast(f.preuve==='banque_fort'?'automatique — forte ('+esc(p.force||'')+')':'automatique — à vérifier ('+esc(p.force||p.libelle||'')+')',f.preuve==='banque_fort'?'#22a06b':'#e0a52b')+"</div>"; });
+  (F.paiements||[]).forEach(function(p){ c+="<div style='font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center'><span style='flex:1'>"+sssFoD(p.date)+" · "+sssFoM(p.montant,p.devise)+" · "+esc((SSSFO_MOYENS.filter(function(x){ return x[0]===p.moyen; })[0]||[p.moyen,p.moyen])[1])+(p.mouvement?" · débit "+sssFoD(p.mouvement.date)+" "+esc(p.mouvement.contrepartie||p.mouvement.libelle||''):"")+" · "+sssFoPast(p.niveau==='auto_confirme'?'rapprochement confirmé par la direction':'enregistré par la direction','#3b82f6')+(p.note?" <span style='color:var(--text-3)'>"+esc(p.note)+"</span>":"")+"</span><button class='iconbtn' title='Retirer' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'retirer_paiement',paiement_id:'"+p.id+"'})\">✕</button></div>"; });
+  if(!(autoP||[]).length&&!(F.paiements||[]).length) c+="<div style='font-size:12.5px;color:var(--text-3)'>Aucun paiement connu.</div>";
+  if(f.etat!=='payee'&&f.etat!=='annulee'){
+    c+="<div style='background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px'><div style='font-weight:700;font-size:12.5px;margin-bottom:6px'>Enregistrer un paiement (partiel possible)</div><div style='display:flex;flex-wrap:wrap;gap:8px'>"
+      +"<input id='sssfo-pd' type='date' value='"+new Date().toISOString().slice(0,10)+"' style='padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><input id='sssfo-pm' type='number' step='0.05' placeholder='Montant' value='"+(f.reste>0?f.reste:'')+"' style='width:120px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'>"
+      +"<select id='sssfo-py' style='padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'>"+SSSFO_MOYENS.map(function(x){ return "<option value='"+x[0]+"'>"+x[1]+"</option>"; }).join('')+"</select>"
+      +"<select id='sssfo-pmv' style='padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);max-width:100%'><option value=''>— débit bancaire (facultatif)</option>"+(F.candidats||[]).map(function(m){ return "<option value='"+m.id+"'"+(m.deja_impute?' disabled':'')+">"+sssFoD(m.date)+" · "+sssFoM(Math.abs(m.montant),m.devise)+" · "+esc((m.contrepartie||m.libelle||'').slice(0,40))+(m.deja_impute?' (déjà imputé)':'')+"</option>"; }).join('')+"</select>"
+      +"<input id='sssfo-pn' placeholder='Note' style='flex:1;min-width:140px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'>"
+      +"<button class='btn' style='width:auto;padding:9px 14px' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'paiement',date:document.getElementById('sssfo-pd').value,montant:document.getElementById('sssfo-pm').value,moyen:document.getElementById('sssfo-py').value,mouvement_id:document.getElementById('sssfo-pmv').value,note:document.getElementById('sssfo-pn').value})\">✓ Enregistrer</button></div>"
+      +"<div style='font-size:11px;color:var(--text-3);margin-top:4px'>Un débit du même montant n'est jamais imputé seul : c'est ta décision qui compte. Rien n'est payé depuis SSS OS.</div></div>";
+  }
+  var pied="<button class='sssf-non' onclick='sssFFermer()'>Fermer</button>";
+  if(f.etat==='contestee'||f.etat==='annulee') pied+="<button class='sssf-non' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'rouvrir'})\">↩ Rouvrir</button>";
+  else { pied+="<button class='sssf-non' onclick=\"var m=prompt('Motif de la contestation ?'); if(m!=null) sssFoAct('"+sssFoJs(f.id)+"',{action:'contester',motif:m})\">⚠️ Contester</button><button class='sssf-non' onclick=\"var m=prompt('Pourquoi annuler cette facture ? (avoir reçu, erreur du créancier…)'); if(m!=null) sssFoAct('"+sssFoJs(f.id)+"',{action:'annuler',motif:m})\">✕ Annuler</button>";
+    if(f.etat!=='payee') pied+="<button class='sssf-non' onclick=\"var m=prompt('Payée comment ? (cash, carte, compensation…)'); if(m!=null) sssFoAct('"+sssFoJs(f.id)+"',{action:'payee_manuel',motif:m})\">✓ Payée (sans débit identifié)</button>"; }
+  pied+="<button class='sssf-non' onclick=\"sssFoCorriger("+JSON.stringify(f).replace(/"/g,'&quot;')+")\">✎ Corriger les champs</button>";
+  sssFFenetre(esc(f.fournisseur||'Facture fournisseur')+(f.numero?" · "+esc(f.numero):""),c,pied,"Facture fournisseur · reçue le "+sssFoD(f.recu_le)+(f.expediteur?" de "+esc(f.expediteur):""));
+}
+async function sssFoAct(id,p){
+  var lourd=['paiement','confirmer_auto','payee_manuel','contester','annuler','rouvrir','fusionner','separer','retirer_paiement','valider','corriger'].indexOf(p.action)>=0;
+  var r=await db.rpc('sss_facture_decider',{p_id:id,p:p}); if(r.error){ alert('Action impossible : '+r.error.message); return; }
+  if(lourd){ try{ await db.rpc('sss_rapprocher_factures'); }catch(e){} }
+  if(p.action==='fusionner'){ sssFFermer(); } else { await sssFoFiche(id); }
+  sssFoCharger();
+}
+async function sssFoAffaires(){ if(SSSFO.aff) return; var r=await db.from('affaires').select('id,contact:contact_id(nom,prenom,localite)').eq('transfere_admin',true).limit(600); SSSFO.aff=(r.data||[]).map(function(a){ var c=a.contact||{}; return {id:a.id,lib:((c.nom||'')+' '+(c.prenom||'')).trim()+(c.localite?' — '+c.localite:'')}; }); var dl=document.getElementById('sssfo-affs'); if(dl) dl.innerHTML=SSSFO.aff.map(function(a){ return "<option value=\""+esc(a.lib)+"\">"; }).join(''); }
+async function sssFoProjet(id,lib,retirer){
+  var f=(SSSFO.data.factures||[]).filter(function(x){ return x.id===id; })[0]; var cur=((f&&f.projets)||[]).map(function(p){ return {affaire_id:p.affaire_id}; });
+  if(retirer) cur=cur.filter(function(p){ return p.affaire_id!==retirer; });
+  else { await sssFoAffaires(); var a=(SSSFO.aff||[]).filter(function(x){ return x.lib===lib; })[0]||(SSSFO.aff||[]).filter(function(x){ return lib&&x.lib.toLowerCase().indexOf(lib.toLowerCase())===0; })[0]; if(!a){ alert('Projet introuvable : choisis un nom dans la liste.'); return; } if(cur.some(function(p){ return p.affaire_id===a.id; })) return; cur.push({affaire_id:a.id}); }
+  await sssFoAct(id,{action:'projets',projets:cur});
+}
+async function sssFoDoc(d){
+  try{
+    if(d.chemin){ var r=await db.storage.from('factures').createSignedUrl(d.chemin,300); if(r.error) throw new Error(r.error.message); window.open(r.data.signedUrl,'_blank','noopener'); return; }
+    if(d.mail_id){ var p=await db.functions.invoke('gmail-badge',{body:{action:'piece',id:d.mail_id,index:d.piece_index||0}}); var x=(p&&p.data)||{}; if(x.ok===false||!x.b64) throw new Error(x.error||'pièce introuvable dans la boîte');
+      var bin=atob(x.b64), u=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); var url=URL.createObjectURL(new Blob([u],{type:x.type||'application/pdf'})); window.open(url,'_blank','noopener'); setTimeout(function(){ URL.revokeObjectURL(url); },60000); return; }
+    throw new Error('aucun fichier');
+  }catch(e){ alert('Document inaccessible : '+((e&&e.message)||e)); }
+}
+function sssFoCorriger(f){
+  var inp=function(k,l,t,v){ return "<label style='font-size:12.5px;display:block;margin-bottom:8px'>"+l+"<br><input id='sssfo-c-"+k+"' type='"+(t||'text')+"' value=\""+esc(v==null?'':v)+"\" style='width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'></label>"; };
+  var c=inp('fournisseur','Fournisseur','text',f.fournisseur)+inp('numero','N° facture','text',f.numero)+"<div style='display:flex;gap:8px'>"+inp('date_facture','Date','date',(f.date_facture||'').slice(0,10))+inp('echeance','Échéance','date',(f.echeance||'').slice(0,10))+"</div><div style='display:flex;gap:8px'>"+inp('montant_ttc','Montant TTC','number',f.montant_ttc)+inp('montant_ht','HT','number',f.montant_ht)+inp('montant_tva','TVA','number',f.montant_tva)+inp('devise','Devise','text',f.devise)+"</div>"+inp('iban','IBAN','text',f.iban)+inp('reference_paiement','Référence QR / paiement','text',f.reference)+inp('objet','Objet','text',f.objet)+inp('note','Note','text',f.note);
+  sssFFenetre('Corriger la facture',c,"<button class='sssf-non' onclick=\"sssFoFiche('"+sssFoJs(f.id)+"')\">Annuler</button><button class='sssf-go' onclick=\"sssFoAct('"+sssFoJs(f.id)+"',{action:'corriger',fournisseur:v('fournisseur'),numero:v('numero'),date_facture:v('date_facture'),echeance:v('echeance'),montant_ttc:v('montant_ttc'),montant_ht:v('montant_ht'),montant_tva:v('montant_tva'),devise:v('devise'),iban:v('iban'),reference_paiement:v('reference_paiement'),objet:v('objet'),note:v('note')})\">Enregistrer</button>".replace(/v\('([a-z_]+)'\)/g,"document.getElementById('sssfo-c-$1').value"));
+}
+
+/* ------------------------------------------------------------------ 📸 ajouter une facture (photo de courrier, capture, PDF) */
+function sssFoAjouter(rattacherA){
+  SSSFO.photo={rattacher_a:rattacherA||null};
+  var c="<div id='sssfo-drop' ondragover=\"event.preventDefault();this.style.borderColor='var(--green)'\" ondragleave=\"this.style.borderColor=''\" ondrop=\"event.preventDefault();this.style.borderColor='';sssFoFichier(event.dataTransfer.files[0])\" style='border:2px dashed var(--line);border-radius:14px;padding:22px 14px;text-align:center'>"
+    +"<div style='font-size:34px'>📸</div><div style='font-weight:700;margin:6px 0'>Photographie le courrier, ou dépose une photo, une capture d'écran ou un PDF</div><div style='font-size:12px;color:var(--text-3);margin-bottom:12px'>Le document est lu automatiquement, puis tu confirmes avant tout enregistrement. L'original est toujours conservé.</div>"
+    +"<div style='display:flex;gap:8px;justify-content:center;flex-wrap:wrap'><label class='btn' style='width:auto;padding:11px 18px;min-height:46px;cursor:pointer;display:inline-flex;align-items:center'>📷 Prendre une photo<input type='file' accept='image/*' capture='environment' style='display:none' onchange='sssFoFichier(this.files[0])'></label>"
+    +"<label class='btn-out' style='width:auto;padding:11px 18px;min-height:46px;cursor:pointer;display:inline-flex;align-items:center'>📁 Choisir un fichier<input type='file' accept='image/*,application/pdf' style='display:none' onchange='sssFoFichier(this.files[0])'></label></div></div><div id='sssfo-lect'></div>";
+  sssFFenetre(rattacherA?'Ajouter un document à la facture':'📸 Ajouter une facture',c,null,"Rien n'est enregistré avant ta confirmation.");
+}
+function sssFoB64(u8){ var s=''; for(var i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+async function sssFoSha(u8){ try{ var h=await crypto.subtle.digest('SHA-256',u8); return Array.prototype.map.call(new Uint8Array(h),function(b){ return ('0'+b.toString(16)).slice(-2); }).join(''); }catch(e){ return null; } }
+function sssFoJpeg(file){ return new Promise(function(res){ if(!/^image\//.test(file.type)){ res(null); return; } var img=new Image(); var url=URL.createObjectURL(file);
+  img.onload=function(){ try{ var MX=2000; var k=Math.min(1,MX/Math.max(img.width,img.height)); var cv=document.createElement('canvas'); cv.width=Math.round(img.width*k); cv.height=Math.round(img.height*k); cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height); cv.toBlob(function(b){ URL.revokeObjectURL(url); res(b); },'image/jpeg',0.86); }catch(e){ res(null); } };
+  img.onerror=function(){ URL.revokeObjectURL(url); res(null); }; img.src=url; }); }
+async function sssFoFichier(file){
+  if(!file) return; var z=document.getElementById('sssfo-lect'); if(!z) return;
+  if(file.size>10*1024*1024){ z.innerHTML="<div class='empty'>Fichier trop volumineux (10 Mo au plus).</div>"; return; }
+  var estPdf=/pdf/i.test(file.type)||/\.pdf$/i.test(file.name); var estImg=/^image\//.test(file.type);
+  if(!estPdf&&!estImg){ z.innerHTML="<div class='empty'>Photo, capture d'écran ou PDF seulement.</div>"; return; }
+  var orig=new Uint8Array(await file.arrayBuffer()); var P=SSSFO.photo; P.file=file; P.orig=orig; P.mime=estPdf?'application/pdf':file.type; P.nom=file.name||('photo-'+Date.now()+(estPdf?'.pdf':'.jpg')); P.empreinte=await sssFoSha(orig);
+  var apercu=estImg?URL.createObjectURL(file):null;
+  z.innerHTML=(apercu?"<img src='"+apercu+"' style='max-width:100%;max-height:260px;border-radius:10px;display:block;margin:12px auto'>":"<div style='text-align:center;margin:12px 0'>📄 "+esc(P.nom)+"</div>")+"<div class='loading' style='text-align:center'>Lecture du document…</div>";
+  var pourIa=orig, mimeIa=P.mime;
+  if(estImg){ var jb=await sssFoJpeg(file); if(jb){ pourIa=new Uint8Array(await jb.arrayBuffer()); mimeIa='image/jpeg'; } }
+  var ext=null;
+  try{ var r=await db.functions.invoke('agent',{body:{action:'facture_document',b64:sssFoB64(pourIa),mime:mimeIa,nom:P.nom}}); var d=(r&&r.data)||{}; if(d.ok===false||!d.extraction) throw new Error(d.error||'lecture impossible'); ext=d.extraction; P.modele=d.modele; }
+  catch(e){ ext=null; P.erreur=(e&&e.message)||String(e); }
+  P.extraction=ext; sssFoConfirmer();
+}
+async function sssFoConfirmer(){
+  var P=SSSFO.photo, z=document.getElementById('sssfo-lect'); if(!P||!z) return; var x=P.extraction||{};
+  var ech=x.echeance||null; if(!ech&&x.date_facture&&x.delai_jours>0){ var dt=new Date(x.date_facture+'T12:00:00'); dt.setDate(dt.getDate()+Number(x.delai_jours)); ech=dt.toISOString().slice(0,10); P.echCalc=true; }
+  var cats=(SSSFO.data&&SSSFO.data.categories)||[]; var catAuto=null;
+  var ac=function(v){ return v==null||v===''?"<span style='color:#e0a52b;font-weight:700'>À confirmer</span>":esc(v); };
+  var inp=function(k,l,t,v,extra){ return "<label style='font-size:12.5px;display:block;margin-bottom:8px;flex:1;min-width:140px'>"+l+(v==null||v===''?" <span style='color:#e0a52b;font-weight:700;font-size:11px'>À confirmer</span>":"")+(extra||'')+"<br><input id='sssfo-f-"+k+"' type='"+(t||'text')+"' value=\""+esc(v==null?'':v)+"\" style='width:100%;padding:9px;border:1px solid "+(v==null||v===''?'#e0a52b':'var(--line)')+";border-radius:8px;background:var(--card);color:var(--text);font-size:14px'></label>"; };
+  var h="<div style='margin-top:10px'>";
+  if(P.erreur) h+="<div style='background:rgba(229,72,77,.1);border:1px solid #e5484d;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px'>Lecture automatique impossible ("+esc(P.erreur)+") : remplis les champs à la main, le document est conservé.</div>";
+  else if(x.lisible===false) h+="<div style='background:rgba(224,165,43,.12);border:1px solid #e0a52b;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px'>⚠️ Document peu lisible : vérifie chaque valeur avant de confirmer.</div>";
+  if(x.nature&&x.nature!=='facture') h+="<div style='background:rgba(59,130,246,.12);border:1px solid #3b82f6;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px'>Ce document ressemble à : <b>"+esc({rappel:'un rappel',note_credit:'une note de crédit (avoir)',recu:'un reçu de paiement',autre:'autre chose qu’une facture (offre, contrat, publicité…)'}[x.nature]||x.nature)+"</b>."+(x.remarque?' '+esc(x.remarque):'')+"</div>";
+  if(P.rattacher_a) h+="<div style='font-size:12.5px;margin-bottom:8px'>Ce document sera <b>rattaché à la facture ouverte</b> (aucune nouvelle dette).</div>";
+  h+="<div style='display:flex;flex-wrap:wrap;gap:8px'>"+inp('fournisseur','Fournisseur','text',x.fournisseur)+inp('numero','N° facture','text',x.numero)+"</div><div style='display:flex;flex-wrap:wrap;gap:8px'>"+inp('date_facture','Date de facture','date',x.date_facture)+inp('echeance','Échéance','date',ech,P.echCalc?" <span style='color:var(--text-3);font-size:11px'>(calculée : "+esc(x.conditions_paiement||(x.delai_jours+' jours'))+")</span>":'')+"</div>"
+    +"<div style='display:flex;flex-wrap:wrap;gap:8px'>"+inp('montant_ttc','Montant TTC','number',x.montant_ttc)+inp('montant_ht','HT (si disponible)','number',x.montant_ht)+inp('montant_tva','TVA (si disponible)','number',x.montant_tva)+inp('devise','Devise','text',x.devise||'CHF')+"</div>"
+    +"<div style='display:flex;flex-wrap:wrap;gap:8px'>"+inp('reference_paiement','Référence QR / paiement','text',x.reference_paiement)+inp('iban','IBAN','text',x.iban)+"</div>"+inp('conditions_paiement','Conditions de paiement','text',x.conditions_paiement)+inp('resume','Description de la dépense','text',x.resume||x.objet)
+    +"<label style='font-size:12.5px;display:block;margin-bottom:8px'>Catégorie<br><select id='sssfo-f-categorie' style='width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><option value=''>— à choisir (proposée automatiquement sinon)</option>"+cats.map(function(c){ return "<option value='"+c[0]+"'>"+esc(c[1])+"</option>"; }).join('')+"</select></label>"
+    +"<div id='sssfo-dbl' style='font-size:12.5px;margin:6px 0'>Contrôle des doublons…</div></div>";
+  z.innerHTML=h;
+  var pied=document.querySelector('#sssf-fen .sssf-pied'); if(pied) pied.innerHTML="<button class='sssf-non' onclick='sssFFermer()'>Annuler</button><button class='sssf-go' id='sssfo-go' onclick='sssFoEnregistrer()'>"+(P.rattacher_a?'Rattacher le document':'Confirmer → facture à payer')+"</button>";
+  // doublons : même fichier, même créancier + n° + montant, même référence… avant toute création
+  if(!P.rattacher_a){
+    var r=await db.rpc('sss_facture_doublon',{p_fournisseur:x.fournisseur||null,p_iban:x.iban||null,p_numero:x.numero||null,p_montant:x.montant_ttc==null?null:Number(x.montant_ttc),p_date:x.date_facture||null,p_devise:x.devise||'CHF',p_reference:x.reference_paiement||null,p_empreinte:P.empreinte||null});
+    var dz=document.getElementById('sssfo-dbl'); if(!dz) return; var D=(r.data)||{}; P.doublon=D;
+    if(D.exact){ dz.innerHTML="<div style='background:rgba(229,72,77,.1);border:1px solid #e5484d;border-radius:10px;padding:10px 12px'>🛑 <b>Facture déjà connue</b> : "+esc(D.exact.fournisseur||'')+" "+esc(D.exact.numero||'')+" · "+sssFoM(D.exact.montant_ttc,D.exact.devise)+" du "+sssFoD(D.exact.date_facture)+" ("+esc(D.exact.raison)+", reçue par "+(D.exact.source==='mail'?'e-mail':D.exact.source)+"). Ce document sera <b>rattaché</b> à cette facture : aucune deuxième dette. <label style='display:block;margin-top:6px'><input type='checkbox' id='sssfo-force'> Créer quand même une facture séparée (je suis sûr que c'est une autre facture)</label></div>"; P.rattacher_exact=D.exact.id; }
+    else if((D.potentiels||[]).length){ dz.innerHTML="<div style='background:rgba(224,165,43,.12);border:1px solid #e0a52b;border-radius:10px;padding:10px 12px'>⚠️ <b>Doublon potentiel</b> : "+(D.potentiels||[]).slice(0,3).map(function(p){ return esc(p.fournisseur||'')+" "+esc(p.numero||'')+" · "+sssFoM(p.montant_ttc,p.devise)+" du "+sssFoD(p.date_facture)+" ("+esc(p.raison)+")"; }).join(' ; ')+". La facture sera créée avec le statut <b>Doublon potentiel</b> — tu trancheras dans sa fiche (rien n'est fusionné automatiquement).</div>"; P.potentiel=D.potentiels[0].id; }
+    else dz.innerHTML="<span style='color:var(--green)'>✓ Aucune facture semblable connue.</span>";
+  }
+}
+async function sssFoEnregistrer(){
+  var P=SSSFO.photo; var b=document.getElementById('sssfo-go'); if(!P||!b) return; var v=function(k){ var e=document.getElementById('sssfo-f-'+k); return e?e.value.trim():''; };
+  var ttc=v('montant_ttc'); if(!P.rattacher_a&&!v('fournisseur')){ alert('Indique au moins le fournisseur.'); return; }
+  if(!P.rattacher_a&&ttc!==''&&!(Number(ttc)>0)){ alert('Montant invalide.'); return; }
+  b.disabled=true; b.textContent='Enregistrement…';
+  try{
+    var an=(v('date_facture')||new Date().toISOString().slice(0,10)).slice(0,4); var chemin=(P.rattacher_a?'doc/':'photo/')+an+'/'+Date.now()+'_'+String(P.nom).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_').slice(0,80);
+    var up=await db.storage.from('factures').upload(chemin,P.orig,{contentType:P.mime,upsert:false}); if(up.error) throw new Error('coffre : '+up.error.message);
+    var force=document.getElementById('sssfo-force'); var rattacher=P.rattacher_a||(P.rattacher_exact&&!(force&&force.checked)?P.rattacher_exact:null);
+    var p={source:P.mime==='application/pdf'?'import':'photo',rattacher_a:rattacher,chemin:chemin,nom:P.nom,mime:P.mime,taille:P.orig.length,empreinte:P.empreinte,extraction:P.extraction||{},extrait_par:P.modele||null,
+      nature:(P.extraction&&P.extraction.nature)||'facture',fournisseur:v('fournisseur'),numero:v('numero'),date_facture:v('date_facture'),echeance:v('echeance'),montant_ttc:ttc,montant_ht:v('montant_ht'),montant_tva:v('montant_tva'),devise:v('devise')||'CHF',
+      reference_paiement:v('reference_paiement'),iban:v('iban'),conditions_paiement:v('conditions_paiement'),resume:v('resume'),objet:v('resume'),categorie:v('categorie'),doublon_potentiel_de:(!rattacher&&P.potentiel)||null,valider:true};
+    var r=await db.rpc('sss_facture_creer',{p:p}); if(r.error) throw new Error(r.error.message);
+    var id=(r.data||{}).id; try{ await db.rpc('sss_rapprocher_factures'); }catch(e){}
+    SSSFO.photo=null; sssFFermer(); SSSFO.filtre=(r.data||{}).rattachee?SSSFO.filtre:'a_payer'; await sssFoCharger(); if(id) sssFoFiche(id);
+  }catch(e){ alert('Enregistrement impossible : '+((e&&e.message)||e)); b.disabled=false; b.textContent='Confirmer'; }
+}
+
+/* ------------------------------------------------------------------ export comptable */
+function sssFoExport(){
+  var now=new Date(); var mois=[]; for(var i=0;i<14;i++){ var d=new Date(now.getFullYear(),now.getMonth()-i,1); mois.push([d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),d.toLocaleDateString('fr-CH',{month:'long',year:'numeric'})]); }
+  var tri=[]; for(var y=now.getFullYear();y>=now.getFullYear()-1;y--) for(var q=4;q>=1;q--){ if(y===now.getFullYear()&&q>Math.floor(now.getMonth()/3)+1) continue; tri.push([y+'-T'+q,'T'+q+' '+y]); }
+  var c="<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px'><label style='font-size:12.5px'>Mois<br><select id='sssfo-xm' onchange=\"document.getElementById('sssfo-xt').value='';\" style='padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><option value=''>—</option>"+mois.map(function(m){ return "<option value='"+m[0]+"'>"+esc(m[1])+"</option>"; }).join('')+"</select></label>"
+    +"<label style='font-size:12.5px'>Trimestre<br><select id='sssfo-xt' onchange=\"document.getElementById('sssfo-xm').value='';\" style='padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><option value=''>—</option>"+tri.map(function(t){ return "<option value='"+t[0]+"'>"+esc(t[1])+"</option>"; }).join('')+"</select></label>"
+    +"<label style='font-size:12.5px'>ou du<br><input id='sssfo-xd' type='date' style='padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'></label><label style='font-size:12.5px'>au<br><input id='sssfo-xa' type='date' style='padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'></label>"
+    +"<label style='font-size:12.5px'>Périmètre<br><select id='sssfo-xg' style='padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><option value='tous'>Tout</option><option value='fournisseur'>Fournisseurs seulement</option><option value='fiscal_social'>Impôts / assurances sociales seulement</option></select></label></div>"
+    +"<div style='font-size:12.5px;color:var(--text-3)'>Le dossier ZIP contient : tous les originaux (PDF, photos), une version PDF propre des photos, un tableau CSV (Excel) et la liste de ce qui manquerait. À mettre sur clé USB ou à transmettre à la fiduciaire.</div><div id='sssfo-xr' style='margin-top:10px'></div>";
+  sssFFenetre('📦 Exporter pour comptabilité',c,"<button class='sssf-non' onclick='sssFFermer()'>Fermer</button><button class='sssf-go' id='sssfo-xgo' onclick='sssFoExportGo()'>Préparer le dossier</button>");
+}
+async function sssFoExportGo(){
+  var m=document.getElementById('sssfo-xm').value, t=document.getElementById('sssfo-xt').value, d1=document.getElementById('sssfo-xd').value, d2=document.getElementById('sssfo-xa').value; var du,au;
+  if(m){ du=m+'-01'; var e=new Date(Number(m.slice(0,4)),Number(m.slice(5,7)),0); au=m+'-'+String(e.getDate()).padStart(2,'0'); }
+  else if(t){ var y=t.slice(0,4), q=Number(t.slice(6)); du=y+'-'+String((q-1)*3+1).padStart(2,'0')+'-01'; var f=new Date(Number(y),q*3,0); au=y+'-'+String(q*3).padStart(2,'0')+'-'+String(f.getDate()).padStart(2,'0'); }
+  else if(d1&&d2){ du=d1; au=d2; } else { alert('Choisis un mois, un trimestre ou une période.'); return; }
+  var b=document.getElementById('sssfo-xgo'), z=document.getElementById('sssfo-xr'); b.disabled=true; b.textContent='Préparation…'; z.innerHTML="<div class='loading'>Rassemblement des documents… (peut prendre une minute)</div>";
+  try{ var r=await db.functions.invoke('factures-export',{body:{du:du,au:au,groupe:document.getElementById('sssfo-xg').value}}); var x=(r&&r.data)||{}; if(x.ok===false||!x.url) throw new Error(x.error||'export impossible');
+    z.innerHTML="<div style='background:rgba(34,160,107,.12);border:1px solid var(--green);border-radius:10px;padding:12px'>✓ Dossier prêt : <b>"+x.nb+" facture(s)</b>, "+x.documents+" document(s), "+x.pdf_derives+" photo(s) converties en PDF ("+Math.round((x.taille||0)/1024)+" Ko).<br><a class='btn' href='"+esc(x.url)+"' style='display:inline-block;width:auto;padding:10px 16px;margin-top:8px;text-decoration:none'>⬇️ Télécharger le ZIP</a><div style='font-size:11px;color:var(--text-3);margin-top:4px'>Lien valable 1 heure ; le dossier reste dans le coffre « factures » (exports/).</div></div>"
+      +((x.manquants||[]).length?"<div style='background:rgba(229,72,77,.1);border:1px solid #e5484d;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:12.5px'><b>"+x.manquants.length+" document(s) manquant(s)</b> (aussi listés dans MANQUANTS.txt) :<ul style='margin:6px 0 0 16px;padding:0'>"+x.manquants.map(function(s){ return "<li>"+esc(s)+"</li>"; }).join('')+"</ul></div>":"<div style='font-size:12.5px;color:var(--green);margin-top:6px'>Aucun document manquant.</div>");
+  }catch(e){ z.innerHTML="<div class='empty'>"+esc((e&&e.message)||e)+"</div>"; }
+  b.disabled=false; b.textContent='Préparer le dossier';
+}
+
+/* ------------------------------------------------------------------ branchement */
+(function(){
+  var TOUS=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant'];
+  try{ VUE_ROLES.fin_fourn=['superadmin']; VUE_SERVICES.fin_fourn=TOUS; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='fin_fourn') renderFournisseurs(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+  try{ var _rf=sssFinancesBloc; sssFinancesBloc=async function(){ var r=await _rf.apply(this,arguments); try{ var h=document.getElementById('sss-finances'); if(h&&!document.getElementById('sssfo-lien')&&sssPatron()) h.insertAdjacentHTML('afterbegin',"<div id='sssfo-lien' style='margin-bottom:10px'><button class='btn' style='width:auto;padding:10px 16px' onclick=\"go('fin_fourn')\">🧾 Ouvrir « Factures fournisseurs / À payer »</button> <span style='font-size:12px;color:var(--text-3)'>statuts simples, photo de courrier, rappels, export comptable</span></div>"); }catch(e){} return r; }; }catch(e){}
+})();
+
+/* SSS-FOURNISSEURS-FIN */
+
+/* SSS-FACTURATION-DEBUT */
+/* ==========================================================================
+   SSS OS — « Facturation clients » (0042) : l'argent qui doit ENTRER, projet par projet, chiffres PROUVÉS.
+   Vendu → Facturé → Encaissé → Reste à facturer → Reste à encaisser → Prochaine tranche.
+   Sources : projets SSS, plans de paiement structurés, factures Bexio (lecture seule, relues en direct), paiements Bexio,
+   crédit bancaire du même montant (information), confirmations manuelles de la direction (toujours distinguées).
+   Aucun bouton ne crée ni ne modifie une facture Bexio. Les anciens indicateurs « acomptes à appeler / en suspens »
+   (cases « payé » de l'ancien écran) ne sont plus affichés comme chiffres officiels ; leurs données restent archivées.
+   ========================================================================== */
+var SSSFC={vue:'direct',data:null,sel:null,filtre:'tous'};
+var SSSFC_ETAT={en_retard:['En retard','#e5484d'],a_encaisser:['À encaisser','#e0a52b'],a_facturer:['Reste à facturer','#3b82f6'],solde:['Soldé','#22a06b'],a_completer:['Montant vendu à compléter','#8a8f98']};
+var SSSFC_PREUVE={bexio_payee:['Payée — confirmé Bexio','#22a06b'],direction_confirme:['Paiement confirmé par la direction — rapprochement bancaire (CAMT) en attente','#3b82f6'],banque_credit:['Crédit bancaire du même montant repéré — à rapprocher','#3b82f6'],
+  partielle:['Paiement partiel — reste dû','#e0a52b'],echue:['Ouverte — échue','#e5484d'],ouverte:['Ouverte — pas encore échue','#e0a52b'],brouillon:['Brouillon Bexio (non envoyée)','#8a8f98'],annulee:['Annulée','#8a8f98']};
+function sssFcM(n){ if(n==null) return '—'; return (Number(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+' CHF'; }
+function sssFcD(d){ if(!d) return '—'; var s=(''+d).slice(0,10); return s.slice(8,10)+'.'+s.slice(5,7)+'.'+s.slice(0,4); }
+function sssFcJs(s){ return (''+(s==null?'':s)).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function sssFcPast(t,c){ return "<span style='display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:"+c+"22;color:"+c+"'>"+esc(t)+"</span>"; }
+
+async function renderFacturationClients(){
+  var m=document.getElementById('main'); if(!m) return;
+  if(!sssPatron()){ m.innerHTML="<div class='empty'>Réservé à la direction.</div>"; return; }
+  m.innerHTML="<div class='page-head'><h2>Facturation clients</h2></div><div id='sssfc' class='loading'>Chargement…</div>";
+  await sssFcCharger();
+}
+async function sssFcCharger(){
+  var r=await db.rpc('sss_facturation_clients',{p_vue:SSSFC.vue}); var h=document.getElementById('sssfc'); if(!h||VIEW!=='fin_clients') return;
+  if(r.error){ h.className=''; h.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  SSSFC.data=r.data||{}; sssFcPeindre();
+}
+function sssFcPeindre(){
+  var h=document.getElementById('sssfc'); if(!h) return; var d=SSSFC.data||{}; var T=d.totaux||{}; var P=d.projets||[];
+  var chip=function(on,l,act){ return "<button type='button' onclick=\""+act+"\" style='cursor:pointer;border:1px solid "+(on?'var(--green)':'var(--line)')+";border-radius:999px;padding:7px 12px;min-height:36px;font-weight:700;font-size:12.5px;"+(on?'background:var(--green);color:#fff':'background:var(--card);color:var(--text-3)')+"'>"+l+"</button>"; };
+  var carte=function(t,v,sub,c){ return "<div class='card' style='padding:12px 14px;text-align:left;min-width:0;border-left:4px solid "+(c||'var(--line)')+"'><div style='font-size:11.5px;color:var(--text-3)'>"+t+"</div><div style='font-size:19px;font-weight:800;color:"+(c||'inherit')+";margin-top:2px'>"+v+"</div>"+(sub?"<div style='font-size:11.5px;color:var(--text-3);margin-top:2px'>"+sub+"</div>":"")+"</div>"; };
+  var html="<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px'>"+[['direct','SSS direct'],['msb','MSB · sous-traitance'],['partenaires','Energy Léman & partenaires'],['tous','Tous']].map(function(x){ return chip(SSSFC.vue===x[0],x[1],"SSSFC.vue='"+x[0]+"';sssFcCharger()"); }).join('')+"</div>";
+  html+="<div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>Argent qui doit <b>entrer</b> — "+esc(d.perimetre||'')+". Chiffres prouvés par les factures Bexio (lecture seule) et les confirmations de la direction, toujours distinguées. Jamais mélangé aux factures fournisseurs.</div>";
+  html+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px'>"
+    +carte('Vendu',sssFcM(T.vendu),(T.n_projets||0)+' projet(s)'+(T.n_a_completer?' · '+T.n_a_completer+' sans montant':''))+carte('Facturé',sssFcM(T.facture),T.brouillons?sssFcM(T.brouillons)+' en brouillon Bexio':null)
+    +carte('Encaissé',sssFcM(T.encaisse),'Bexio '+sssFcM(T.encaisse_bexio)+(T.encaisse_direction?' · direction '+sssFcM(T.encaisse_direction):''),'#22a06b')
+    +carte('Reste à facturer',sssFcM(T.reste_a_facturer),(T.n_a_facturer||0)+' projet(s)','#3b82f6')+carte('Reste à encaisser',sssFcM(T.reste_a_encaisser),(T.n_a_encaisser||0)+' projet(s)'+(T.n_en_retard?' · '+T.n_en_retard+' en retard':''),T.n_en_retard?'#e5484d':'#e0a52b')+"</div>";
+  html+="<div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px'>"+[['tous','Tous'],['en_retard','En retard'],['a_encaisser','À encaisser'],['a_facturer','Reste à facturer'],['solde','Soldés'],['a_completer','À compléter']].map(function(x){ return chip(SSSFC.filtre===x[0],x[1],"SSSFC.filtre='"+x[0]+"';sssFcPeindre()"); }).join('')+"</div>";
+  var L=P.filter(function(p){ return SSSFC.filtre==='tous'||p.etat===SSSFC.filtre; });
+  if(!L.length) html+="<div class='empty'>Aucun projet dans cette vue.</div>";
+  else if(window.innerWidth<760){
+    html+="<div class='cards'>"+L.map(function(p){ var e=SSSFC_ETAT[p.etat]||[p.etat,'#888']; return "<div class='ccard' onclick=\"sssFcFiche('"+sssFcJs(p.id)+"')\" style='cursor:pointer;border-left:4px solid "+e[1]+"'><div class='top'><b>"+esc(p.client||'?')+"</b>"+sssFcPast(e[0],e[1])+"</div>"
+      +"<div style='font-size:12.5px;margin:4px 0'>Vendu "+sssFcM(p.vendu)+" · facturé "+sssFcM(p.facture)+" · encaissé "+sssFcM(p.encaisse)+"</div>"
+      +"<div style='font-size:12.5px'>"+(p.reste_a_encaisser>0?"<b style='color:#e5484d'>reste à encaisser "+sssFcM(p.reste_a_encaisser)+"</b>":"")+(p.reste_a_facturer>0?" <span style='color:#3b82f6'>reste à facturer "+sssFcM(p.reste_a_facturer)+"</span>":"")+(p.prochaine_tranche?"<div style='color:var(--text-3)'>prochaine : "+esc(p.prochaine_tranche.libelle)+(p.prochaine_tranche.montant_estime!=null?' ≈ '+sssFcM(p.prochaine_tranche.montant_estime):'')+"</div>":"")+"</div></div>"; }).join('')+"</div>";
+  } else {
+    var th="padding:7px 8px;text-align:left;font-size:11.5px;color:var(--text-3);border-bottom:1px solid var(--line);white-space:nowrap", td="padding:7px 8px;font-size:12.5px;border-bottom:1px solid var(--line);vertical-align:top";
+    html+="<div style='overflow-x:auto;border:1px solid var(--line);border-radius:12px'><table style='border-collapse:collapse;width:100%;min-width:1000px'><thead><tr>"+['Client','Statut','Vendu','Facturé','Encaissé','Reste à facturer','Reste à encaisser','Prochaine tranche','Factures'].map(function(x){ return "<th style='"+th+"'>"+x+"</th>"; }).join('')+"</tr></thead><tbody>"
+      +L.map(function(p){ var e=SSSFC_ETAT[p.etat]||[p.etat,'#888']; var R=function(v,b){ return "<td style='"+td+";text-align:right;white-space:nowrap;font-weight:"+(b?'800':'400')+"'>"+sssFcM(v)+"</td>"; };
+        return "<tr onclick=\"sssFcFiche('"+sssFcJs(p.id)+"')\" style='cursor:pointer"+(p.etat==='en_retard'?';background:rgba(229,72,77,.07)':'')+"'><td style='"+td+"'><b>"+esc(p.client||'?')+"</b>"+(p.localite?"<div style='font-size:11px;color:var(--text-3)'>"+esc(p.localite)+"</div>":"")+"</td><td style='"+td+"'>"+sssFcPast(e[0],e[1])+"</td>"+R(p.vendu)+R(p.facture)+R(p.encaisse)+R(p.reste_a_facturer,p.reste_a_facturer>0)+R(p.reste_a_encaisser,p.reste_a_encaisser>0)
+          +"<td style='"+td+"'>"+(p.prochaine_tranche?esc(p.prochaine_tranche.libelle)+(p.prochaine_tranche.montant_estime!=null?"<div style='color:var(--text-3);font-size:11px'>≈ "+sssFcM(p.prochaine_tranche.montant_estime)+"</div>":""):"<span style='color:var(--text-3)'>—</span>")+"</td>"
+          +"<td style='"+td+"'>"+(p.factures||[]).map(function(f){ var pr=SSSFC_PREUVE[f.preuve]||[f.preuve,'#888']; return "<span title=\""+esc(pr[0])+"\" style='display:inline-block;width:10px;height:10px;border-radius:50%;background:"+pr[1]+";margin-right:3px'></span>"; }).join('')+"<span style='font-size:11px;color:var(--text-3)'>"+(p.n_factures||0)+"</span></td></tr>"; }).join('')+"</tbody></table></div>";
+  }
+  h.className=''; h.innerHTML=html;
+}
+async function sssFcFiche(id){
+  var r=await db.rpc('sss_facturation_clients',{p_vue:'tous',p_affaire:id}); var p=(r.data&&r.data.projets&&r.data.projets[0]); if(r.error||!p){ alert('Projet introuvable'+(r.error?' : '+r.error.message:'')); return; }
+  SSSFC.sel=id; var e=SSSFC_ETAT[p.etat]||[p.etat,'#888'];
+  var kv=function(l,v){ return "<div style='display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px'><span style='color:var(--text-3)'>"+l+"</span><span style='text-align:right'>"+v+"</span></div>"; };
+  var c="<div style='margin-bottom:8px'>"+sssFcPast(e[0],e[1])+"</div>"+kv('Vendu (TTC)',p.vendu==null?"<span style='color:#e0a52b;font-weight:700'>À compléter</span>":"<b>"+sssFcM(p.vendu)+"</b>")+kv('Facturé',sssFcM(p.facture))+kv('Encaissé','<b>'+sssFcM(p.encaisse)+'</b>'+(p.encaisse_direction?" <span style='color:#3b82f6;font-size:11px'>dont "+sssFcM(p.encaisse_direction)+" confirmés par la direction</span>":""))
+    +kv('Reste à facturer',p.reste_a_facturer==null?'—':"<b style='color:"+(p.reste_a_facturer>0?'#3b82f6':'var(--green)')+"'>"+sssFcM(p.reste_a_facturer)+"</b>")+kv('Reste à encaisser',"<b style='color:"+(p.reste_a_encaisser>0?'#e5484d':'var(--green)')+"'>"+sssFcM(p.reste_a_encaisser)+"</b>")
+    +kv('Prochaine tranche',p.prochaine_tranche?esc(p.prochaine_tranche.libelle)+(p.prochaine_tranche.montant_estime!=null?' ≈ '+sssFcM(p.prochaine_tranche.montant_estime):'')+" <span style='color:var(--text-3);font-size:11px'>("+esc(p.prochaine_tranche.declencheur||'')+")</span>":"<span style='color:var(--text-3)'>aucune — plan facturé en entier</span>");
+  c+="<div style='font-weight:800;font-size:13px;margin:12px 0 6px'>Factures Bexio ("+(p.factures||[]).length+") <span style='font-weight:400;color:var(--text-3);font-size:11.5px'>— lecture seule</span></div>";
+  (p.factures||[]).forEach(function(f){ var pr=SSSFC_PREUVE[f.preuve]||[f.preuve,'#888'];
+    c+="<div style='padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px'><div style='display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap'><b>"+esc(f.numero||'')+"</b><span>"+sssFcM(f.total_ttc)+" · payé "+sssFcM(f.paye)+" · reste <b>"+sssFcM(f.reste)+"</b></span></div><div style='color:var(--text-3)'>"+esc(f.titre||'')+" · "+sssFcD(f.date)+(f.echeance?' · échéance '+sssFcD(f.echeance):'')+(f.retard_jours?" · <b style='color:#e5484d'>"+f.retard_jours+" j de retard</b>":"")+"</div><div style='margin-top:4px'>"+sssFcPast(pr[0],pr[1])
+      +(f.credit_banque?" <span style='font-size:11px;color:#3b82f6'>crédit "+sssFcD(f.credit_banque.date)+" "+sssFcM(f.credit_banque.montant)+" — "+esc(f.credit_banque.contrepartie||'')+"</span>":"")+"</div>"
+      +((f.confirmations||[]).length?"<div style='font-size:11.5px;color:#3b82f6;margin-top:4px'>"+f.confirmations.map(function(x){ return 'Confirmé par la direction le '+sssFcD(x.date)+' : '+sssFcM(x.montant)+(x.note?' — '+esc(x.note):'')+" <a href='#' onclick=\"sssFcConfAnnuler('"+x.id+"','"+sssFcJs(p.id)+"');return false\" style='color:#e5484d'>retirer</a>"; }).join('<br>')+"</div>":"")
+      +(f.reste>0&&f.statut!=='brouillon'&&f.statut!=='annulee'&&f.preuve!=='direction_confirme'?"<div style='margin-top:6px'><button class='relbtn' style='border-color:#3b82f6;color:#3b82f6' onclick=\"sssFcConfirmer('"+sssFcJs(p.id)+"','"+sssFcJs(f.bexio_id)+"',"+Number(f.reste)+")\">✓ Paiement confirmé par la direction (CAMT en attente)</button></div>":"")+"</div>"; });
+  if(!(p.factures||[]).length) c+="<div style='font-size:12.5px;color:var(--text-3)'>Aucune facture Bexio rattachée à ce projet.</div>";
+  c+="<div style='font-weight:800;font-size:13px;margin:14px 0 6px'>Plan de paiement "+(p.plan_direction?"<span style='font-weight:400;color:#3b82f6;font-size:11.5px'>(posé par la direction)</span>":"<span style='font-weight:400;color:var(--text-3);font-size:11.5px'>(déduit — modifiable)</span>")+"</div>";
+  c+="<div id='sssfc-plan'>"+(p.plan||[]).map(function(t,i){ var f=(p.factures||[])[i]; return "<div style='display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap'><input value=\""+esc(t.libelle||'')+"\" data-k='libelle' style='flex:1;min-width:120px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><input type='number' value='"+(t.pct==null?'':t.pct)+"' data-k='pct' style='width:70px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'> %<select data-k='declencheur' style='padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'>"+[['signature','Signature'],['debut_travaux','Début des travaux'],['livraison','Livraison matériel'],['mise_en_service','Mise en service'],['autre','Autre']].map(function(x){ return "<option value='"+x[0]+"'"+(t.declencheur===x[0]?' selected':'')+">"+x[1]+"</option>"; }).join('')+"</select><span style='color:var(--text-3);font-size:11px'>"+(f?'→ '+esc(f.numero)+' ('+(SSSFC_PREUVE[f.preuve]||[''])[0].split(' — ')[0]+')':(p.vendu!=null&&t.pct!=null?'≈ '+sssFcM(p.vendu*t.pct/100)+' à facturer':'à facturer'))+"</span><button class='iconbtn' title='Retirer' onclick='this.parentNode.remove()'>✕</button></div>"; }).join('')+"</div>"
+    +"<div style='display:flex;gap:8px;margin-top:6px;flex-wrap:wrap'><button class='relbtn' onclick=\"sssFcPlanLigne()\">+ Tranche</button><button class='relbtn' style='border-color:var(--green);color:var(--green)' onclick=\"sssFcPlanSave('"+sssFcJs(p.id)+"')\">💾 Enregistrer le plan</button></div><div style='font-size:11px;color:var(--text-3);margin-top:4px'>Le plan structure les tranches ; il ne crée rien dans Bexio.</div>";
+  sssFFenetre(esc(p.client||'Projet')+(p.localite?' · '+esc(p.localite):''),c,"<button class='sssf-non' onclick='sssFFermer()'>Fermer</button>","Facturation client · "+esc((p.nature||'').replace('_',' ')));
+}
+function sssFcPlanLigne(){ var z=document.getElementById('sssfc-plan'); if(!z) return; z.insertAdjacentHTML('beforeend',"<div style='display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap'><input value='' placeholder='Libellé' data-k='libelle' style='flex:1;min-width:120px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><input type='number' value='' data-k='pct' style='width:70px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'> %<select data-k='declencheur' style='padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'><option value='signature'>Signature</option><option value='debut_travaux'>Début des travaux</option><option value='livraison'>Livraison matériel</option><option value='mise_en_service' selected>Mise en service</option><option value='autre'>Autre</option></select><button class='iconbtn' title='Retirer' onclick='this.parentNode.remove()'>✕</button></div>"); }
+async function sssFcPlanSave(id){
+  var l=Array.prototype.map.call(document.querySelectorAll('#sssfc-plan > div'),function(row){ var o={}; row.querySelectorAll('[data-k]').forEach(function(i){ o[i.getAttribute('data-k')]=i.value; }); return o; });
+  var r=await db.rpc('sss_facturation_plan_poser',{p_affaire:id,p_tranches:l}); if(r.error){ alert('Plan non enregistré : '+r.error.message); return; } await sssFcFiche(id); sssFcCharger();
+}
+async function sssFcConfirmer(id,bexioId,reste){
+  var m=prompt('Montant confirmé reçu (CHF) ?',reste); if(m==null) return; var d=prompt('Date du paiement (AAAA-MM-JJ) ?',new Date().toISOString().slice(0,10)); if(d==null) return;
+  var n=prompt('Note (facultatif)','Paiement confirmé par la direction — rapprochement CAMT en attente')||null;
+  var r=await db.rpc('sss_facturation_confirmer',{p_affaire:id,p_bexio_id:bexioId,p_montant:Number(String(m).replace(/[^\d.]/g,'')),p_date:d,p_note:n}); if(r.error){ alert('Confirmation impossible : '+r.error.message); return; }
+  await sssFcFiche(id); sssFcCharger();
+}
+async function sssFcConfAnnuler(cid,id){ if(!confirm('Retirer cette confirmation ?')) return; var r=await db.rpc('sss_facturation_confirmation_annuler',{p_id:cid}); if(r.error){ alert(r.error.message); return; } await sssFcFiche(id); sssFcCharger(); }
+
+/* ------------------------------------------------------------------ branchement : nouvel écran + anciens indicateurs retirés de l'affichage officiel */
+(function(){
+  var TOUS=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant'];
+  try{ VUE_ROLES.fin_clients=['superadmin']; VUE_SERVICES.fin_clients=TOUS; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='fin_clients') renderFacturationClients(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+  // ancien compteur « acomptes / soldes à appeler » (cases « payé » non fiables) : plus compté dans la pastille ni l'accueil ;
+  // seules les factures VT (visite technique non signée) restent signalées. Les données restent en base (archive).
+  try{ var _fi=FIN_ITEMS; FIN_ITEMS=function(list){ return _fi(list).filter(function(x){ return !!x.vtfact; }); }; }catch(e){}
+  // tableau de bord financier : les encaissements clients « prouvés » sont dans Facturation clients (bandeau)
+  try{ var _rd=renderFinDash; renderFinDash=async function(){ var r=await _rd.apply(this,arguments); try{ var h=document.querySelector('#main .page-head'); if(h&&VIEW==='fin_dash'&&!document.getElementById('sssfc-dash')) h.insertAdjacentHTML('afterend',"<div id='sssfc-dash' style='display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px'><button class='btn' style='width:auto;padding:9px 14px' onclick=\"go('fin_clients')\">💶 Facturation clients — chiffres prouvés</button><button class='btn-out' style='width:auto;padding:9px 14px' onclick=\"go('fin_fourn')\">🧾 Factures fournisseurs / À payer</button><span style='font-size:11.5px;color:var(--text-3);align-self:center'>Les cartes « acomptes / soldes en suspens » ci-dessous viennent de l'ancien suivi : indicatives seulement.</span></div>"); }catch(e){} return r; }; }catch(e){}
+  // ancien écran « Acompte / Solde » : bandeau d'archive en tête (l'écran reste consultable, rien n'est supprimé)
+  try{ var _rf=renderFinance; renderFinance=async function(){ var r=await _rf.apply(this,arguments); try{ var h=document.querySelector('#main .page-head h2'); if(h&&VIEW==='financier'&&!document.getElementById('sssfc-archive')){ h.textContent='Acompte / Solde (ancien écran — archive)'; h.insertAdjacentHTML('afterend',"<div id='sssfc-archive' style='background:rgba(224,165,43,.12);border:1px solid #e0a52b;border-radius:10px;padding:10px 12px;font-size:12.5px;margin:8px 0 12px'>⚠️ Cet écran repose sur les anciennes cases « payé » : ses compteurs ne sont plus des indicateurs officiels. Les chiffres prouvés sont dans <a href='#' onclick=\"go('fin_clients');return false\" style='color:var(--green);font-weight:700'>Facturation clients</a>.</div>"); } }catch(e){} return r; }; }catch(e){}
+})();
+
+/* SSS-FACTURATION-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
