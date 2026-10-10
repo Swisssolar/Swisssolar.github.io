@@ -4314,7 +4314,7 @@ async function renderControle(){
   var R=await Promise.all([
     q(db.from('sync_etat').select('*').order('service')),
     q(db.from('sync_journal').select('service,action,declenche,debut,statut,nb,message').order('id',{ascending:false}).limit(12)),
-    q(db.from('mail_messages').select('id,dossier,uid,date,de,objet,extrait,nonlu,contact_id,fournisseur,sens,pj').order('date',{ascending:false}).limit(40)),
+    q(db.from('mail_messages').select('id,dossier,uid,date,de,objet,extrait,nonlu,contact_id,fournisseur,sens,pj,classe,classe_detail,classe_confiance,classe_par').order('date',{ascending:false}).limit(40)),
     q(db.from('mail_messages').select('id',{count:'exact',head:true}).eq('nonlu',true).eq('sens','recu').eq('dossier','INBOX')),
     q(db.from('bexio_documents').select('genre,id,numero,titre,contact_bexio_id,statut,statut_id,date,echeance,total_ttc,reste').in('statut_id',[2,8,16,31])),
     q(db.from('bexio_paiements').select('montant,date').gte('date',mois)),
@@ -4345,7 +4345,8 @@ async function renderControle(){
 
   /* e-mails */
   var echanges=mails.filter(function(x){ return x.contact_id||x.fournisseur; }).slice(0,8);
-  var em="<div style='display:flex;gap:8px;margin-bottom:10px'><input id='sss-mq' value=\""+esc(SSS_CTRL.q)+"\" placeholder='Chercher dans les e-mails (client, fournisseur, objet…)' style='flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;font-size:13px' onkeydown=\"if(event.key==='Enter')sssMailCherche()\"><button class='btn-out' style='width:auto;padding:8px 12px' onclick='sssMailCherche()'>Chercher</button></div><div id='sss-mres'></div>";
+  var em="<div id='sss-routage'><div class='loading' style='padding:4px 0'>Routage…</div></div>";
+  em+="<div style='display:flex;gap:8px;margin-bottom:10px'><input id='sss-mq' value=\""+esc(SSS_CTRL.q)+"\" placeholder='Chercher dans les e-mails (client, fournisseur, objet…)' style='flex:1;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;font-size:13px' onkeydown=\"if(event.key==='Enter')sssMailCherche()\"><button class='btn-out' style='width:auto;padding:8px 12px' onclick='sssMailCherche()'>Chercher</button></div><div id='sss-mres'></div>";
   em+="<div style='font-size:12.5px;color:var(--text-3);margin:4px 0 6px'>Derniers échanges clients / fournisseurs</div>";
   em+=echanges.length?echanges.map(sssLigneMail.bind(null,cn)).join(''):"<div style='font-size:12.5px;color:var(--text-3)'>Aucun échange reconnu pour l'instant.</div>";
   h+=sssBloc('E-mails <span style="font-weight:400;color:var(--text-3);font-size:12.5px">· '+nonlus+' non lu(s)</span>',em,"<button class='btn' style='width:auto;padding:7px 13px;font-size:12.5px' onclick=\"go('mailbox')\">Ouvrir la boîte</button>");
@@ -4372,6 +4373,7 @@ async function renderControle(){
   h+="</div>";
   m.innerHTML=h;
   sssActivite();
+  try{ sssMailRoutageCompteurs(); }catch(_e){}
 }
 
 /* ------------------------------------------------------------------ Activité commerciale : état de chaque projet (affaires.suivi._fin_*) */
@@ -4447,15 +4449,65 @@ async function sssProjetOuvrir(id){
   modal("<div style='max-height:78vh;overflow:auto'>"+h+"</div>");
 }
 async function sssDocMail(mailId,index,el){ var t=el.textContent; el.textContent='…'; try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'attachment',id:mailId,index:index}}); var d=r&&r.data; if(!d||!d.ok) throw new Error((d&&d.error)||'refus'); sssTelecharger(d.nom,d.type,d.b64); }catch(e){ alert('Document : '+((e&&e.message)||e)); } el.textContent=t; }
+/* ----- routage automatique des e-mails (0045) : classes, compteurs, listes par destination, reclassement ----- */
+var SSS_MAIL_CL={a_verifier:['À vérifier','#e5484d'],lead:['Lead','#e0a52b'],devis_ch:['devis.ch','#e0a52b'],client:['Client','#22a06b'],sav:['SAV','#e5484d'],facture_fournisseur:['Facture fourn.','#3b82f6'],fournisseur_commande:['Commande fourn.','#3b82f6'],fiscal:['Fiscal','#8b5cf6'],rh:['RH','#8b5cf6'],administratif:['Administratif','#8a8f98'],interne:['Interne','#8a8f98'],automatique:['Auto','#8a8f98'],envoye:['Envoyé','#8a8f98']};
+function sssMailBadge(x){ if(!x||!x.classe) return ''; var c=SSS_MAIL_CL[x.classe]||[x.classe,'#8a8f98']; var t=c[0]+(x.classe_detail?' · '+x.classe_detail:''); return "<span class='badge' title='"+esc((x.classe_par==='manuel'?'classé à la main':x.classe_par==='ia'?'classé par l’IA':'classé par règle')+(x.classe_confiance?' · '+x.classe_confiance:''))+"' style='background:"+c[1]+"22;color:"+c[1]+";font-size:10.5px;padding:1px 7px;border-radius:9px;white-space:nowrap'>"+esc(t)+(x.classe_par==='ia'?' ✦':'')+"</span>"; }
+async function sssMailRoutageCompteurs(){
+  var box=document.getElementById('sss-routage'); if(!box) return;
+  var r=await db.rpc('sss_mail_routage_compteurs'); if(r.error){ box.innerHTML="<div style='font-size:12px;color:var(--text-3)'>Routage : "+esc(r.error.message)+"</div>"; return; }
+  var d=r.data||{}, pc=d.par_classe||{}; var ordre=['a_verifier','lead','devis_ch','client','sav','facture_fournisseur','fournisseur_commande','fiscal','rh','administratif','interne','automatique'];
+  var h="<div style='font-size:12px;color:var(--text-3);margin-bottom:4px'>Routage automatique · "+(d.non_classes?d.non_classes+' non classé(s) · ':'')+(d.ia_en_attente||0)+" en attente de l’IA · "+(d.doublons||0)+" doublon(s) évité(s)</div><div style='display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px'>";
+  ordre.forEach(function(k){ var n=pc[k]||0; var c=SSS_MAIL_CL[k]; h+="<button class='btn-out' onclick=\"sssMailRoutage('"+k+"')\" style='width:auto;padding:4px 10px;font-size:12px;border-color:"+c[1]+"55;color:"+c[1]+"'>"+c[0]+" <b>"+n+"</b></button>"; });
+  h+="<button class='btn-out' onclick='sssMailClasserGo(this)' title='Lancer la synchronisation puis le classement IA' style='width:auto;padding:4px 10px;font-size:12px'>✦ Classer maintenant</button></div>";
+  box.innerHTML=h;
+}
+function sssMailCible(x){
+  if(x.classe==='client'||x.classe==='sav'&&!x.sav_id){ if(x.contact_id) return ["Ouvrir la fiche client","openContact('"+x.contact_id+"')"]; }
+  if(x.classe==='sav'&&x.sav_id) return ["Ouvrir le SAV","savOpen('"+x.sav_id+"')"];
+  if((x.classe==='lead'||x.classe==='devis_ch')&&x.prospect_id) return ["Ouvrir le prospect","go('prospects');setTimeout(function(){SSSPR.sel='"+x.prospect_id+"';sssPrFiche('"+x.prospect_id+"');},300)"];
+  if(x.classe==='facture_fournisseur'&&x.facture_id) return ["Ouvrir la facture","go('fin_fourn');setTimeout(function(){ if(typeof sssFoFiche==='function') sssFoFiche('"+x.facture_id+"'); },400)"];
+  if(x.classe==='fiscal') return ["Fiscalité & charges sociales","go('fin_fisc')"];
+  if(x.classe==='fournisseur_commande') return ["Approvisionnement","go('controle')"];
+  if(x.classe==='rh') return ["RH privé","go('rh')"];
+  return null;
+}
+async function sssMailRoutage(classe){
+  var box=document.getElementById('sss-mres'); if(!box) return; box.innerHTML="<div class='loading'>Chargement…</div>";
+  var r=await db.rpc('sss_mails_routage',{p_classe:classe,p_limite:80}); var l=(r&&r.data)||[]; var c=SSS_MAIL_CL[classe]||[classe,'#8a8f98'];
+  if(r&&r.error){ box.innerHTML="<div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>"; return; }
+  var h="<div style='display:flex;align-items:center;gap:8px;margin:6px 0 4px'><b style='font-size:13px;color:"+c[1]+"'>"+esc(c[0])+"</b><span style='font-size:12px;color:var(--text-3)'>"+l.length+" message(s)</span><div class='spacer' style='flex:1'></div><button class='btn-out' style='width:auto;padding:3px 9px;font-size:11.5px' onclick=\"document.getElementById('sss-mres').innerHTML=''\">Fermer</button></div>";
+  if(!l.length) h+="<div style='font-size:12.5px;color:var(--text-3);margin-bottom:10px'>Aucun message.</div>";
+  l.forEach(function(x){ var cible=sssMailCible(x); var cn={}; if(x.contact_nom) cn[x.contact_id]=x.contact_nom;
+    h+=sssLigneMail(cn,x).replace(/<\/div>\s*$/,'')+"<div style='font-size:11.5px;color:var(--text-3);margin-top:2px'>"+esc(x.classe_raison||'')+(x.prospect_nom?' · prospect '+esc(x.prospect_nom):'')+(x.sav_titre?' · SAV '+esc(x.sav_titre):'')+(x.facture_titre?' · '+esc(x.facture_titre):'')+(cible?" · <a href='#' style='color:var(--green)' onclick=\""+cible[1].replace(/"/g,'&quot;')+";return false\">"+esc(cible[0])+" ↗</a>":'')+"</div></div>"; });
+  box.innerHTML=h+"<div style='height:10px'></div>";
+}
+async function sssMailReclasser(id,sel){
+  var v=sel&&sel.value; if(!v) return; var det=prompt('Précision (facultative) : organisme, fournisseur, type…','')||null;
+  var r=await db.rpc('sss_mail_reclasser',{p_id:id,p_classe:v,p_detail:det}); if(r.error){ alert('Reclassement impossible : '+r.error.message); return; }
+  var b=document.getElementById('sss-mail-cl'); if(b) b.innerHTML=sssMailClassementHtml(r.data||{}); try{ sssMailRoutageCompteurs(); }catch(_e){}
+}
+function sssMailClassementHtml(x){
+  var c=SSS_MAIL_CL[x.classe]||['non classé','#8a8f98']; var cible=sssMailCible(x);
+  var sel="<select onchange=\"sssMailReclasser('"+x.id+"',this)\" style='padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;font-size:12px'><option value=''>Reclasser…</option>"+Object.keys(SSS_MAIL_CL).filter(function(k){ return k!=='envoye'; }).map(function(k){ return "<option value='"+k+"'"+(k===x.classe?' selected':'')+">"+SSS_MAIL_CL[k][0]+"</option>"; }).join('')+"</select>";
+  return "<div style='display:flex;gap:8px;align-items:center;flex-wrap:wrap'>"+sssMailBadge(x)+(cible?"<a href='#' style='color:var(--green);font-size:12px' onclick=\"closeModal();"+cible[1].replace(/"/g,'&quot;')+";return false\">"+esc(cible[0])+" ↗</a>":'')+"<div class='spacer' style='flex:1'></div>"+sel+"</div>"
+    +(x.classe_raison?"<div style='font-size:11.5px;color:var(--text-3);margin-top:4px'>"+esc(x.classe_raison)+"</div>":'')
+    +(x.ia_suggestion&&x.ia_suggestion.resume&&x.classe==='a_verifier'?"<div style='font-size:11.5px;color:var(--text-3)'>✦ IA : "+esc(x.ia_suggestion.classe||'')+" ("+esc(x.ia_suggestion.confiance||'')+") — "+esc(x.ia_suggestion.resume)+"</div>":'');
+}
+async function sssMailClassementCharger(id){
+  var i=id.lastIndexOf(':'); if(i<1) return; var box=document.getElementById('sss-mail-cl'); if(!box) return;
+  var r=await db.from('mail_messages').select('id,classe,classe_detail,classe_confiance,classe_raison,classe_par,contact_id,affaire_id,prospect_id,sav_id,facture_id,ia_suggestion').eq('dossier',id.slice(0,i)).eq('uid',Number(id.slice(i+1))).maybeSingle();
+  if(r.error||!r.data){ box.innerHTML=''; return; } box.innerHTML=sssMailClassementHtml(r.data);
+}
+async function sssMailClasserGo(b){ if(b){ b.disabled=true; b.textContent='Lancé…'; } try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'sync'}}); var r2=await db.functions.invoke('gmail-badge',{body:{action:'classer',max:12}}); var d=r2&&r2.data; alert((d&&d.message)||'Classement lancé.'); }catch(e){ alert('Impossible : '+((e&&e.message)||e)); } if(b){ b.disabled=false; b.textContent='✦ Classer maintenant'; } }
 function sssLigneMail(cn,x){
-  return "<div onclick=\"sssMailOuvrir('"+esc(x.dossier)+':'+x.uid+"')\" style='cursor:pointer;border-top:1px solid var(--line);padding:7px 0'><div style='display:flex;gap:8px;align-items:baseline'><b style='font-size:13px;"+(x.nonlu?'':'font-weight:600')+"'>"+esc(x.sens==='envoye'?('→ '+(cn[x.contact_id]||'')):(cn[x.contact_id]||mbNom(x.de)))+"</b>"+(x.fournisseur?sssPastille(x.fournisseur,'#3b82f6'):'')+(x.pj&&x.pj.length?"<span title='pièce jointe'>📎</span>":'')+"<div class='spacer' style='flex:1'></div><span style='font-size:11.5px;color:var(--text-3)'>"+sssDateC(x.date)+"</span></div>"
+  return "<div onclick=\"sssMailOuvrir('"+esc(x.dossier)+':'+x.uid+"')\" style='cursor:pointer;border-top:1px solid var(--line);padding:7px 0'><div style='display:flex;gap:8px;align-items:baseline'><b style='font-size:13px;"+(x.nonlu?'':'font-weight:600')+"'>"+esc(x.sens==='envoye'?('→ '+(cn[x.contact_id]||'')):(cn[x.contact_id]||mbNom(x.de)))+"</b>"+(x.fournisseur?sssPastille(x.fournisseur,'#3b82f6'):'')+sssMailBadge(x)+(x.pj&&x.pj.length?"<span title='pièce jointe'>📎</span>":'')+"<div class='spacer' style='flex:1'></div><span style='font-size:11.5px;color:var(--text-3)'>"+sssDateC(x.date)+"</span></div>"
     +"<div style='font-size:12.5px;"+(x.nonlu?'font-weight:700':'')+"'>"+esc(x.objet||'(sans objet)')+"</div><div style='font-size:12px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+esc(x.extrait||'')+"</div></div>";
 }
 async function sssMailCherche(){
   var v=((document.getElementById('sss-mq')||{}).value||'').trim(); SSS_CTRL.q=v; var box=document.getElementById('sss-mres'); if(!box) return;
   if(!v){ box.innerHTML=''; return; }
   box.innerHTML="<div class='loading'>Recherche…</div>";
-  var r=await db.from('mail_messages').select('id,dossier,uid,date,de,objet,extrait,nonlu,contact_id,fournisseur,sens,pj').textSearch('recherche',v.split(/\s+/).filter(Boolean).map(function(w){ return w.replace(/[^\p{L}\p{N}@._-]/gu,'')+':*'; }).filter(function(w){ return w.length>2; }).join(' & '),{config:'simple'}).order('date',{ascending:false}).limit(25);
+  var r=await db.from('mail_messages').select('id,dossier,uid,date,de,objet,extrait,nonlu,contact_id,fournisseur,sens,pj,classe,classe_detail,classe_confiance,classe_par').textSearch('recherche',v.split(/\s+/).filter(Boolean).map(function(w){ return w.replace(/[^\p{L}\p{N}@._-]/gu,'')+':*'; }).filter(function(w){ return w.length>2; }).join(' & '),{config:'simple'}).order('date',{ascending:false}).limit(25);
   var l=(r&&r.data)||[];
   box.innerHTML=(r&&r.error)?("<div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>"):(l.length?("<div style='font-size:12.5px;color:var(--text-3);margin-bottom:4px'>"+l.length+" résultat(s)</div>"+l.map(sssLigneMail.bind(null,{})).join('')+"<div style='height:10px'></div>"):"<div style='font-size:12.5px;color:var(--text-3);margin-bottom:10px'>Aucun résultat.</div>");
 }
@@ -4466,8 +4518,10 @@ async function sssMailOuvrir(id){
   window.__SSS_MSG=d;
   modal("<h3 style='margin-top:0'>"+esc(d.objet||'(sans objet)')+"</h3><div class='kv'><span>De</span><b>"+esc(d.de)+"</b></div><div class='kv'><span>À</span><b>"+esc(d.a||'')+"</b></div><div class='kv'><span>Date</span><b>"+esc(d.date||'')+"</b></div>"
     +((d.pj||[]).length?"<div style='display:flex;gap:6px;flex-wrap:wrap;margin:8px 0'>"+d.pj.map(function(p,i){ return "<button class='btn-out' style='width:auto;padding:6px 12px;font-size:12.5px' onclick='sssPieceModal("+i+",this)'>📎 "+esc(p.nom)+"</button>"; }).join('')+"</div>":"")
+    +"<div id='sss-mail-cl' style='margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:12.5px'><span style='color:var(--text-3)'>Classement…</span></div>"
     +"<div style='white-space:pre-wrap;font-size:13.5px;line-height:1.6;max-height:50vh;overflow:auto;border-top:1px solid var(--line);margin-top:10px;padding-top:10px'>"+esc(d.corps||'')+"</div>"
     +"<div style='display:flex;gap:8px;margin-top:12px'><button class='btn-out' onclick='closeModal()'>Fermer</button></div>");
+  try{ sssMailClassementCharger(id); }catch(_e){}
 }
 async function sssPieceModal(i,b){ var d=window.__SSS_MSG; if(!d) return; var p=d.pj[i]; b.disabled=true; try{ var r=await db.functions.invoke('gmail-badge',{body:{action:'attachment',id:d.id,index:(p.index!=null?p.index:i)}}); var x=r&&r.data; if(!x||!x.ok) throw new Error((x&&x.error)||'refus'); sssTelecharger(x.nom,x.type,x.b64); }catch(e){ alert('Pièce jointe : '+((e&&e.message)||e)); } b.disabled=false; }
 /* Relier un service : l'identifiant est vérifié par le service lui-même, puis rangé chiffré dans le coffre de la base.
@@ -6211,7 +6265,7 @@ var SSSPR = { onglet: 'liste', f: { rapide: '', commercial: '', source: '', stat
 var SSSPR_STATUTS = [['nouveau','Nouveau','#3b82f6'],['a_appeler','À appeler','#e0a52b'],['contacte','Contacté','#22a06b'],['a_rappeler','À rappeler','#e0a52b'],['rdv_fixe','RDV fixé','#8a5cf6'],
   ['etude_offre','Étude / offre à préparer','#8a5cf6'],['offre_envoyee','Offre envoyée','#0ea5e9'],['relance_offre','Relance offre','#0ea5e9'],['vendu','Vendu','#16a34a'],['perdu','Perdu','#8a8f98'],
   ['sans_reponse','Sans réponse','#8a8f98'],['hors_cible','Hors cible','#8a8f98'],['vivier','Vivier','#64748b'],['a_reprendre','À reprendre / historique','#b45309']];
-var SSSPR_SOURCES = [['devis.ch','devis.ch'],['site_sss','Site Swiss Solar System'],['meta','Meta'],['google','Google'],['whatsapp','WhatsApp'],['telephone','Téléphone'],['recommandation','Recommandation'],['partenaire','Partenaire'],['manuel','Manuel'],['autre','Autre']];
+var SSSPR_SOURCES = [['devis.ch','devis.ch'],['email','E-mail reçu (contact@)'],['site_sss','Site Swiss Solar System'],['meta','Meta'],['google','Google'],['whatsapp','WhatsApp'],['telephone','Téléphone'],['recommandation','Recommandation'],['partenaire','Partenaire'],['manuel','Manuel'],['autre','Autre']];
 var SSSPR_CATS = [['photovoltaique','Photovoltaïque'],['batterie','Batterie'],['borne','Borne de recharge'],['pac','Pompe à chaleur'],['renovation_electricite','Rénovation / électricité'],['maintenance','Maintenance / dépannage'],['ppe','PPE / immeuble'],['autre','Autre'],['a_verifier','À vérifier']];
 var SSSPR_APPEL = [['client_joint','Client joint'],['pas_de_reponse','Pas de réponse'],['rappeler','Rappeler'],['message_laisse','Message laissé'],['rdv_fixe','RDV fixé'],['pas_interesse','Pas intéressé'],['mauvais_numero','Mauvais numéro']];
 var SSSPR_RDVRES = [['effectue','RDV effectué'],['absent','Client absent'],['reporte','Reporté'],['etude_necessaire','Étude nécessaire'],['offre_a_preparer','Offre à préparer'],['sans_suite','Sans suite'],['annule','Annulé']];
