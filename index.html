@@ -2443,6 +2443,7 @@ function renderNav(){
     ['mes_fiches','Mes fiches de salaire','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',['technicien','supply_chain','soustraitant','backoffice','commercial','admin']],
     ['mes_achats','Commandes Sonepar','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',['superadmin','direction','technicien']],
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
+    ['fin_fisc','Fiscalité & Charges sociales','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9m4 12V9m6 12V9m4 12V9M2 9l10-6 10 6"/></svg>',['superadmin']],
     ['fin_clients','Facturation clients','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',['superadmin']],
     ['fin_fourn','Factures fournisseurs / À payer','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',['superadmin']],
     ['marges','Coûts & Marges SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/></svg>',['superadmin']],
@@ -2548,7 +2549,7 @@ function renderNav(){
   let GROUPS_TECH= techExterne()
     ? [ {id:'gtech',title:'Mes chantiers',keys:['tech_today','tech_pv','tech_bat','tech_sav','repasser','tech_termines']}, {id:'gtbo',title:'Mon back-office',keys:['commandes','st_remb']} ]
     : [ {id:'gtech',title:'Technique',keys:['techdash','tech_today','tech_search','tech_pv','tech_bat','tech_sav','repasser','tech_termines','tech_materiel']}, {id:'gtstk',title:'Stock & fournitures',keys:['stock','commandes']}, {id:'gtequipe',title:'Équipe terrain',keys:['mon_planning','mes_chantiers','tech_quittances','tech_conges','mes_demandes','signalements_t','vehicule','pointage']} ].concat( ME.role==='technicien' ? [] : [{id:'gtst',title:'Sous-traitants',keys:['stmissions','st_remb']}] ); if(ME.role==='technicien' && !techExterne()) GROUPS_TECH=SSS_MENU_TECH.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(ME.role==='supply_chain' && typeof SSS_MENU_SUPPLY!=='undefined') GROUPS_TECH=SSS_MENU_SUPPLY.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(['superadmin','direction'].indexOf(ME.role)>=0) GROUPS_TECH.forEach(function(g){ if(g.id==='gtstk'){ ['sc_chantiers','sc_achats'].forEach(function(k){ if(g.keys.indexOf(k)<0) g.keys.push(k); }); } });
-  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','fin_clients','fin_fourn','marges','prix_sss','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
+  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_dash','fin_clients','fin_fourn','fin_fisc','marges','prix_sss','financier','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash','financier'] } ];
   const GROUPS_BACK=[ {id:'gback',title:'Mes tâches',keys:['botaches']} ];
   const avail=servicesAvail();
   if(avail.indexOf(SERVICE)<0) SERVICE=avail[0];
@@ -7263,6 +7264,116 @@ async function sssFcConfAnnuler(cid,id){ if(!confirm('Retirer cette confirmation
 })();
 
 /* SSS-FACTURATION-FIN */
+
+/* SSS-FISCALITE-DEBUT */
+/* ==========================================================================
+   SSS OS — « Fiscalité & Charges sociales » (0043) : un seul tableau direction, par organisme et par période.
+   Calculé / provisionné · Facturé officiellement · Payé · Reste dû · Échéance · Niveau de preuve.
+   Sources : fiches de salaire (agrégées), factures / décomptes officiels reçus, Bexio (lecture seule), banque CAMT,
+   paramètres documentés, confirmations de la direction. Une estimation n'est jamais une dette ; un débit bancaire ne solde
+   jamais une obligation sans référence sûre ou décision de la direction. Super administrateur seulement.
+   ========================================================================== */
+var SSSFI={data:null,ouvert:null};
+var SSSFI_ETAT={solde:['Soldé','#22a06b'],a_payer:['À payer','#3b82f6'],echeance_proche:['Échéance proche','#e0a52b'],echue:['Échue','#e5484d'],a_verifier:['À vérifier','#e0a52b'],estime:['Estimation','#8a8f98'],document_manquant:['Documents manquants','#c084fc'],sans_objet:['—','#8a8f98']};
+var SSSFI_PREUVE={officiel:['Officiel','#3b82f6'],paiement_confirme:['Paiement bancaire confirmé','#22a06b'],calcule:['Calculé','#22a06b'],estime:['Estimé','#8a8f98'],document_manquant:['Document manquant','#c084fc'],a_verifier:['À vérifier','#e0a52b']};
+var SSSFI_NIV={banque_confirme:['référence du décompte','#22a06b'],confirme_direction:['confirmé par la direction','#3b82f6'],a_verifier:['affectation à vérifier','#e0a52b']};
+var SSSFI_POSTE={tva:'TVA',fpv:'AVS / AC / AF — FPV',axa:'LPP — AXA',suva:'LAA — SUVA',innova:'IJM — Innova',impots:'Impôts société'};
+function sssFiM(n){ if(n==null||n==='') return '—'; return (Number(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+' CHF'; }
+function sssFiD(d){ if(!d) return '—'; var s=(''+d).slice(0,10); return s.slice(8,10)+'.'+s.slice(5,7)+'.'+s.slice(0,4); }
+function sssFiPast(t,c,titre){ return "<span title=\""+esc(titre||'')+"\" style='display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:"+c+"22;color:"+c+";white-space:nowrap'>"+esc(t)+"</span>"; }
+function sssFiJs(s){ return (''+(s==null?'':s)).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+async function renderFiscalite(){
+  var m=document.getElementById('main'); if(!m) return;
+  if(!sssPatron()){ m.innerHTML="<div class='empty'>Réservé à la direction.</div>"; return; }
+  m.innerHTML="<div class='page-head'><h2>Fiscalité & Charges sociales</h2></div><div id='sssfi' class='loading'>Calcul…</div>";
+  await sssFiCharger();
+}
+async function sssFiCharger(){
+  var r=await db.rpc('sss_fisc_tableau'); var h=document.getElementById('sssfi'); if(!h||VIEW!=='fin_fisc') return;
+  if(r.error){ h.className=''; h.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  SSSFI.data=r.data||{}; sssFiPeindre();
+}
+function sssFiPeindre(){
+  var h=document.getElementById('sssfi'); if(!h) return; var D=SSSFI.data||{}; var E=D.etat||{}; var C=E.couverture||{}; var docs=E.documents||[]; var P=D.parametres||{};
+  var html="<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px'><button class='btn-out' style='width:auto;padding:9px 14px' onclick='sssFiRecalc(this)'>🔄 Recalculer</button><button class='btn-out' style='width:auto;padding:9px 14px' onclick='sssFiParametres()'>⚙️ Paramètres documentés</button>"
+    +"<span style='font-size:12px;color:var(--text-3);align-self:center'>Dernier calcul "+(E.derniere_maj?new Date(E.derniere_maj).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—')+" · banque jusqu'au "+sssFiD(C.banque_au)+" · "+(C.fiches||0)+" fiches de salaire (dernière "+sssFiD(C.derniere_fiche)+") · Bexio "+sssFiD(C.bexio_synchro)+"</span></div>";
+  html+="<div style='background:rgba(192,132,252,.10);border:1px solid #c084fc;border-radius:12px;padding:12px 14px;margin-bottom:14px'><div style='font-weight:800;font-size:13.5px;margin-bottom:6px'>📂 Documents nécessaires ("+docs.length+")</div>"
+    +(docs.length?"<ul style='margin:0;padding-left:18px;font-size:12.5px;line-height:1.6'>"+docs.filter(function(d){ return d.type!=='a_deposer'; }).map(function(d){ return "<li>"+esc(d.texte)+(d.type==='parametre'?" <a href='#' onclick='sssFiParametres();return false' style='color:var(--green)'>renseigner</a>":"")+"</li>"; }).join('')+"</ul>"
+      +(docs.some(function(d){ return d.type==='a_deposer'; })?"<div style='font-weight:700;font-size:12.5px;margin-top:8px'>📥 Déjà reçus — à déposer dans SSS OS</div><ul style='margin:0;padding-left:18px;font-size:12.5px;line-height:1.6'>"+docs.filter(function(d){ return d.type==='a_deposer'; }).map(function(d){ return "<li>"+esc(d.texte.replace(/^À déposer : /,''))+" <a href='#' onclick=\"go('fin_fourn');setTimeout(function(){ sssFoAjouter(); },800);return false\" style='color:var(--green)'>📸 déposer</a></li>"; }).join('')+"</ul>":"")
+      +"<div style='font-size:11.5px;color:var(--text-3);margin-top:6px'>Chaque ligne disparaît d'elle-même dès que le document ou la confirmation arrive (e-mail, 📸 photo, paramètre).</div>":"<div style='font-size:12.5px;color:var(--green)'>Rien ne manque.</div>")+"</div>";
+  var th="padding:8px;text-align:left;font-size:11.5px;color:var(--text-3);border-bottom:1px solid var(--line);white-space:nowrap", td="padding:9px 8px;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top";
+  var R=function(v,b){ return "<td style='"+td+";text-align:right;white-space:nowrap;font-weight:"+(b?'800':'400')+"'>"+sssFiM(v)+"</td>"; };
+  html+="<div style='overflow-x:auto;border:1px solid var(--line);border-radius:12px'><table style='border-collapse:collapse;width:100%;min-width:900px'><thead><tr>"+['Poste','Provision','Officiel','Payé (sûr)','À vérifier','Reste dû','Prochaine échéance','État','Preuve'].map(function(x){ return "<th style='"+th+"'>"+x+"</th>"; }).join('')+"</tr></thead><tbody>"
+    +(D.postes||[]).map(function(p){ var e=SSSFI_ETAT[p.etat]||[p.etat,'#888'], pr=SSSFI_PREUVE[p.preuve]||[p.preuve,'#888']; var cred=(p.credits||[]).reduce(function(s,c){ return s+(Number(c.montant)||0); },0);
+      return "<tr onclick=\"sssFiPoste('"+p.poste+"')\" style='cursor:pointer"+(p.etat==='echue'?';background:rgba(229,72,77,.07)':'')+"'><td style='"+td+"'><b>"+esc(SSSFI_POSTE[p.poste]||p.poste)+"</b><div style='font-size:11px;color:var(--text-3)'>"+esc(p.organisme)+" · "+p.n_periodes+" période(s)</div></td>"
+        +"<td style='"+td+";text-align:right;white-space:nowrap'>"+sssFiM(p.provision)+(p.incomplet?"<div style='font-size:10.5px;color:#e0a52b'>données incomplètes</div>":"")+(p.poste==='tva'&&p.provision==null?"<div style='font-size:10.5px;color:#e0a52b'>base à confirmer</div>":"")+"</td>"+R(p.officiel,true)+R(p.paye)+"<td style='"+td+";text-align:right;white-space:nowrap;color:#e0a52b'>"+(p.paye_a_verifier?sssFiM(p.paye_a_verifier):'—')+(cred?"<div style='font-size:11px'>crédit "+sssFiM(cred)+"</div>":"")+"</td>"+R(p.reste,p.reste>0)
+        +"<td style='"+td+";white-space:nowrap'>"+sssFiD(p.prochaine_echeance)+"</td><td style='"+td+"'>"+sssFiPast(e[0],e[1])+"</td><td style='"+td+"'>"+sssFiPast(pr[0],pr[1])+(p.n_doc_manquants?"<div style='font-size:11px;color:#c084fc'>"+p.n_doc_manquants+" manque(s)</div>":"")+"</td></tr>"; }).join('')+"</tbody></table></div>";
+  html+="<div style='font-size:11.5px;color:var(--text-3);margin-top:8px'>Provision = calculé par SSS OS à partir des fiches de salaire et de Bexio (jamais une dette). Officiel = décompte / facture de l'organisme. Payé (sûr) = référence du décompte ou confirmation de la direction. À vérifier = versements au même organisme sans référence sûre. Rien n'est payé par SSS OS.</div>";
+  h.className=''; h.innerHTML=html;
+}
+async function sssFiRecalc(b){ b.disabled=true; b.textContent='Calcul…'; try{ await db.rpc('sss_fisc_recalculer',{p_declencheur:'manuel'}); }catch(e){} b.disabled=false; b.textContent='🔄 Recalculer'; sssFiCharger(); }
+function sssFiPoste(poste){
+  var D=SSSFI.data||{}; var L=(D.obligations||[]).filter(function(o){ return o.poste===poste; }); var p=(D.postes||[]).filter(function(x){ return x.poste===poste; })[0]||{}; SSSFI.ouvert=poste;
+  var c="";
+  L.forEach(function(o){ var e=SSSFI_ETAT[o.etat]||[o.etat,'#888'], pr=SSSFI_PREUVE[o.preuve]||[o.preuve,'#888']; var k=o.provision_calcul||{};
+    c+="<div style='border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px'><div style='display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center'><b style='font-size:14px'>"+esc(o.periode_lib)+(k.a_date?" <span style='font-size:11px;font-weight:700;color:#e0a52b'>PROVISION À DATE — données "+esc(k.periode_couverte||'')+"</span>":"")+"</b><span>"+sssFiPast(e[0],e[1])+" "+sssFiPast(pr[0],pr[1])+"</span></div>"
+      +"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin:8px 0;font-size:12.5px'>"+[['Provision',o.provision],['Officiel',o.officiel],['Payé (sûr)',o.paye],['À vérifier',o.paye_a_verifier],['Reste dû',o.reste]].map(function(x){ return "<div><div style='font-size:11px;color:var(--text-3)'>"+x[0]+"</div><b>"+sssFiM(x[1])+"</b></div>"; }).join('')+"<div><div style='font-size:11px;color:var(--text-3)'>Échéance</div><b>"+sssFiD(o.echeance)+"</b></div></div>";
+    if(o.officiel_source) c+="<div style='font-size:12.5px'>📄 Document officiel : <a href='#' onclick=\"go('fin_fourn');setTimeout(function(){ sssFoFiche('"+sssFiJs(o.officiel_source.facture_id)+"'); },800);return false\" style='color:var(--green)'>"+esc(o.officiel_source.piece||o.officiel_source.numero||'facture')+"</a> du "+sssFiD(o.officiel_source.date)+(o.officiel_source.reference?" · réf. <code style='font-size:11px'>"+esc(o.officiel_source.reference)+"</code>":"")+"</div>";
+    if(k.note_paiement) c+="<div style='font-size:12.5px;color:#e0a52b;margin-top:4px'>"+esc(k.note_paiement)+"</div>";
+    // calcul
+    var lignes=[];
+    if(poste==='tva'){ lignes=[['Période théorique',(k.periode_theorique||o.periode_lib)+' ('+(k.periode||'')+')'],['Période réellement couverte par les données',(k.periode_couverte||'—')+(k.a_date?' — PROVISION À DATE':'')],['Dernière mise à jour',' Bexio '+sssFiD(k.maj_bexio)+' · banque '+sssFiD(k.maj_banque)+(k.dernier_paiement_bexio?' · dernier encaissement '+sssFiD(k.dernier_paiement_bexio):'')],['Méthode',k.methode+' '+(k.taux!=null?k.taux+' %':'')+(k.base?' · base : contre-prestations '+k.base:' · base reçues / convenues : À CONFIRMER')],['Base « reçues »'+(k.a_date?' à date':'')+' (encaissements Bexio)',sssFiM(k.recu)],['Base « convenues »'+(k.a_date?' à date':'')+' (factures TTC)',sssFiM(k.convenu_ttc)],['Formule si « reçues »',k.formule_si_recues||'—'],['Formule si « convenues »',k.formule_si_convenues||'—'],['Provision retenue',k.formule_retenue?k.formule_retenue:'aucune — base à confirmer (les deux calculs sont montrés, aucun n’est retenu)'],['TVA 8.1 % portée sur les factures (information, non due sous TDFN)',sssFiM(k.tva_8_1_facturee)]]; if(k.formule_ecart) lignes.push(['Écart officiel − provision',k.formule_ecart]); }
+    else if(poste==='fpv'){ lignes=[['Masse salariale documentée',sssFiM(k.masse_documentee)+' ('+(k.fiches||0)+' fiches, '+(k.personnes||0)+' pers.)'],['Taux total',(k.taux_total_pct!=null?k.taux_total_pct+' %':'—')+' ('+(k.taux_statut||'')+')'],['Retenues salarié AVS / AC / LPCFam',sssFiM(k.retenues_salarie_avs)+' / '+sssFiM(k.retenues_salarie_ac)+' / '+sssFiM(k.retenues_salarie_lpcfam)]]; if(k.ecart_officiel_moins_provision!=null) lignes.push(['Écart officiel − provision',sssFiM(k.ecart_officiel_moins_provision)]); }
+    else if(poste==='axa'){ lignes=[['Retenues salarié (exact)',sssFiM(k.retenues_salarie)],['Part employeur ('+(k.part_employeur_statut||'hypothèse')+')',sssFiM(k.part_employeur)],['Fiches',k.fiches]]; }
+    else if(poste==='innova'){ lignes=[['Retenues salarié (exact)',sssFiM(k.retenues_salarie)],['Masse documentée',sssFiM(k.masse_documentee)],['Part employeur','inconnue (police manquante)']]; }
+    else if(poste==='suva'){ lignes=[['Masse annoncée à la SUVA',sssFiM(k.masse_annoncee)],['Masse réelle documentée',sssFiM(k.masse_documentee)+' ('+(k.fiches||0)+' fiches)'],['Primes sur la masse documentée',sssFiM(k.primes_sur_masse_documentee)],['Régularisation future estimée (pas exigible)',sssFiM(k.regularisation_estimee)],['Versements / crédits / flux net',sssFiM(k.paye_total_banque)+' / '+sssFiM(k.credits_recus)+' / '+sssFiM(k.flux_net)]]; }
+    if(k.note) lignes.push(['Règle',k.note]);
+    c+="<div style='font-size:12.5px;margin-top:6px'>"+lignes.map(function(x){ return "<div style='display:flex;gap:10px;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--line)'><span style='color:var(--text-3)'>"+esc(x[0])+"</span><span style='text-align:right'>"+esc(''+(x[1]==null?'—':x[1]))+"</span></div>"; }).join('')+"</div>";
+    if(k.donnees_incompletes) c+="<div style='display:inline-block;margin-top:6px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(224,165,43,.16);color:#e0a52b'>Provision calculée sur masse salariale documentée — données incomplètes"+(k.mois_personnes_manquants?' ('+k.mois_personnes_manquants+' mois-personne(s) manquant(s))':'')+"</div>";
+    if((o.hypotheses||[]).length) c+="<div style='font-size:12px;color:#e0a52b;margin-top:6px'>"+o.hypotheses.map(function(x){ return '⚠️ '+esc(x); }).join('<br>')+"</div>";
+    if((o.manques||[]).length) c+="<div style='font-size:12px;color:#c084fc;margin-top:6px'>"+o.manques.map(function(x){ return '📂 '+esc(x); }).join('<br>')+"</div>";
+    if((o.paiements||[]).length||(o.credits||[]).length){
+      c+="<div style='font-weight:700;font-size:12.5px;margin-top:8px'>Paiements bancaires</div>"+(o.paiements||[]).map(function(x){ var n=SSSFI_NIV[x.niveau]||[x.niveau,'#888']; return "<div style='font-size:12.5px;padding:3px 0;border-bottom:1px dashed var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center'><span>"+sssFiD(x.date)+" · <b>"+sssFiM(x.montant)+"</b> · "+esc(x.libelle||'')+"</span>"+sssFiPast(n[0],n[1])+(x.niveau==='a_verifier'?"<button class='relbtn' style='border-color:var(--green);color:var(--green)' onclick=\"sssFiConfirmer('"+sssFiJs(o.cle)+"','"+x.id+"',"+Number(x.montant)+")\">✓ Affecter à "+esc(o.periode_lib)+"</button>":"")+"</div>"; }).join('')
+        +(o.credits||[]).map(function(x){ return "<div style='font-size:12.5px;padding:3px 0;border-bottom:1px dashed var(--line)'>"+sssFiD(x.date)+" · <b style='color:var(--green)'>+"+sssFiM(x.montant)+"</b> · "+esc(x.libelle||'')+" "+sssFiPast('crédit à expliquer','#e0a52b')+"</div>"; }).join('');
+    }
+    var conf=(D.confirmations||[]).filter(function(x){ return x.cle_obligation===o.cle; });
+    if(conf.length) c+="<div style='font-size:12px;color:#3b82f6;margin-top:6px'>"+conf.map(function(x){ return 'Décision direction '+sssFiD(x.created_at)+' : '+(x.type==='paiement'?'paiement affecté':x.type)+(x.montant?' '+sssFiM(x.montant):'')+(x.note?' — '+esc(x.note):'')+" <a href='#' onclick=\"sssFiConfAnnuler('"+x.id+"');return false\" style='color:#e5484d'>retirer</a>"; }).join('<br>')+"</div>";
+    var hist=(D.journal||[]).filter(function(j){ return j.cle_obligation===o.cle; }).slice(0,6);
+    if(hist.length>1) c+="<details style='margin-top:6px;font-size:11.5px;color:var(--text-3)'><summary>Historique ("+hist.length+")</summary>"+hist.map(function(j){ return new Date(j.at).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' · provision '+sssFiM(j.provision)+' · officiel '+sssFiM(j.officiel)+' · payé '+sssFiM(j.paye)+' · '+esc(j.etat)+' ('+esc(j.declencheur||'')+')'; }).join('<br>')+"</details>";
+    c+="</div>";
+  });
+  sssFFenetre(esc(SSSFI_POSTE[poste]||poste),c,"<button class='sssf-non' onclick='sssFFermer()'>Fermer</button>",esc(p.organisme||''));
+}
+async function sssFiConfirmer(cle,mouvementId,montant){
+  var n=prompt('Affecter ce versement de '+sssFiM(montant)+' à '+cle+' ? Note (facultatif) :','Affectation confirmée par la direction'); if(n==null) return;
+  var r=await db.rpc('sss_fisc_confirmer',{p_cle_obligation:cle,p_type:'paiement',p_mouvement_id:mouvementId,p_montant:montant,p_note:n||null}); if(r.error){ alert('Impossible : '+r.error.message); return; }
+  sssFFermer(); await sssFiCharger(); sssFiPoste(cle.split(':')[0]);
+}
+async function sssFiConfAnnuler(id){ if(!confirm('Retirer cette décision ?')) return; var r=await db.rpc('sss_fisc_confirmation_annuler',{p_id:id}); if(r.error){ alert(r.error.message); return; } var p=SSSFI.ouvert; sssFFermer(); await sssFiCharger(); if(p) sssFiPoste(p); }
+function sssFiParametres(){
+  var P=(SSSFI.data||{}).parametres||{}; var cles=['tva.methode','tva.taux','tva.periodicite','tva.base','fpv.taux','suva.taux','innova.taux','axa.part_employeur'];
+  var lib={'tva.methode':'TVA — méthode','tva.taux':'TVA — taux TDFN (%)','tva.periodicite':'TVA — périodicité','tva.base':'TVA — contre-prestations (recues / convenues)','fpv.taux':'FPV — taux (JSON, %)','suva.taux':'SUVA — taux (JSON, %) et masse annoncée','innova.taux':'Innova — taux (JSON, %)','axa.part_employeur':'AXA — part employeur (% de la part salarié, vide = hypothèse)'};
+  var c="<div style='font-size:12.5px;color:var(--text-3);margin-bottom:8px'>Chaque valeur garde sa source et son niveau : officiel · ancien document · hypothèse · à confirmer. Rien n'est deviné : une valeur absente reste « à confirmer ».</div>"
+    +cles.map(function(k){ var p=P[k]||{}; return "<div style='border-bottom:1px solid var(--line);padding:8px 0'><div style='font-weight:700;font-size:12.5px'>"+esc(lib[k]||k)+" "+sssFiPast(p.statut||'a_confirmer',{officiel:'#22a06b',ancien_document:'#e0a52b',hypothese:'#e0a52b',a_confirmer:'#e5484d'}[p.statut]||'#888')+"</div><div style='display:flex;gap:6px;flex-wrap:wrap;margin-top:4px'><input id='sssfi-v-"+k+"' value=\""+esc(p.valeur==null?'':(typeof p.valeur==='object'?JSON.stringify(p.valeur):String(p.valeur)))+"\" style='flex:1;min-width:160px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:12.5px'>"
+      +"<select id='sssfi-s-"+k+"' style='padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)'>"+[['officiel','Officiel'],['ancien_document','Ancien document'],['hypothese','Hypothèse'],['a_confirmer','À confirmer']].map(function(x){ return "<option value='"+x[0]+"'"+(p.statut===x[0]?' selected':'')+">"+x[1]+"</option>"; }).join('')+"</select>"
+      +"<input id='sssfi-src-"+k+"' placeholder='Source (document, e-mail, décision)' value=\""+esc(p.source||'')+"\" style='flex:2;min-width:200px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-size:12px'><button class='relbtn' onclick=\"sssFiParamSave('"+k+"')\">Enregistrer</button></div></div>"; }).join('');
+  sssFFenetre('⚙️ Paramètres documentés',c,"<button class='sssf-non' onclick='sssFFermer()'>Fermer</button>");
+}
+async function sssFiParamSave(k){
+  var v=document.getElementById('sssfi-v-'+k).value.trim(), s=document.getElementById('sssfi-s-'+k).value, src=document.getElementById('sssfi-src-'+k).value.trim(); var val;
+  if(v==='') val=null; else { try{ val=JSON.parse(v); }catch(e){ val=v; } }
+  if(k==='tva.base'&&val!=null&&['recues','convenues'].indexOf(val)<0){ alert('tva.base : « recues » ou « convenues » (ou vide)'); return; }
+  var r=await db.rpc('sss_fisc_parametre_poser',{p_cle:k,p_valeur:val,p_statut:s,p_source:src||null}); if(r.error){ alert('Non enregistré : '+r.error.message); return; }
+  await sssFiCharger(); sssFiParametres();
+}
+(function(){
+  var TOUS=['commercial','admin','technique','rh','docs','financier','backoffice','soustraitant'];
+  try{ VUE_ROLES.fin_fisc=['superadmin']; VUE_SERVICES.fin_fisc=TOUS; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='fin_fisc') renderFiscalite(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+})();
+
+/* SSS-FISCALITE-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
