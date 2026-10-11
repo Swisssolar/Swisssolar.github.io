@@ -2445,6 +2445,8 @@ function renderNav(){
     ['controle','Centre de contrôle','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',['superadmin']],
     ['frais','Frais & véhicule','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 11h18M7 15h3"/></svg>',['superadmin','direction','commercial','technicien','soustraitant','supply_chain']],
     ['fin_frais','Frais & véhicules (équipe)','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14l1-6H4l1 6Z"/><path d="M7 11l1.5-4h7L17 11"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>',['superadmin','direction']],
+    ['tarifs_sss','Tarifs SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1 1-1.8 2.5-1.8s2.5.8 2.5 1.8-1 1.6-2.5 2-2.5 1-2.5 2 1 1.8 2.5 1.8 2.5-.8 2.5-1.8"/></svg>',['superadmin','direction','commercial']],
+    ['fin_tarifs','Paramètres commerciaux / Tarifs','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',['superadmin']],
     ['fin_fisc','Fiscalité & Charges sociales','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9m4 12V9m6 12V9m4 12V9M2 9l10-6 10 6"/></svg>',['superadmin']],
     ['fin_clients','Facturation clients','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',['superadmin']],
     ['fin_fourn','Factures fournisseurs / À payer','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',['superadmin']],
@@ -2533,7 +2535,7 @@ function renderNav(){
   const isDir=['superadmin','direction'].includes(ME.role);
   const GROUPS_COM=[
     {id:'g1',title:'Activité',keys:['prospects','base_clients','planning_com','agenda','contacts']},
-    {id:'g2',title:'Ventes & dossiers',keys:['devis','relances','vivier','retours','avalider','generateur']},
+    {id:'g2',title:'Ventes & dossiers',keys:['devis','tarifs_sss','relances','vivier','retours','avalider','generateur']},
     {id:'g4',title:'Ressources',keys:['temoins','support','tarifs']}
   ];
   if(isDir){ GROUPS_COM.splice(2,0,{id:'g3p',title:'Performances',keys:['perf','perfcc']}); GROUPS_COM.push({id:'gfour',title:'Fournitures',keys:['commandes']}); }
@@ -2551,7 +2553,7 @@ function renderNav(){
   let GROUPS_TECH= techExterne()
     ? [ {id:'gtech',title:'Mes chantiers',keys:['tech_today','tech_pv','tech_bat','tech_sav','repasser','tech_termines']}, {id:'gtbo',title:'Mon back-office',keys:['commandes','st_remb']} ]
     : [ {id:'gtech',title:'Technique',keys:['techdash','tech_today','tech_search','tech_pv','tech_bat','tech_sav','repasser','tech_termines','tech_materiel']}, {id:'gtstk',title:'Stock & fournitures',keys:['stock','commandes']}, {id:'gtequipe',title:'Équipe terrain',keys:['mon_planning','mes_chantiers','tech_quittances','tech_conges','mes_demandes','signalements_t','vehicule','pointage']} ].concat( ME.role==='technicien' ? [] : [{id:'gtst',title:'Sous-traitants',keys:['stmissions','st_remb']}] ); if(ME.role==='technicien' && !techExterne()) GROUPS_TECH=SSS_MENU_TECH.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(ME.role==='supply_chain' && typeof SSS_MENU_SUPPLY!=='undefined') GROUPS_TECH=SSS_MENU_SUPPLY.map(function(g){ return {id:g.id,title:g.title,keys:g.keys.slice()}; }); if(['superadmin','direction'].indexOf(ME.role)>=0) GROUPS_TECH.forEach(function(g){ if(g.id==='gtstk'){ ['sc_chantiers','sc_achats'].forEach(function(k){ if(g.keys.indexOf(k)<0) g.keys.push(k); }); } });
-  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_clients','fin_fourn','fin_fisc','fin_frais','fin_dash','marges','prix_sss','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash'] }, {id:'gfin_arch',title:'Archives',keys:['financier']} ];
+  const GROUPS_FIN=[ {id:'gfin',title:'Financier',keys: isDir ? ['fin_clients','fin_fourn','fin_fisc','fin_frais','fin_dash','marges','prix_sss','fin_tarifs','fin_quittances','fin_remb','fin_charges','fin_marge','fin_treso','fin_prev'] : ['fin_dash'] }, {id:'gfin_arch',title:'Archives',keys:['financier']} ];
   const GROUPS_BACK=[ {id:'gback',title:'Mes tâches',keys:['botaches']} ];
   const avail=servicesAvail();
   if(avail.indexOf(SERVICE)<0) SERVICE=avail[0];
@@ -7794,6 +7796,371 @@ async function sssFinLocAct(id,act){
 })();
 
 /* SSS-FRAIS-FIN */
+
+/* SSS-TARIFS-DEBUT */
+/* ==========================================================================
+   SSS OS — Tarifs SSS (0048).
+   • Commercial → Ventes & dossiers → « Tarifs SSS » : choisir la technologie, avec / sans batterie, le nombre de panneaux →
+     MINIMUM SSS et prix CONSEILLÉ, prix client + remise → feu 🟢 / 🟠 / 🔴, suppléments, complexité, demande de validation
+     direction sous le minimum, fiches techniques autorisées. Le commercial ne reçoit de la base QUE minimum / conseillé :
+     aucun coût, aucune marge, aucun paramètre interne (fonctions serveur sss_tarifs_com / sss_tarif_verifier).
+   • Financier → « Paramètres commerciaux / Tarifs » (super administrateur + double authentification) : versions de la
+     grille (brouillon → active → archivée, jamais effacée), coût complet et marge estimée calculés depuis le catalogue
+     d'achat SSS existant, paramètres privés, suppléments, demandes exceptionnelles, fiches techniques (glisser-déposer).
+   ========================================================================== */
+var SSST={data:null,tech:'each',cap:'pv',n:10,avant:'',remMode:'chf',remise:'',cx:'standard',supp:{},lien:{},offres:null,mes:null,dernier:null};
+var SSST_TECH=[['each','EACH'],['solax','SolaX'],['atmoce','ATMOCE'],['enphase','Enphase']];
+var SSST_PANNEAUX=[6,8,10,12,14,16,18,20];
+var SSST_CX=[['standard','Standard'],['complexe','Complexe'],['a_chiffrer','À faire chiffrer']];
+var SSST_FEU={vert:['🟢','Très bon','#16a34a'],orange:['🟠','Autorisé — marge réduite','#d97706'],rouge:['🔴','Sous le minimum SSS — validation direction obligatoire','#dc2626'],a_confirmer:['⚪','Tarif à confirmer par la direction','#6b7280']};
+var SSST_STATUT={enregistre:'Enregistré',validation_demandee:'⏳ Validation demandée',autorise_direction:'✅ Autorisé par la direction (cette offre)',refuse_direction:'❌ Refusé par la direction',contre_proposition:'💬 Contre-proposition de la direction'};
+function sstCss(){ if(document.getElementById('sst-css')) return; var s=document.createElement('style'); s.id='sst-css'; s.textContent=
+  ".sst{max-width:760px}.sst *{box-sizing:border-box}.sst-lbl{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3);margin:14px 0 6px}"
+ +".sst-chips{display:flex;flex-wrap:wrap;gap:7px}.sst-chip{min-height:44px;padding:8px 13px;border-radius:12px;border:1.5px solid var(--line);background:transparent;color:inherit;font-size:15px;font-weight:800;cursor:pointer}"
+ +".sst-chip.on{background:#2563eb;color:#fff;border-color:#2563eb}.sst-chip small{display:block;font-size:11px;font-weight:600;opacity:.8}"
+ +".sst-card{border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0;background:var(--card,transparent)}"
+ +".sst-prix{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sst-prix>div{border-radius:14px;padding:12px;background:#8881}"
+ +".sst-prix .k{font-size:11.5px;font-weight:900;letter-spacing:.06em;color:var(--text-3)}.sst-prix .v{font-size:22px;font-weight:900;line-height:1.15;margin-top:4px;overflow-wrap:anywhere}"
+ +".sst-in{width:100%;min-height:48px;font-size:18px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg,transparent);color:inherit}"
+ +".sst-row{display:flex;gap:8px;align-items:stretch}.sst-row>*{flex:1 1 0;min-width:0}"
+ +".sst-feu{border-radius:14px;padding:14px;font-size:17px;font-weight:900;color:#fff;margin-top:12px;line-height:1.3}"
+ +".sst-tab{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px;margin-top:10px}.sst-tab .r{text-align:right;font-weight:800}"
+ +".sst-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;width:100%;border-radius:14px;font-size:16px;font-weight:900;border:2px solid var(--line);background:transparent;color:inherit;cursor:pointer;margin-top:10px}"
+ +".sst-btn.p{background:#16a34a;border-color:#16a34a;color:#fff}.sst-btn.r{background:#dc2626;border-color:#dc2626;color:#fff}.sst-btn:disabled{opacity:.5}"
+ +".sst-small{font-size:12.5px;color:var(--text-3)}.sst-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:800;background:#8882}"
+ +".sst details{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0}.sst summary{font-weight:900;cursor:pointer;min-height:32px;line-height:1.35;padding:4px 0}"
+ +".sst-sup{display:grid;grid-template-columns:auto 1fr 110px;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}.sst-sup input[type=number]{min-height:42px;font-size:15px}"
+ +".sst-sheet{position:fixed;left:0;right:0;bottom:0;max-height:92vh;overflow:auto;background:var(--card,#fff);color:var(--text,#111);border-radius:18px 18px 0 0;padding:16px 16px 26px;z-index:9990;box-shadow:0 -8px 30px #0006}"
+ +"@media(min-width:761px){.sst-sheet{left:50%;right:auto;bottom:auto;top:6vh;transform:translateX(-50%);width:min(680px,94vw);border-radius:18px}}"
+ +".sst-bg{position:fixed;inset:0;background:rgba(6,7,9,.6);z-index:9989}"
+ +".sst-f label{display:block;font-size:12.5px;color:var(--text-3);margin:9px 0 3px}.sst-f input,.sst-f select,.sst-f textarea{width:100%;min-height:42px;font-size:15px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg,transparent);color:inherit}"
+ +".sst-g2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}@media(max-width:420px){.sst-g2{grid-template-columns:1fr}}"
+ +".sst-d{max-width:1100px}.sst-d .sst-card{padding:12px}.sst-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.sst-kpi>div{border-radius:12px;padding:9px 11px;background:#8881}"
+ +".sst-kpi .k{font-size:11px;color:var(--text-3);font-weight:800}.sst-kpi .v{font-size:16px;font-weight:900}.sst-warn{border-left:5px solid #d97706}.sst-err{border-left:5px solid #dc2626}"
+ +".sst-drop{border:2.5px dashed var(--line);border-radius:16px;padding:22px;text-align:center;font-weight:800;cursor:pointer}.sst-drop.on{border-color:#2563eb;background:#2563eb14}"
+ +".sst-it{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}";
+  document.head.appendChild(s); }
+function sstChf(n){ if(n===null||n===undefined||n==='') return '—'; var v=Number(n); if(!isFinite(v)) return '—'; return v.toLocaleString('de-CH',{maximumFractionDigits:0}).replace(/[’,]/g,"'")+' CHF'; }
+function sstNum(v){ if(v===null||v===undefined) return null; var s=(''+v).replace(/['’\s]/g,'').replace(',','.'); if(s==='') return null; var n=Number(s); return isFinite(n)?n:null; }
+function sstDate(d){ if(!d) return '—'; var p=(''+d).slice(0,10).split('-'); return p.length===3?(p[2]+'.'+p[1]+'.'+p[0]):(''+d); }
+function sstFeu(prix,min,cons){ if(prix==null||min==null) return 'a_confirmer'; if(cons!=null&&prix>=cons) return 'vert'; return prix>=min?'orange':'rouge'; }
+function sstSheet(h){ sstFermer(); var bg=document.createElement('div'); bg.className='sst-bg'; bg.id='sst-bg'; bg.onclick=sstFermer; var s=document.createElement('div'); s.className='sst-sheet'; s.id='sst-sheet'; s.innerHTML=h; document.body.appendChild(bg); document.body.appendChild(s); }
+function sstFermer(){ ['sst-bg','sst-sheet'].forEach(function(i){ var e=document.getElementById(i); if(e) e.remove(); }); }
+async function sstOuvrirFiche(chemin){
+  var w=null; try{ w=window.open('about:blank','_blank'); }catch(e){}
+  var r=await db.storage.from('fiches-techniques').createSignedUrl(chemin,600); var u=r&&r.data&&r.data.signedUrl;
+  if(u){ if(w) w.location=u; else window.open(u,'_blank'); } else { try{ if(w) w.close(); }catch(e){} alert('Fiche indisponible (ou non autorisée).'); }
+}
+
+/* =============================== COMMERCIAL =============================== */
+function sstLignes(){ return ((SSST.data||{}).lignes)||[]; }
+function sstLigne(){ var t=SSST.tech, c=SSST.cap, n=SSST.n; return sstLignes().filter(function(l){ return l.technologie===t && l.nb_panneaux===n && (c==='pv'?l.config==='pv':(l.config==='pv_bat' && (''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)))===c)); })[0]||null; }
+function sstCapacites(){ var vus={}, out=[]; sstLignes().forEach(function(l){ if(l.technologie!==SSST.tech||l.config!=='pv_bat') return; var k=''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)); if(vus[k]) return; vus[k]=1; out.push([k,l.capacite_kwh==null?'Stockage':(Number(l.capacite_kwh)+' kWh'),l.capacite_kwh==null?'à confirmer':'']); }); return out.sort(function(a,b){ return (Number(a[0])||99)-(Number(b[0])||99); }); }
+async function renderTarifsSss(){
+  var m=document.getElementById('main'); if(!m) return; sstCss();
+  m.innerHTML="<div class='page-head'><h2>Tarifs SSS</h2></div><div class='loading'>Chargement…</div>";
+  try{ await sssMfaAssurer(); }catch(e){}
+  var r=await db.rpc('sss_tarifs_com'); if(VIEW!=='tarifs_sss') return;
+  if(r.error){ m.innerHTML="<div class='page-head'><h2>Tarifs SSS</h2></div><div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  SSST.data=r.data||{}; if(!sstCapacites().some(function(c){ return c[0]===SSST.cap; })) SSST.cap='pv';
+  db.rpc('sss_tarif_mes_controles',{p_limite:30}).then(function(x){ SSST.mes=(x&&x.data)||[]; if(VIEW==='tarifs_sss') sstPeindreMes(); });
+  sstPeindre();
+}
+function sstPeindre(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='tarifs_sss') return; var D=SSST.data||{}, g=D.grille;
+  var h="<div class='sst'><div class='page-head'><h2>Tarifs SSS</h2><div class='spacer'></div>"+(g?"<span class='sst-badge'>Grille v"+esc(g.version)+" · dès "+sstDate(g.valable_des)+(g.valable_jusqu?' → '+sstDate(g.valable_jusqu):'')+"</span>":'')+"</div>";
+  if(!g){ m.innerHTML=h+"<div class='sst-card sst-warn'><b>Tarif à confirmer par la direction</b><div class='sst-small'>Aucune grille active pour l'instant.</div></div></div>"; return; }
+  h+="<div class='sst-lbl'>Technologie</div><div class='sst-chips'>"+SSST_TECH.map(function(t){ return "<button class='sst-chip"+(SSST.tech===t[0]?' on':'')+"' onclick=\"sstChoix('tech','"+t[0]+"')\">"+t[1]+"</button>"; }).join('')+"</div>";
+  var caps=sstCapacites();
+  h+="<div class='sst-lbl'>Batterie</div><div class='sst-chips'><button class='sst-chip"+(SSST.cap==='pv'?' on':'')+"' onclick=\"sstChoix('cap','pv')\">Sans batterie</button>"
+    +caps.map(function(c){ return "<button class='sst-chip"+(SSST.cap===c[0]?' on':'')+"' onclick=\"sstChoix('cap','"+c[0]+"')\">🔋 "+esc(c[1])+(c[2]?"<small>"+esc(c[2])+"</small>":'')+"</button>"; }).join('')+"</div>";
+  h+="<div class='sst-lbl'>Panneaux MaviWatt PULSE 490 W</div><div class='sst-chips'>"+SSST_PANNEAUX.map(function(n){ return "<button class='sst-chip"+(SSST.n===n?' on':'')+"' onclick=\"sstChoix('n',"+n+")\">"+n+"<small>"+(n*0.49).toFixed(2)+" kWc</small></button>"; }).join('')+"</div>";
+  var l=sstLigne();
+  h+="<div class='sst-card' id='sst-res'>"+sstCarteRes(l)+"</div>";
+  if(l&&l.valide){
+    var S=(D.supplements||[]);
+    h+="<details"+(Object.keys(SSST.supp).some(function(k){ return SSST.supp[k]&&SSST.supp[k].on; })?' open':'')+"><summary>➕ Suppléments <span class='sst-small' style='margin-left:6px'>(échafaudage non inclus sauf ajout)</span></summary>"
+      +S.map(function(s){ var v=SSST.supp[s.code]||{}; return "<div class='sst-sup'><input type='checkbox' "+(v.on?'checked':'')+" onchange=\"sstSupp('"+s.code+"','on',this.checked)\" style='width:22px;height:22px'><div><b>"+esc(s.libelle)+"</b> <span class='sst-small'>/"+esc(s.unite)+"</span><div class='sst-small'>"+(s.prix_min_ttc!=null?'min '+sstChf(s.prix_min_ttc)+(s.prix_conseille_ttc!=null?' · conseillé '+sstChf(s.prix_conseille_ttc):''):'Prix à définir par la direction')+(s.note?' · '+esc(s.note):'')+"</div></div>"
+        +"<input class='sst-in' type='number' inputmode='decimal' placeholder='CHF TTC' value='"+esc(v.prix==null?'':v.prix)+"' oninput=\"sstSupp('"+s.code+"','prix',this.value)\"></div>"; }).join('')+"</details>";
+    h+="<div class='sst-lbl'>Complexité du chantier</div><div class='sst-chips'>"+SSST_CX.map(function(c){ return "<button class='sst-chip"+(SSST.cx===c[0]?' on':'')+"' onclick=\"sstChoix('cx','"+c[0]+"')\">"+c[1]+"</button>"; }).join('')+"</div>";
+    h+="<details><summary>🔗 Rattacher à une offre (facultatif)</summary><div class='sst-f'><label>Mon offre / prospect</label><select id='sst-offre' onchange='sstLien(this.value)'><option value=''>— aucune —</option>"+sstOptionsOffres()+"</select>"
+      +"<label>Client</label><input id='sst-client' value='"+esc(SSST.lien.client||'')+"' oninput=\"SSST.lien.client=this.value\"><label>N° d'offre</label><input id='sst-ref' value='"+esc(SSST.lien.ref||'')+"' oninput=\"SSST.lien.ref=this.value\"></div></details>";
+    h+="<button class='sst-btn p' onclick='sstEnregistrer(this)'>💾 Enregistrer le contrôle prix</button><div id='sst-apres'></div>";
+  }
+  h+="<div class='sst-lbl' style='margin-top:20px'>Mes contrôles & demandes</div><div id='sst-mes'><div class='sst-small'>Chargement…</div></div></div>";
+  m.innerHTML=h; sstPeindreMes(); if(!SSST.offres) sstChargerOffres();
+}
+function sstCarteRes(l){
+  if(!l) return "<div style='font-size:17px;font-weight:900'>Tarif direction à définir</div><div class='sst-small'>Pas encore de tarif pour "+SSST.n+" panneaux ("+(SSST.n*0.49).toFixed(2)+" kWc) dans cette configuration : demande à la direction.</div>";
+  var h="<div style='display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap'><div style='flex:1 1 200px'><div style='font-size:17px;font-weight:900'>"+esc(l.technologie_lib)+" · "+esc(l.libelle)+"</div><div class='sst-small'>"+l.nb_panneaux+" × "+esc(l.module)+" = "+Number(l.kwc).toFixed(2)+" kWc · "+(l.valide?'✅ '+esc(l.etat_tarif):'⚠ '+esc(l.etat_tarif))+"</div></div>"
+    +"<button class='sst-chip' onclick=\"sstFiches('"+l.id+"')\">📄 Fiche technique</button></div>";
+  if(!l.valide){ return h+"<div class='sst-feu' style='background:#6b7280'>"+esc(l.message||'Tarif à confirmer par la direction')+"</div>"; }
+  h+="<div class='sst-prix' style='margin-top:12px'><div><div class='k'>MINIMUM SSS</div><div class='v'>"+sstChf(l.prix_min_ttc)+"</div><div class='sst-small'>TTC</div></div><div><div class='k'>CONSEILLÉ</div><div class='v'>"+sstChf(l.prix_conseille_bas_ttc)+(l.prix_conseille_haut_ttc&&l.prix_conseille_haut_ttc!==l.prix_conseille_bas_ttc?"<span style='font-size:15px'> – "+sstChf(l.prix_conseille_haut_ttc)+"</span>":'')+"</div><div class='sst-small'>TTC</div></div></div>";
+  h+="<div class='sst-lbl'>Prix client TTC</div><div class='sst-row'><input class='sst-in' id='sst-avant' type='text' inputmode='decimal' placeholder='Prix avant remise' value='"+esc(SSST.avant)+"' oninput='SSST.avant=this.value;sstCalc()'></div>"
+    +"<div class='sst-row' style='margin-top:8px'><input class='sst-in' id='sst-remise' type='text' inputmode='decimal' placeholder='Remise' value='"+esc(SSST.remise)+"' oninput='SSST.remise=this.value;sstCalc()'>"
+    +"<div class='sst-chips' style='flex:0 0 auto'><button class='sst-chip"+(SSST.remMode==='chf'?' on':'')+"' onclick=\"sstChoix('remMode','chf')\">CHF</button><button class='sst-chip"+(SSST.remMode==='pct'?' on':'')+"' onclick=\"sstChoix('remMode','pct')\">%</button></div></div>"
+    +"<div id='sst-calc'>"+sstCalcHtml(l)+"</div>";
+  return h;
+}
+function sstCalcVals(l){ var av=sstNum(SSST.avant), re=sstNum(SSST.remise)||0; if(av==null) return null; var rc=SSST.remMode==='pct'?Math.round(av*re)/100:re; var fin=Math.round((av-rc)*100)/100; return {av:av,rc:Math.round(rc*100)/100,rp:av>0?Math.round(rc/av*10000)/100:0,fin:fin}; }
+function sstCalcHtml(l){
+  var v=sstCalcVals(l); if(!v) return "<div class='sst-small' style='margin-top:8px'>Saisis le prix pour voir l'état de l'offre.</div>";
+  if(v.fin<0||v.rc<0) return "<div class='sst-feu' style='background:#dc2626'>Remise invalide</div>";
+  var f=sstFeu(v.fin,Number(l.prix_min_ttc),Number(l.prix_conseille_bas_ttc)), F=SSST_FEU[f];
+  var supp=sstSuppTot(), cx=SSST.cx!=='standard';
+  return "<div class='sst-tab'><span>Prix avant remise</span><span class='r'>"+sstChf(v.av)+"</span><span>Remise</span><span class='r'>"+sstChf(v.rc)+" · "+v.rp.toLocaleString('fr-CH',{maximumFractionDigits:2})+" %</span>"
+    +"<span><b>Prix final</b></span><span class='r' style='font-size:17px'>"+sstChf(v.fin)+"</span><span>Minimum SSS</span><span class='r'>"+sstChf(l.prix_min_ttc)+"</span>"
+    +(supp.n?"<span>Suppléments ("+supp.n+")</span><span class='r'>"+sstChf(supp.tot)+"</span><span><b>Total offre</b></span><span class='r'>"+sstChf(v.fin+supp.tot)+"</span>":'')+"</div>"
+    +"<div class='sst-feu' style='background:"+F[2]+"'>"+F[0]+" "+esc(F[1])+(f==='rouge'?"<div style='font-size:13px;font-weight:700;margin-top:4px'>Écart : "+sstChf(v.fin-Number(l.prix_min_ttc))+"</div>":'')+"</div>"
+    +(supp.rouge?"<div class='sst-card sst-err' style='margin:8px 0 0'>Un supplément est sous son minimum : validation direction obligatoire.</div>":'')
+    +(supp.def?"<div class='sst-card sst-warn' style='margin:8px 0 0'>Un supplément n'a pas encore de prix direction : à confirmer.</div>":'')
+    +(cx?"<div class='sst-card sst-warn' style='margin:8px 0 0'>Chantier "+(SSST.cx==='complexe'?'complexe':'à faire chiffrer')+" : validation direction / technique obligatoire.</div>":'');
+}
+function sstSuppTot(){ var D=SSST.data||{}, o={n:0,tot:0,rouge:false,def:false}; (D.supplements||[]).forEach(function(s){ var v=SSST.supp[s.code]; if(!v||!v.on) return; o.n++; var p=sstNum(v.prix); o.tot+=p||0; if(s.prix_min_ttc==null) o.def=true; else if(p==null||p<Number(s.prix_min_ttc)) o.rouge=true; }); return o; }
+function sstCalc(){ var l=sstLigne(), z=document.getElementById('sst-calc'); if(z&&l) z.innerHTML=sstCalcHtml(l); }
+function sstSupp(code,k,v){ SSST.supp[code]=SSST.supp[code]||{}; SSST.supp[code][k]=v; sstCalc(); }
+function sstChoix(k,v){ SSST[k]=v; if(k==='tech'){ if(!sstCapacites().some(function(c){ return c[0]===SSST.cap; })) SSST.cap='pv'; } sstPeindre(); }
+async function sstChargerOffres(){ try{ var r=await db.rpc('sss_com_devis'); SSST.offres=(r&&r.data)||{}; }catch(e){ SSST.offres={}; } var s=document.getElementById('sst-offre'); if(s) s.innerHTML="<option value=''>— aucune —</option>"+sstOptionsOffres(); }
+function sstOptionsOffres(){ var O=SSST.offres||{}, out=''; (O.prospects||[]).slice(0,80).forEach(function(p){ out+="<option value='p:"+esc(p.prospect_id)+"|"+esc(p.numero_offre||'')+"|"+esc(p.nom||'')+"'"+(SSST.lien.prospect_id===p.prospect_id?' selected':'')+">"+esc((p.nom||'?')+(p.numero_offre?' · '+p.numero_offre:'')+(p.localite?' · '+p.localite:''))+"</option>"; });
+  (O.dossiers||[]).slice(0,80).forEach(function(d){ var c=d.client||{}; var nom=[c.prenom,c.nom].filter(Boolean).join(' ')||c.societe||'?'; out+="<option value='a:"+esc(d.affaire_id)+"|"+esc(d.numero||'')+"|"+esc(nom)+"'"+(SSST.lien.affaire_id===d.affaire_id?' selected':'')+">"+esc(nom+(d.numero?' · '+d.numero:''))+"</option>"; }); return out; }
+function sstLien(v){ SSST.lien={}; if(v){ var p=v.split('|'), id=p[0]; if(id.indexOf('p:')===0) SSST.lien.prospect_id=id.slice(2); else SSST.lien.affaire_id=id.slice(2); SSST.lien.ref=p[1]||''; SSST.lien.client=p.slice(2).join('|')||''; }
+  var a=document.getElementById('sst-client'), b=document.getElementById('sst-ref'); if(a) a.value=SSST.lien.client||''; if(b) b.value=SSST.lien.ref||''; }
+async function sstEnregistrer(btn){
+  var l=sstLigne(); if(!l) return; var v=sstCalcVals(l); if(!v){ alert('Saisis le prix proposé au client.'); return; }
+  var supp=[]; Object.keys(SSST.supp).forEach(function(k){ var s=SSST.supp[k]; if(s&&s.on) supp.push({code:k,prix:sstNum(s.prix)}); });
+  var p={technologie:l.technologie,config:l.config,capacite_kwh:l.capacite_kwh,nb_panneaux:l.nb_panneaux,prix_avant_remise:v.av,prix_final:v.fin,supplements:supp,complexite:SSST.cx,
+         client:SSST.lien.client||null,reference_offre:SSST.lien.ref||null,prospect_id:SSST.lien.prospect_id||null,affaire_id:SSST.lien.affaire_id||null};
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_controle_enregistrer',{p:p}); },{succes:function(x){ return (x&&x.message)||'Contrôle enregistré ✓'; }});
+  if(!d) return; SSST.dernier=d; var z=document.getElementById('sst-apres'), F=SSST_FEU[d.feu]||SSST_FEU.a_confirmer;
+  if(z) z.innerHTML="<div class='sst-card'><b>"+esc(d.feu_lib||(F[0]+' '+F[1]))+"</b><div class='sst-small'>Contrôle enregistré avec la grille v"+esc(d.grille_version)+" — "+sstChf(d.prix_final)+(d.total_ttc&&Number(d.total_ttc)!==Number(d.prix_final)?' · total avec suppléments '+sstChf(d.total_ttc):'')+"</div>"
+    +(d.validation_requise?"<button class='sst-btn r' onclick=\"sstDemander('"+d.controle_id+"')\">Demander validation direction</button>":'')+"</div>";
+  var x=await db.rpc('sss_tarif_mes_controles',{p_limite:30}); SSST.mes=(x&&x.data)||[]; sstPeindreMes();
+}
+function sstDemander(id){
+  var M=(SSST.data||{}).motifs||[];
+  sstSheet("<h3 style='margin:0 0 4px'>Demander validation direction</h3><div class='sst-small'>Le prix est sous le minimum SSS (ou le chantier n'est pas standard). La direction autorise, refuse ou propose un prix ; l'autorisation vaut pour cette offre seulement.</div>"
+    +"<div class='sst-lbl'>Motif</div><div class='sst-chips' id='sst-motifs'>"+M.map(function(m){ return "<button class='sst-chip' data-m='"+m[0]+"' onclick=\"sstMotif(this)\">"+esc(m[1])+"</button>"; }).join('')+"</div>"
+    +"<div class='sst-f'><label>Commentaire (obligatoire pour « Autre »)</label><textarea id='sst-com' rows='3'></textarea></div>"
+    +"<button class='sst-btn r' onclick=\"sstEnvoyerDemande(this,'"+id+"')\">Envoyer la demande</button><button class='sst-btn' onclick='sstFermer()'>Annuler</button>");
+}
+function sstMotif(b){ Array.prototype.forEach.call(document.querySelectorAll('#sst-motifs .sst-chip'),function(x){ x.classList.remove('on'); }); b.classList.add('on'); }
+async function sstEnvoyerDemande(btn,id){
+  var on=document.querySelector('#sst-motifs .sst-chip.on'); if(!on){ alert('Choisis un motif.'); return; }
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_exception_demander',{p_controle:id,p_motif:on.getAttribute('data-m'),p_commentaire:(document.getElementById('sst-com').value||'').trim()||null}); },{succes:function(){ return 'Demande envoyée à la direction ✓'; }});
+  if(!d) return; sstFermer(); var z=document.getElementById('sst-apres'); if(z) z.innerHTML="<div class='sst-card'>⏳ Demande envoyée à la direction. Tu seras notifiée de sa décision.</div>";
+  var x=await db.rpc('sss_tarif_mes_controles',{p_limite:30}); SSST.mes=(x&&x.data)||[]; sstPeindreMes();
+}
+function sstPeindreMes(){
+  var z=document.getElementById('sst-mes'); if(!z) return; var L=SSST.mes;
+  if(!L){ z.innerHTML="<div class='sst-small'>Chargement…</div>"; return; } if(!L.length){ z.innerHTML="<div class='sst-small'>Aucun contrôle enregistré.</div>"; return; }
+  z.innerHTML=L.map(function(c){ var F=SSST_FEU[c.feu]||SSST_FEU.a_confirmer, e=c.exception;
+    return "<div class='sst-card' style='margin:8px 0'><div style='display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap'><b>"+F[0]+" "+esc(c.technologie_lib)+" · "+esc(c.libelle||'')+"</b><span class='sst-small'>"+sstDate(c.created_at)+" · v"+esc(c.version)+"</span></div>"
+      +"<div class='sst-small'>"+(c.client?esc(c.client)+' · ':'')+(c.reference_offre?esc(c.reference_offre)+' · ':'')+"prix "+sstChf(c.prix_final_ttc)+(Number(c.remise_chf)>0?' (remise '+sstChf(c.remise_chf)+')':'')+" · minimum "+sstChf(c.prix_min_ttc)+"</div>"
+      +"<div style='margin-top:4px;font-size:13.5px;font-weight:800'>"+esc(SSST_STATUT[c.statut]||c.statut)+(e&&e.statut==='contre_proposition'?' : '+sstChf(e.prix_propose_ttc):'')+(e&&e.decision_note?" <span class='sst-small'>— "+esc(e.decision_note)+"</span>":'')+"</div>"
+      +(c.validation_requise&&(c.statut==='enregistre'||c.statut==='refuse_direction'||c.statut==='contre_proposition')?"<button class='sst-chip' style='margin-top:6px' onclick=\"sstDemander('"+c.id+"')\">Demander validation direction</button>":'')+"</div>"; }).join('');
+}
+async function sstFiches(ligneId){
+  sstSheet("<h3 style='margin:0 0 6px'>📄 Fiches techniques</h3><div class='sst-small'>Chargement…</div>");
+  var r=await db.rpc('sss_fiches_com',{p_ligne:ligneId}); var s=document.getElementById('sst-sheet'); if(!s) return;
+  if(r.error){ s.innerHTML="<h3>📄 Fiches techniques</h3><div class='empty'>"+esc(r.error.message)+"</div><button class='sst-btn' onclick='sstFermer()'>Fermer</button>"; return; }
+  s.innerHTML="<h3 style='margin:0 0 6px'>📄 Fiches techniques</h3>"+(r.data||[]).map(function(p){ var F=p.fiches||[];
+    return "<div class='sst-card' style='margin:8px 0'><div style='font-size:12px;font-weight:800;color:var(--text-3);text-transform:uppercase'>"+esc(p.role||'')+"</div><b>"+esc(p.marque)+" "+esc(p.reference)+"</b>"+(p.quantite?" <span class='sst-small'>× "+esc(p.quantite)+"</span>":'')
+      +(F.length?F.map(function(f){ return "<button class='sst-chip' style='display:block;width:100%;text-align:left;margin-top:6px' onclick=\"sstOuvrirFiche('"+esc(f.chemin).replace(/'/g,"\\'")+"')\">⬇ "+esc({fiche_technique:'Fiche technique',manuel:'Manuel',garantie:'Garantie',certificat:'Certificat',autre:'Document'}[f.type]||f.type)+" · "+esc((f.langue||'').toUpperCase())+" · v"+esc(f.version)+(f.date_doc?' · '+sstDate(f.date_doc):'')+"</button>"; }).join('')
+               :"<div class='sst-small' style='margin-top:4px'>Fiche non disponible — à fournir par la direction.</div>")+"</div>"; }).join('')+"<button class='sst-btn' onclick='sstFermer()'>Fermer</button>";
+}
+
+/* =============================== DIRECTION =============================== */
+var SSSTD={data:null,grille:null,onglet:'grille',rapport:null,depot:[]};
+async function renderFinTarifs(){
+  var m=document.getElementById('main'); if(!m) return; sstCss();
+  m.innerHTML="<div class='page-head'><h2>Paramètres commerciaux / Tarifs</h2></div><div class='loading'>Chargement…</div>";
+  if(!(await sssMfaAssurer())){ m.innerHTML="<div class='page-head'><h2>Paramètres commerciaux / Tarifs</h2></div><div class='empty'>Code de double authentification requis.</div>"; return; }
+  var r=await db.rpc('sss_tarif_direction',SSSTD.grille?{p_grille:SSSTD.grille}:{}); if(VIEW!=='fin_tarifs') return;
+  if(r.error){ m.innerHTML="<div class='page-head'><h2>Paramètres commerciaux / Tarifs</h2></div><div class='empty'>"+esc(r.error.message)+"</div>"; return; }
+  SSSTD.data=r.data||{}; if(SSSTD.data.grille) SSSTD.grille=SSSTD.data.grille.id; sstdPeindre();
+}
+function sstdPeindre(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='fin_tarifs') return; var D=SSSTD.data||{}, g=D.grille||{}, att=(D.exceptions||[]).filter(function(e){ return e.statut==='en_attente'; }).length;
+  var tabs=[['grille','Grille'],['exceptions','Demandes'+(att?' ('+att+')':'')],['supplements','Suppléments'],['fiches','Fiches techniques'+((D.fiches_manquantes||[]).length?' ('+(D.fiches_manquantes||[]).length+' manquantes)':'')],['historique','Historique'],['rapport','Rapport']];
+  var h="<div class='sst sst-d'><div class='page-head'><h2>Paramètres commerciaux / Tarifs</h2><div class='spacer'></div><span class='sst-small'>🔒 Super administrateur · coûts et marges jamais visibles du commercial</span></div>"
+    +"<div class='sst-chips' style='margin-bottom:10px'>"+tabs.map(function(t){ return "<button class='sst-chip"+(SSSTD.onglet===t[0]?' on':'')+"' onclick=\"SSSTD.onglet='"+t[0]+"';sstdPeindre()\">"+esc(t[1])+"</button>"; }).join('')+"</div>";
+  if(SSSTD.onglet==='grille') h+=sstdGrille(D,g); else if(SSSTD.onglet==='exceptions') h+=sstdExceptions(D); else if(SSSTD.onglet==='supplements') h+=sstdSupplements(D,g);
+  else if(SSSTD.onglet==='fiches') h+=sstdFiches(D); else if(SSSTD.onglet==='historique') h+=sstdHistorique(D); else h+="<div id='sstd-rapport'><div class='sst-small'>Chargement…</div></div>";
+  m.innerHTML=h+"</div>"; if(SSSTD.onglet==='rapport') sstdRapport(); if(SSSTD.onglet==='fiches') sstdDropInit();
+}
+function sstdGrille(D,g){
+  var brouillon=(D.grilles||[]).filter(function(x){ return x.statut==='brouillon'; })[0], edit=g.statut==='brouillon';
+  var h="<div class='sst-chips' style='margin-bottom:8px'>"+(D.grilles||[]).map(function(x){ return "<button class='sst-chip"+(x.id===g.id?' on':'')+"' onclick=\"SSSTD.grille='"+x.id+"';renderFinTarifs()\">v"+x.version+"<small>"+({active:'active',brouillon:'brouillon',archivee:'archivée'}[x.statut])+"</small></button>"; }).join('')+"</div>";
+  h+="<div class='sst-card'><div style='display:flex;gap:10px;flex-wrap:wrap;align-items:center'><div style='flex:1 1 260px'><b>v"+esc(g.version)+" — "+esc(g.libelle||'')+"</b><div class='sst-small'>"+({active:'✅ Active',brouillon:'✏️ Brouillon (modifiable)',archivee:'🗄 Archivée'}[g.statut]||'')+" · valable dès "+sstDate(g.valable_des)+(g.valable_jusqu?' jusqu’au '+sstDate(g.valable_jusqu):'')
+    +" · créée par "+esc(g.cree_par_nom||'—')+" le "+sstDate(g.cree_at)+" · <b>Tarif vérifié le "+sstDate(g.verifie_le)+"</b>"+(g.verifie_par_nom?' ('+esc(g.verifie_par_nom)+')':'')+"</div>"+(g.motif?"<div class='sst-small'>Motif : "+esc(g.motif)+"</div>":'')+"</div>"
+    +(g.statut!=='archivee'?"<button class='sst-chip' onclick=\"sstdAct(this,'verifie')\">✔ Marquer vérifié</button>":'')
+    +(!brouillon?"<button class='sst-chip' onclick=\"sstdAct(this,'nouvelle')\">✏️ Nouvelle version</button>":(brouillon.id!==g.id?"<button class='sst-chip' onclick=\"SSSTD.grille='"+brouillon.id+"';renderFinTarifs()\">Ouvrir le brouillon v"+brouillon.version+"</button>":''))
+    +(edit?"<button class='sst-chip on' onclick=\"sstdAct(this,'activer')\">✅ Activer cette version</button>":'')+"</div>"
+    +(g.a_verifier?"<div class='sst-card sst-warn' style='margin:10px 0 0'>⚠ <b>Le coût de référence d'un produit a changé. Vérifier la grille commerciale.</b><div class='sst-small'>"+esc(g.a_verifier_raison||'')+"</div><div class='sst-small'>Les prix minimum ne changent jamais automatiquement.</div></div>":'')
+    +"<div class='sst-small' style='margin-top:8px'>Hypothèses : "+esc(g.hypotheses||'—')+"</div>"
+    +"<div class='sst-kpi' style='margin-top:8px'><div><div class='k'>TVA</div><div class='v'>"+esc(g.tva_pct)+" %</div></div><div><div class='k'>Coût d'une journée d'équipe</div><div class='v'>"+(g.cout_jour_equipe!=null?sstChf(g.cout_jour_equipe):'à définir')+"</div></div><div><div class='k'>Alerte prix fournisseur</div><div class='v'>&gt; "+esc(g.alerte_mois)+" mois</div></div></div>"
+    +(edit?"<button class='sst-chip' style='margin-top:8px' onclick='sstdParams()'>⚙️ Paramètres de la version</button> <button class='sst-chip' style='margin-top:8px' onclick='sstdLigne(null)'>+ Ajouter une configuration</button>":"<div class='sst-small' style='margin-top:8px'>Version figée : pour modifier un prix, crée une nouvelle version (l'historique est conservé, les offres déjà contrôlées gardent leur version).</div>")+"</div>";
+  h+=(D.lignes||[]).map(function(l){ var c=l.calcul||{}, man=c.manquants||[];
+    return "<div class='sst-card"+(c.alerte_marge?' sst-err':(man.length?' sst-warn':''))+"'><div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center'><b style='flex:1 1 220px'>"+esc(l.technologie_lib)+" · "+esc(l.libelle)+" <span class='sst-small'>· "+l.nb_panneaux+" × "+esc(l.module)+" = "+Number(l.kwc).toFixed(2)+" kWc</span></b>"
+      +(l.statut!=='valide'?"<span class='sst-badge'>"+esc(l.message_commercial||'à confirmer')+"</span>":'')+(edit?"<button class='sst-chip' onclick=\"sstdLigne('"+l.id+"')\">Modifier</button>":'')+"</div>"
+      +"<div class='sst-kpi' style='margin-top:8px'><div><div class='k'>Minimum TTC</div><div class='v'>"+sstChf(l.prix_min_ttc)+"</div></div><div><div class='k'>Conseillé TTC</div><div class='v'>"+sstChf(l.prix_conseille_bas_ttc)+(l.prix_conseille_haut_ttc?' – '+sstChf(l.prix_conseille_haut_ttc):'')+"</div></div>"
+      +"<div><div class='k'>Coût matériel documenté</div><div class='v'>"+(c.materiel_catalogue_chf!=null?sstChf(c.materiel_catalogue_chf):'—')+"</div>"+(c.materiel_catalogue_chf!=null&&!c.materiel_catalogue_complet?"<div class='sst-small'>partiel : "+esc((c.items||[]).filter(function(i){ return i.manquant; }).map(function(i){ return i.libelle; }).join(', '))+" sans prix d’achat</div>":'')+"</div>"
+      +"<div style='grid-column:span 2'><div class='k'>Coût complet HT</div><div class='v'"+(c.cout_complet_ht!=null?'':" style='font-size:14px;color:#d97706'")+">"+(c.cout_complet_ht!=null?sstChf(c.cout_complet_ht):esc(c.cout_complet_etat||'incomplet — paramètres internes à renseigner'))+"</div></div>"
+      +(c.cout_complet_ht!=null?"<div><div class='k'>Marge est. au minimum</div><div class='v'>"+sstChf(c.marge_min_chf)+' · '+c.marge_min_pct+" %</div></div><div><div class='k'>Marge est. au conseillé</div><div class='v'>"+sstChf(c.marge_conseille_chf)+' · '+c.marge_conseille_pct+" %</div></div>":'')+"</div>"
+      +(c.alerte_marge?"<div style='color:#dc2626;font-weight:800;margin-top:6px'>⚠ "+esc(c.alerte_marge)+"</div>":'')
+      +(man.length?"<div class='sst-small' style='margin-top:6px'>À compléter : "+man.map(esc).join(' · ')+"</div>":'')
+      +(c.prix_ancien?"<div style='color:#d97706;font-weight:800;margin-top:4px'>⚠ Prix fournisseur ancien de plus de "+esc(g.alerte_mois)+" mois</div>":'')
+      +"<details><summary>Nomenclature & sources ("+(c.items||[]).length+")</summary>"+(c.items||[]).map(function(it){ return "<div class='sst-it'><div><b>"+esc(it.role||'')+"</b> · "+esc(it.libelle||'—')+" × "+esc(it.quantite)+(it.note?" <span class='sst-small'>("+esc(it.note)+")</span>":'')
+          +"<div class='sst-small'>"+(it.manquant?"<span style='color:#dc2626'>"+esc(it.manquant)+"</span>":esc(it.prix_ht)+' '+esc(it.devise)+' / pce · '+esc(it.fournisseur||'—')+' · prix du '+sstDate(it.date_prix)+' · '+esc(it.source||'')+(it.ancien?" <span style='color:#d97706'>⚠ ancien</span>":''))+"</div></div><div style='font-weight:800'>"+(it.prix_chf!=null?sstChf(it.prix_chf):'—')+"</div></div>"; }).join('')
+      +(c.taux_eur&&c.taux_eur.taux?"<div class='sst-small' style='margin-top:4px'>Taux : 1 EUR = "+esc(c.taux_eur.taux)+" CHF ("+sstDate(c.taux_eur.date)+")</div>":'')
+      +"<div class='sst-small'>Main-d'œuvre "+(c.main_oeuvre!=null?sstChf(c.main_oeuvre):'—')+(l.main_oeuvre_jours!=null?' ('+esc(l.main_oeuvre_jours)+' j)':'')+" · administratif "+sstChf(l.cout_admin_ht)+" · frais de chantier "+sstChf(l.frais_chantier_ht)+" · risque SAV "+sstChf(l.risque_sav_ht)+" · marge min "+(l.marge_min_pct!=null?esc(l.marge_min_pct)+' %':'—')+" · reco "+(l.marge_reco_pct!=null?esc(l.marge_reco_pct)+' %':'—')+"</div>"
+      +(l.notes_direction?"<div class='sst-small'>Note : "+esc(l.notes_direction)+"</div>":'')+"</details></div>"; }).join('');
+  return h;
+}
+async function sstdAct(btn,a){
+  var g=(SSSTD.data||{}).grille||{}, d;
+  if(a==='nouvelle'){ var motif=prompt('Motif de la nouvelle version (ex. hausse du prix Enphase) :'); if(motif===null) return; d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_nouvelle_version',{p_motif:motif||null}); }); if(d&&d.grille_id) SSSTD.grille=d.grille_id; }
+  else if(a==='activer'){ var mo=prompt('Motif du changement de tarif (obligatoire) :', g.motif||''); if(!mo) return; if(!confirm('Activer la v'+g.version+' ? L’ancienne grille sera archivée (jamais effacée) et le commercial verra les nouveaux prix.')) return; d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_activer',{p_grille:g.id,p_motif:mo}); }); }
+  else if(a==='verifie'){ d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_marquer_verifie',{p_grille:g.id}); }); }
+  if(d) renderFinTarifs();
+}
+function sstdParams(){
+  var g=(SSSTD.data||{}).grille||{};
+  sstSheet("<h3 style='margin:0'>Paramètres de la v"+esc(g.version)+"</h3><div class='sst-f'><label>Libellé</label><input id='sp-lib' value='"+esc(g.libelle||'')+"'><div class='sst-g2'><div><label>Valable dès</label><input id='sp-des' type='date' value='"+esc((g.valable_des||'').slice(0,10))+"'></div><div><label>Valable jusqu'au (facultatif)</label><input id='sp-jus' type='date' value='"+esc((g.valable_jusqu||'').slice(0,10))+"'></div>"
+    +"<div><label>Coût d'une journée d'équipe HT (privé)</label><input id='sp-jour' inputmode='decimal' value='"+esc(g.cout_jour_equipe==null?'':g.cout_jour_equipe)+"'></div><div><label>TVA %</label><input id='sp-tva' inputmode='decimal' value='"+esc(g.tva_pct)+"'></div>"
+    +"<div><label>Alerte prix fournisseur ancien (mois)</label><input id='sp-al' inputmode='numeric' value='"+esc(g.alerte_mois)+"'></div></div><label>Hypothèses</label><textarea id='sp-hyp' rows='4'>"+esc(g.hypotheses||'')+"</textarea><label>Motif</label><input id='sp-mot' value='"+esc(g.motif||'')+"'></div>"
+    +"<button class='sst-btn p' onclick='sstdParamsOk(this)'>Enregistrer</button><button class='sst-btn' onclick='sstFermer()'>Annuler</button>");
+}
+async function sstdParamsOk(btn){
+  var g=(SSSTD.data||{}).grille||{}, v=function(i){ return (document.getElementById(i).value||'').trim(); };
+  var p={libelle:v('sp-lib'),valable_des:v('sp-des'),valable_jusqu:v('sp-jus'),cout_jour_equipe:sstNum(v('sp-jour')),tva_pct:sstNum(v('sp-tva')),alerte_mois:sstNum(v('sp-al')),hypotheses:v('sp-hyp'),motif:v('sp-mot')};
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_grille_maj',{p_grille:g.id,p:p}); }); if(d){ sstFermer(); renderFinTarifs(); }
+}
+var SSSTD_L=null;
+function sstdLigne(id){
+  var D=SSSTD.data||{}, l=id?(D.lignes||[]).filter(function(x){ return x.id===id; })[0]:{technologie:'each',config:'pv',nb_panneaux:10,produits:[],nomenclature:[],statut:'valide'};
+  SSSTD_L={id:id,nom:JSON.parse(JSON.stringify(l.nomenclature||[])),prod:JSON.parse(JSON.stringify(l.produits||[]))};
+  var f=function(k,lib,val,t){ return "<div><label>"+lib+"</label><input id='sl-"+k+"' "+(t||"inputmode='decimal'")+" value='"+esc(val==null?'':val)+"'></div>"; };
+  var h="<h3 style='margin:0'>"+(id?'Modifier':'Ajouter')+" une configuration</h3><div class='sst-f'>";
+  if(!id) h+="<div class='sst-g2'><div><label>Technologie</label><select id='sl-tech'>"+SSST_TECH.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div><div><label>Configuration</label><select id='sl-config'><option value='pv'>PV seul</option><option value='pv_bat'>PV + batterie</option></select></div>"+f('cap','Capacité batterie (kWh)','')+f('n','Nombre de panneaux',10,"inputmode='numeric'")+"</div>";
+  h+="<label>Libellé</label><input id='sl-lib' value='"+esc(l.libelle||'')+"'><div class='sst-g2'>"+f('min','Prix minimum TTC',l.prix_min_ttc)+f('cb','Conseillé TTC (bas)',l.prix_conseille_bas_ttc)+f('ch','Conseillé TTC (haut)',l.prix_conseille_haut_ttc)
+    +"<div><label>État</label><select id='sl-st'><option value='valide'"+(l.statut==='valide'?' selected':'')+">Tarif SSS valide</option><option value='a_confirmer'"+(l.statut!=='valide'?' selected':'')+">À confirmer par la direction</option></select></div></div>"
+    +"<label>Message au commercial (si à confirmer)</label><input id='sl-msg' value='"+esc(l.message_commercial||'')+"'>";
+  if(id) h+="<div class='sst-lbl'>🔒 Paramètres privés (jamais visibles du commercial)</div><div class='sst-g2'>"+f('jours','Main-d’œuvre (jours)',l.main_oeuvre_jours)+f('mo','ou coût main-d’œuvre HT',l.cout_main_oeuvre_ht)+f('adm','Administratif HT',l.cout_admin_ht)+f('fc','Frais de chantier HT',l.frais_chantier_ht)
+    +f('sav','Risque SAV HT',l.risque_sav_ht)+f('mm','Marge minimale %',l.marge_min_pct)+f('mr','Marge recommandée %',l.marge_reco_pct)+f('mat','Matériel HT saisi (sinon catalogue)',l.cout_materiel_ht)+"</div><label>Source du matériel saisi</label><input id='sl-matsrc' value='"+esc(l.cout_materiel_source||'')+"'><label>Note direction</label><textarea id='sl-note' rows='2'>"+esc(l.notes_direction||'')+"</textarea>"
+    +"<div class='sst-lbl'>Nomenclature (références du catalogue Prix d’achat SSS)</div><div id='sl-nom'></div><button class='sst-chip' onclick='sstdNomAjout()'>+ Article</button>"
+    +"<div class='sst-lbl'>Produits affichés au commercial (fiches techniques, sans prix)</div><div id='sl-prod'></div><button class='sst-chip' onclick='sstdProdAjout()'>+ Produit</button>";
+  h+="</div><button class='sst-btn p' onclick='sstdLigneOk(this)'>Enregistrer dans le brouillon</button>"+(id?"<button class='sst-btn' onclick=\"sstdLigneSuppr(this,'"+id+"')\">Retirer cette configuration</button>":'')+"<button class='sst-btn' onclick='sstFermer()'>Annuler</button>";
+  sstSheet(h); if(id){ sstdNomPeindre(); sstdProdPeindre(); }
+}
+function sstdNomPeindre(){ var z=document.getElementById('sl-nom'); if(!z) return; var A=(SSSTD.data||{}).articles||[];
+  z.innerHTML=SSSTD_L.nom.map(function(it,i){ return "<div class='sst-card' style='margin:6px 0;padding:8px'><div class='sst-g2'><div><label>Rôle</label><input value='"+esc(it.role||'')+"' oninput='SSSTD_L.nom["+i+"].role=this.value'></div><div><label>Article du catalogue SSS</label><select onchange='SSSTD_L.nom["+i+"].article_id=this.value||null'><option value=''>— prix d’achat manquant —</option>"
+    +A.map(function(a){ return "<option value='"+a.id+"'"+(a.id===it.article_id?' selected':'')+">"+esc((a.marque||'')+' '+(a.modele||'')+' · '+a.prix_ht+' '+a.devise)+"</option>"; }).join('')+"</select></div>"
+    +"<div><label>Libellé (si absent du catalogue)</label><input value='"+esc(it.libelle||'')+"' oninput='SSSTD_L.nom["+i+"].libelle=this.value'></div><div><label>Quantité</label><input inputmode='decimal' value='"+esc(it.quantite==null?1:it.quantite)+"' oninput='SSSTD_L.nom["+i+"].quantite=sstNum(this.value)'></div></div>"
+    +"<label style='display:flex;gap:8px;align-items:center'><input type='checkbox' style='width:20px;min-height:20px' "+(it.par_panneau?'checked':'')+" onchange='SSSTD_L.nom["+i+"].par_panneau=this.checked'> par panneau</label><button class='sst-chip' onclick='SSSTD_L.nom.splice("+i+",1);sstdNomPeindre()'>Retirer</button></div>"; }).join('')||"<div class='sst-small'>Aucun article.</div>"; }
+function sstdNomAjout(){ SSSTD_L.nom.push({role:'',article_id:null,quantite:1}); sstdNomPeindre(); }
+function sstdProdPeindre(){ var z=document.getElementById('sl-prod'); if(!z) return;
+  z.innerHTML=SSSTD_L.prod.map(function(p,i){ return "<div class='sst-g2' style='border-top:1px solid var(--line);padding-top:4px'><div><label>Rôle</label><input value='"+esc(p.role||'')+"' oninput='SSSTD_L.prod["+i+"].role=this.value'></div><div><label>Marque</label><input value='"+esc(p.marque||'')+"' oninput='SSSTD_L.prod["+i+"].marque=this.value'></div><div><label>Référence</label><input value='"+esc(p.reference||'')+"' oninput='SSSTD_L.prod["+i+"].reference=this.value'></div><div><label>Quantité</label><input inputmode='decimal' value='"+esc(p.quantite==null?'':p.quantite)+"' oninput='SSSTD_L.prod["+i+"].quantite=sstNum(this.value)'></div><div><button class='sst-chip' onclick='SSSTD_L.prod.splice("+i+",1);sstdProdPeindre()'>Retirer</button></div></div>"; }).join('')||"<div class='sst-small'>Aucun produit.</div>"; }
+function sstdProdAjout(){ SSSTD_L.prod.push({role:'',marque:'',reference:'',quantite:1}); sstdProdPeindre(); }
+async function sstdLigneOk(btn){
+  var g=(SSSTD.data||{}).grille||{}, v=function(i){ var e=document.getElementById(i); return e?(e.value||'').trim():''; }, p;
+  p={libelle:v('sl-lib'),prix_min_ttc:sstNum(v('sl-min')),prix_conseille_bas_ttc:sstNum(v('sl-cb')),prix_conseille_haut_ttc:sstNum(v('sl-ch')),statut:v('sl-st'),message_commercial:v('sl-msg')};
+  if(!SSSTD_L.id){ p.technologie=v('sl-tech'); p.config=v('sl-config'); p.capacite_kwh=sstNum(v('sl-cap')); p.nb_panneaux=sstNum(v('sl-n')); }
+  else { p.main_oeuvre_jours=sstNum(v('sl-jours')); p.cout_main_oeuvre_ht=sstNum(v('sl-mo')); p.cout_admin_ht=sstNum(v('sl-adm')); p.frais_chantier_ht=sstNum(v('sl-fc')); p.risque_sav_ht=sstNum(v('sl-sav'));
+    p.marge_min_pct=sstNum(v('sl-mm')); p.marge_reco_pct=sstNum(v('sl-mr')); p.cout_materiel_ht=sstNum(v('sl-mat')); p.cout_materiel_source=v('sl-matsrc'); p.notes_direction=v('sl-note');
+    p.nomenclature=SSSTD_L.nom.filter(function(x){ return x.article_id||x.libelle; }); p.produits=SSSTD_L.prod.filter(function(x){ return x.marque&&x.reference; }); }
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_ligne_enregistrer',{p_id:SSSTD_L.id,p_grille:g.id,p:p}); }); if(d){ sstFermer(); renderFinTarifs(); }
+}
+async function sstdLigneSuppr(btn,id){ if(!confirm('Retirer cette configuration du brouillon ?')) return; var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_ligne_supprimer',{p_id:id}); }); if(d){ sstFermer(); renderFinTarifs(); } }
+function sstdExceptions(D){
+  var E=D.exceptions||[]; if(!E.length) return "<div class='sst-card'>Aucune demande exceptionnelle de prix.</div>";
+  return E.map(function(e){ var c=e.controle||{};
+    return "<div class='sst-card"+(e.statut==='en_attente'?' sst-err':'')+"'><b>Demande exceptionnelle de prix — "+esc(e.demandeur||'')+"</b> <span class='sst-small'>· "+sstDate(e.created_at)+" · grille v"+esc(c.version)+"</span>"
+      +"<div style='margin-top:4px'>"+esc(c.technologie_lib||'')+" · "+esc(c.libelle||'')+" · "+esc(c.kwc)+" kWc"+(c.client?' · client : '+esc(c.client):'')+(c.reference_offre?' · offre '+esc(c.reference_offre):'')+(c.complexite&&c.complexite!=='standard'?' · chantier '+esc(c.complexite.replace('_',' ')):'')+"</div>"
+      +"<div class='sst-kpi' style='margin-top:6px'><div><div class='k'>Minimum</div><div class='v'>"+sstChf(e.prix_min_ttc)+"</div></div><div><div class='k'>Prix demandé</div><div class='v'>"+sstChf(e.prix_demande_ttc)+"</div></div><div><div class='k'>Écart</div><div class='v' style='color:#dc2626'>"+sstChf(e.ecart_chf)+"</div></div><div><div class='k'>Remise</div><div class='v'>"+(c.remise_pct!=null?esc(c.remise_pct)+' %':'—')+"</div></div></div>"
+      +"<div class='sst-small' style='margin-top:4px'>Motif : <b>"+esc(e.motif)+"</b>"+(e.commentaire?' — '+esc(e.commentaire):'')+"</div>"
+      +(e.statut==='en_attente'?"<div class='sst-chips' style='margin-top:8px'><button class='sst-chip on' onclick=\"sstdDecider(this,'"+e.id+"','autoriser')\">✅ Autoriser</button><button class='sst-chip' onclick=\"sstdDecider(this,'"+e.id+"','refuser')\">❌ Refuser</button><button class='sst-chip' onclick=\"sstdDecider(this,'"+e.id+"','proposer')\">💬 Proposer un prix</button></div>"
+        :"<div style='margin-top:6px;font-weight:800'>"+esc({autorisee:'✅ Autorisée',refusee:'❌ Refusée',contre_proposition:'💬 Contre-proposition '+sstChf(e.prix_propose_ttc),annulee:'Annulée'}[e.statut]||e.statut)+" <span class='sst-small'>par "+esc(e.decision_par||'')+" le "+sstDate(e.decision_at)+(e.decision_note?' — '+esc(e.decision_note):'')+"</span></div>")+"</div>"; }).join('');
+}
+async function sstdDecider(btn,id,a){
+  var prix=null; if(a==='proposer'){ prix=sstNum(prompt('Prix proposé (CHF TTC) :')); if(!prix) return; }
+  var note=prompt(a==='refuser'?'Motif du refus :':'Commentaire (facultatif) :'); if(note===null) return;
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_exception_decider',{p_id:id,p_action:a,p_prix:prix,p_note:note||null}); }); if(d) renderFinTarifs();
+}
+function sstdSupplements(D,g){
+  var edit=g.statut==='brouillon', S=D.supplements||[];
+  return "<div class='sst-small' style='margin-bottom:6px'>"+(edit?'Brouillon : les montants sont modifiables.':'Version figée : crée une nouvelle version pour changer un supplément.')+" Échafaudage jamais inclus sauf ajout explicite.</div>"
+    +S.map(function(s,i){ return "<div class='sst-card'><div class='sst-f sst-g2'><div><label>Supplément</label><input id='ss-l"+i+"' value='"+esc(s.libelle)+"' "+(edit?'':'disabled')+"></div><div><label>Unité</label><input id='ss-u"+i+"' value='"+esc(s.unite)+"' "+(edit?'':'disabled')+"></div>"
+      +"<div><label>Minimum TTC</label><input id='ss-m"+i+"' inputmode='decimal' value='"+esc(s.prix_min_ttc==null?'':s.prix_min_ttc)+"' "+(edit?'':'disabled')+" placeholder='à définir'></div><div><label>Conseillé TTC</label><input id='ss-c"+i+"' inputmode='decimal' value='"+esc(s.prix_conseille_ttc==null?'':s.prix_conseille_ttc)+"' "+(edit?'':'disabled')+" placeholder='à définir'></div></div>"
+      +"<div class='sst-f'><label>Note</label><input id='ss-n"+i+"' value='"+esc(s.note||'')+"' "+(edit?'':'disabled')+"></div>"+(edit?"<button class='sst-chip' onclick=\"sstdSuppOk(this,"+i+",'"+esc(s.code)+"')\">Enregistrer</button>":'')+"</div>"; }).join('')
+    +(edit?"<button class='sst-chip' onclick='sstdSuppNouveau()'>+ Nouveau supplément</button>":'');
+}
+async function sstdSuppOk(btn,i,code){ var g=(SSSTD.data||{}).grille||{}, v=function(k){ return (document.getElementById(k+i).value||'').trim(); };
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_supplement_enregistrer',{p_grille:g.id,p:{code:code,libelle:v('ss-l'),unite:v('ss-u'),prix_min_ttc:sstNum(v('ss-m')),prix_conseille_ttc:sstNum(v('ss-c')),note:v('ss-n')}}); }); if(d) renderFinTarifs(); }
+async function sstdSuppNouveau(){ var g=(SSSTD.data||{}).grille||{}, lib=prompt('Nom du supplément :'); if(!lib) return; var d=await sssAgir(null,function(){ return db.rpc('sss_tarif_supplement_enregistrer',{p_grille:g.id,p:{libelle:lib}}); }); if(d) renderFinTarifs(); }
+function sstdHistorique(D){
+  return (D.grilles||[]).map(function(x){ return "<div class='sst-card'><b>v"+x.version+"</b> · "+({active:'✅ active',brouillon:'✏️ brouillon',archivee:'🗄 archivée'}[x.statut])+" · "+esc(x.libelle||'')+"<div class='sst-small'>Créée par "+esc(x.cree_par||'—')+" le "+sstDate(x.cree_at)+" · valable "+sstDate(x.valable_des)+(x.valable_jusqu?' → '+sstDate(x.valable_jusqu):' → …')+(x.active_at?' · activée le '+sstDate(x.active_at):'')+(x.archivee_at?' · archivée le '+sstDate(x.archivee_at):'')+" · "+x.nb_lignes+" configurations"+(x.motif?' · motif : '+esc(x.motif):'')+"</div>"
+    +"<button class='sst-chip' style='margin-top:6px' onclick=\"SSSTD.grille='"+x.id+"';SSSTD.onglet='grille';renderFinTarifs()\">Voir</button></div>"; }).join('')
+    +"<div class='sst-small'>Une grille n'est jamais effacée ; chaque contrôle d'offre garde la version appliquée à sa date.</div>";
+}
+async function sstdRapport(){
+  var r=await db.rpc('sss_tarif_rapport',{}); var z=document.getElementById('sstd-rapport'); if(!z) return; if(r.error){ z.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; } var R=r.data||{};
+  var pm=R.prix_moyen_par_technologie||{}, pc=R.par_commercial||{};
+  z.innerHTML="<div class='sst-card'><b>Contrôles de prix du "+sstDate(R.du)+" au "+sstDate(R.au)+"</b><div class='sst-kpi' style='margin-top:8px'><div><div class='k'>Contrôles</div><div class='v'>"+R.controles+"</div></div><div><div class='k'>🟢 au conseillé</div><div class='v'>"+R.au_conseille+"</div></div><div><div class='k'>🟠 marge réduite</div><div class='v'>"+R.marge_reduite+"</div></div><div><div class='k'>🔴 sous le minimum</div><div class='v'>"+R.sous_minimum+"</div></div>"
+    +"<div><div class='k'>Exceptions demandées</div><div class='v'>"+R.exceptions_demandees+"</div></div><div><div class='k'>autorisées / refusées</div><div class='v'>"+R.exceptions_autorisees+" / "+R.exceptions_refusees+"</div></div><div><div class='k'>Remise moyenne</div><div class='v'>"+(R.remise_moyenne_pct!=null?R.remise_moyenne_pct+' %':'—')+"</div></div></div>"
+    +"<div class='sst-small' style='margin-top:8px'>Prix moyen par technologie : "+(Object.keys(pm).map(function(k){ return esc(k)+' '+sstChf(pm[k]); }).join(' · ')||'—')+"</div><div class='sst-small'>Par commercial : "+(Object.keys(pc).map(function(k){ return esc(k)+' '+pc[k]; }).join(' · ')||'—')+"</div></div>";
+}
+/* ---- fiches techniques (direction) ---- */
+var SSST_TYPES=[['fiche_technique','Fiche technique'],['manuel','Manuel'],['garantie','Garantie'],['certificat','Certificat'],['autre','Autre']];
+function sstdFiches(D){
+  var F=D.fiches||[], M=D.fiches_manquantes||[];
+  var h="<div class='sst-card'><b>Ajouter des fiches techniques</b><div class='sst-small'>PDF ou image · 25 Mo max · coffre séparé des documents fournisseurs (factures, conditions, remises : jamais ici).</div>"
+    +"<div class='sst-f sst-g2'><div><label>Marque</label><input id='fd-marque' list='fd-marques'></div><div><label>Produit</label><input id='fd-produit' placeholder='ex. Onduleur hybride'></div><div><label>Référence</label><input id='fd-ref' placeholder='ex. X3-IES'></div><div><label>Date du document</label><input id='fd-date' type='date'></div>"
+    +"<div><label>Langue</label><select id='fd-langue'><option value='fr'>FR</option><option value='de'>DE</option><option value='it'>IT</option><option value='en'>EN</option><option value='autre'>Autre</option></select></div><div><label>Type</label><select id='fd-type'>"+SSST_TYPES.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div></div>"
+    +"<label style='display:flex;gap:8px;align-items:center;margin:8px 0;font-weight:800'><input id='fd-vis' type='checkbox' checked style='width:22px;height:22px'> Visible commercial</label>"
+    +"<div class='sst-drop' id='fd-drop'>⬇ Glisse les fichiers ici<br><span class='sst-small'>ou clique pour choisir</span><input id='fd-file' type='file' multiple accept='application/pdf,image/png,image/jpeg,image/webp' style='display:none'></div><div id='fd-etat' class='sst-small' style='margin-top:6px'></div>"
+    +"<datalist id='fd-marques'>"+['MaviWatt','Each Energy','Solax','Atmoce','Enphase'].map(function(x){ return "<option value='"+x+"'>"; }).join('')+"</datalist></div>";
+  h+="<div class='sst-card"+(M.length?' sst-warn':'')+"'><b>Fiches techniques manquantes ("+M.length+")</b>"+(M.length?M.map(function(x){ return "<div class='sst-it'><div><b>"+esc(x.marque)+" "+esc(x.reference)+"</b>"+(x.a_confirmer?" <span class='sst-small'>(référence à confirmer)</span>":'')+"<div class='sst-small'>"+esc(x.role||'')+" · "+esc((x.configurations||[]).join(' · '))+"</div></div><button class='sst-chip' onclick=\"sstdPrefill('"+esc(x.marque).replace(/'/g,"\\'")+"','"+esc(x.reference).replace(/'/g,"\\'")+"','"+esc(x.role||'').replace(/'/g,"\\'")+"')\">Préparer</button></div>"; }).join(''):"<div class='sst-small'>Toutes les configurations actives ont leur fiche technique.</div>")+"</div>";
+  h+="<div class='sst-lbl'>Bibliothèque ("+F.length+")</div>"+(F.map(function(f){ return "<div class='sst-card' style='"+(f.archivee?'opacity:.55':'')+"'><div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center'><div style='flex:1 1 240px'><b>"+esc(f.marque)+" "+esc(f.reference)+"</b> · "+esc(f.produit)+"<div class='sst-small'>"+esc((SSST_TYPES.filter(function(t){ return t[0]===f.type; })[0]||[0,f.type])[1])+" · "+esc((f.langue||'').toUpperCase())+" · v"+f.version+(f.date_doc?' · '+sstDate(f.date_doc):'')+" · ajoutée le "+sstDate(f.created_at)+" par "+esc(f.ajoute_par_nom||'—')+(f.archivee?' · 🗄 archivée':'')+"</div></div>"
+    +"<button class='sst-chip' onclick=\"sstOuvrirFiche('"+esc(f.chemin).replace(/'/g,"\\'")+"')\">👁 Ouvrir</button>"
+    +(!f.archivee?"<button class='sst-chip"+(f.visible_commercial?' on':'')+"' onclick=\"sstdFicheMaj(this,'"+f.id+"',{visible_commercial:"+(!f.visible_commercial)+"})\">"+(f.visible_commercial?'Visible commercial ✓':'Direction seule')+"</button><button class='sst-chip' onclick=\"sstdRemplacer('"+f.id+"')\">↻ Nouvelle version</button><button class='sst-chip' onclick=\"sstdFicheMaj(this,'"+f.id+"',{archivee:true})\">Archiver</button>":"")+"</div></div>"; }).join('')||"<div class='sst-small'>Aucune fiche pour l'instant.</div>");
+  return h;
+}
+function sstdPrefill(marque,ref,role){ var a=document.getElementById('fd-marque'), b=document.getElementById('fd-ref'), c=document.getElementById('fd-produit'); if(a) a.value=marque; if(b) b.value=ref.replace(/\s*\(.*\)\s*$/,''); if(c&&role) c.value=role.charAt(0).toUpperCase()+role.slice(1); try{ document.getElementById('fd-drop').scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
+function sstdDropInit(){
+  var z=document.getElementById('fd-drop'), inp=document.getElementById('fd-file'); if(!z||!inp) return;
+  z.onclick=function(){ inp.click(); }; inp.onchange=function(){ var l=Array.prototype.slice.call(inp.files||[]); inp.value=''; if(l.length) sstdDeposer(l,null); };
+  z.ondragover=function(e){ e.preventDefault(); z.classList.add('on'); }; z.ondragleave=function(){ z.classList.remove('on'); };
+  z.ondrop=function(e){ e.preventDefault(); z.classList.remove('on'); var l=Array.prototype.slice.call((e.dataTransfer&&e.dataTransfer.files)||[]); if(l.length) sstdDeposer(l,null); };
+}
+function sstdSlug(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'x'; }
+async function sstdDeposer(files,remplace){
+  var v=function(i){ var e=document.getElementById(i); return e?(e.value||'').trim():''; }, ancien=remplace?((SSSTD.data||{}).fiches||[]).filter(function(f){ return f.id===remplace; })[0]:null;
+  var meta={marque:ancien?ancien.marque:v('fd-marque'),produit:ancien?ancien.produit:v('fd-produit'),reference:ancien?ancien.reference:v('fd-ref'),date_doc:v('fd-date')||null,langue:ancien?ancien.langue:(v('fd-langue')||'fr'),type:ancien?ancien.type:(v('fd-type')||'fiche_technique'),
+            visible_commercial:ancien?ancien.visible_commercial:!!(document.getElementById('fd-vis')||{}).checked};
+  if(!meta.marque||!meta.produit||!meta.reference){ alert('Indique la marque, le produit et la référence avant de déposer.'); return; }
+  if(!(await sssMfaAssurer())){ sssToast('Code de double authentification requis.',false); return; }
+  var etat=document.getElementById('fd-etat'), ok=0, ko=[];
+  for(var i=0;i<files.length;i++){ var f=files[i];
+    if(['application/pdf','image/png','image/jpeg','image/webp'].indexOf(f.type)<0){ ko.push(f.name+' : format non accepté (PDF ou image)'); continue; }
+    if(f.size>26214400){ ko.push(f.name+' : plus de 25 Mo'); continue; }
+    if(etat) etat.textContent='Envoi de '+f.name+'…';
+    var chemin=sstdSlug(meta.marque)+'/'+sstdSlug(meta.reference)+'/'+Date.now()+'_'+sstdSlug(f.name.replace(/\.[^.]+$/,''))+(f.name.match(/\.[a-z0-9]+$/i)||[''])[0].toLowerCase();
+    var up=await db.storage.from('fiches-techniques').upload(chemin,f,{upsert:false,contentType:f.type}); if(up.error){ ko.push(f.name+' : '+up.error.message); continue; }
+    var r=await db.rpc('sss_fiche_enregistrer',{p:Object.assign({},meta,{chemin:chemin,nom_fichier:f.name,mime:f.type,taille:f.size,remplace:remplace||null})});
+    if(r.error){ ko.push(f.name+' : '+r.error.message); try{ await db.storage.from('fiches-techniques').remove([chemin]); }catch(e){} continue; } ok++; remplace=null; }
+  if(ok) sssToast(ok+' fiche(s) enregistrée(s) ✓',true); if(ko.length) alert('Non enregistré :\n'+ko.join('\n')); renderFinTarifs();
+}
+function sstdRemplacer(id){ var i=document.createElement('input'); i.type='file'; i.accept='application/pdf,image/png,image/jpeg,image/webp'; i.onchange=function(){ if(i.files&&i.files[0]) sstdDeposer([i.files[0]],id); }; i.click(); }
+async function sstdFicheMaj(btn,id,p){ if(p.archivee&&!confirm('Archiver cette fiche ? Elle ne sera plus visible du commercial (elle reste dans l’historique).')) return; var d=await sssAgir(btn,function(){ return db.rpc('sss_fiche_maj',{p_id:id,p:p}); }); if(d) renderFinTarifs(); }
+
+/* =============================== branchement =============================== */
+(function(){
+  try{ VUE_ROLES.tarifs_sss=['superadmin','direction','commercial']; VUE_SERVICES.tarifs_sss=['commercial']; VUE_ROLES.fin_tarifs=['superadmin']; VUE_SERVICES.fin_tarifs=['financier']; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='tarifs_sss') renderTarifsSss(); else if(VIEW==='fin_tarifs') renderFinTarifs(); }catch(e){ console.error(e); } return r; }; }catch(e){}
+})();
+
+/* SSS-TARIFS-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
