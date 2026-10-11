@@ -5036,10 +5036,61 @@ async function sssFinancesBloc(){
   hote.innerHTML=h;
 }
 function sssJsF(s){ return (''+(s==null?'':s)).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+/* Décisions de l'ancien tableau : même circuit que la fiche « Factures fournisseurs » (sss_facture_decider) — plus d'écriture
+   directe ni de rapprochement global relancé à chaque clic (≈ 8 s, au-delà de la limite de l'API → clic sans effet). */
 async function sssFDecider(id,statut){
-  var note=statut==='ignoree'?(prompt('Pourquoi ignorer cette facture ? (doublon, déjà réglée par carte, pas pour nous…)')||null):null;
-  var r=await db.from('factures_recues').update({statut_manuel:statut,note:note}).eq('id',id).select('id'); if(r.error||!(r.data||[]).length){ alert('Décision non enregistrée'+(r.error?' : '+r.error.message:'')); return; }
-  await db.rpc('sss_rapprocher_factures'); sssFinancesBloc();
+  var el=sssBoutonEvt(), p;
+  if(statut==='payee'){ var m=prompt('Payée comment ? (e-banking, cash, carte, compensation…)','e-banking'); if(m==null) return; p={action:'payee_manuel',motif:m}; }
+  else if(statut==='ignoree'){ var n=prompt('Pourquoi ignorer cette facture ? (doublon, déjà réglée par carte, pas pour nous…)'); if(n==null) return; p={action:'annuler',motif:n}; }
+  else p={action:'rouvrir'};
+  var d=await sssAgir(el,function(){ return db.rpc('sss_facture_decider',{p_id:id,p:p}); },{succes:sssSituationMsg});
+  if(d){ sssFinancesBloc(); try{ if(typeof sssFoCharger==='function'&&document.getElementById('sssfo-liste')) sssFoCharger(); }catch(e){} }
+}
+
+/* ------------------------------------------------------------------ actions du Centre de contrôle : un seul mécanisme
+   1. double authentification : si le compte a un code et que la session n'est pas vérifiée, la saisie du code s'ouvre AVANT
+      l'action (puis l'action part) ; 2. bouton occupé pendant l'appel (pas de double clic) ; 3. erreur toujours visible ;
+   4. succès confirmé avec la situation recalculée (Payée / Partiellement payée — reste …). */
+function sssBoutonEvt(){ try{ var e=window.event; var t=e&&e.target; return t&&t.closest?t.closest('button,.relbtn,.iconbtn'):null; }catch(_e){ return null; } }
+function sssToast(t,ok){
+  var z=document.getElementById('sss-toast'); if(!z){ z=document.createElement('div'); z.id='sss-toast'; z.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:9950;max-width:min(560px,calc(100vw - 24px));display:flex;flex-direction:column;gap:6px;pointer-events:none'; document.body.appendChild(z); }
+  var d=document.createElement('div'); d.setAttribute('role','status'); d.style.cssText='padding:11px 16px;border-radius:12px;font-size:14px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.35);color:#fff;background:'+(ok?'#16a34a':'#dc2626'); d.textContent=t; z.appendChild(d);
+  setTimeout(function(){ try{ d.remove(); }catch(e){} },ok?3500:7000);
+}
+function sssSituationMsg(d){
+  var s=d&&d.situation, base=(d&&d.message)||'Enregistré'; if(!s) return base+' ✓';
+  var dev=s.devise||'CHF', r=Number(s.reste);
+  var lib={payee:'Payée',partielle:'Partiellement payée',paiement_a_confirmer:'Paiement à confirmer',a_payer:'À payer',echue:'Échue',echeance_proche:'Échéance proche',a_verifier:'À vérifier',recue:'Reçue',contestee:'Contestée',annulee:'Annulée',ignoree:'Ignorée',doublon_potentiel:'Doublon potentiel'}[s.etat]||s.etat;
+  return base+' ✓ — '+lib+(s.etat!=='payee'&&isFinite(r)&&r>0?' · reste '+r.toLocaleString('fr-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+dev:'');
+}
+async function sssMfaAssurer(){
+  try{ var a=await db.auth.mfa.getAuthenticatorAssuranceLevel(); var d=a&&a.data; if(d&&d.nextLevel==='aal2'&&d.currentLevel!=='aal2') return await sssMfaDemanderCode(); }catch(e){}
+  return true;
+}
+function sssMfaDemanderCode(){
+  return new Promise(function(resolve){
+    var ov=document.createElement('div'); ov.id='sss-mfa-step'; ov.style.cssText='position:fixed;inset:0;z-index:9960;background:rgba(6,7,9,.8);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML="<div style='background:var(--card,#fff);color:var(--text,#111);border:1px solid var(--line,#ddd);border-radius:14px;padding:18px 20px;width:min(380px,100%);text-align:left'><h3 style='margin:0 0 6px'>🔐 Code de double authentification</h3><div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>Cette action exige ton code (application d'authentification).</div><input id='sss-mfa-c' inputmode='numeric' autocomplete='one-time-code' maxlength='7' placeholder='123 456' style='width:100%;min-height:48px;font-size:20px;letter-spacing:3px;text-align:center;border:1px solid var(--line,#ccc);border-radius:10px;background:transparent;color:inherit'><div id='sss-mfa-m' style='color:#dc2626;font-size:13px;min-height:18px;margin-top:6px'></div><div style='display:flex;gap:8px;margin-top:8px'><button id='sss-mfa-ok' class='btn' style='flex:1;min-height:46px'>Valider</button><button id='sss-mfa-no' class='btn-out' style='flex:1;min-height:46px'>Annuler</button></div></div>";
+    document.body.appendChild(ov); var fin=function(v){ try{ ov.remove(); }catch(e){} resolve(v); };
+    var inp=document.getElementById('sss-mfa-c'); setTimeout(function(){ try{ inp.focus(); }catch(e){} },50);
+    var go=async function(){ var code=(inp.value||'').replace(/\D/g,''), m=document.getElementById('sss-mfa-m'), b=document.getElementById('sss-mfa-ok'); if(code.length!==6){ m.textContent='Le code fait 6 chiffres.'; return; }
+      b.disabled=true; b.textContent='Vérification…';
+      try{ var f=await db.auth.mfa.listFactors(); var t=((f&&f.data&&f.data.totp)||[]).filter(function(x){ return x.status==='verified'; })[0]; if(!t) throw new Error('aucune application d’authentification enregistrée sur ce compte');
+           var v=await db.auth.mfa.challengeAndVerify({factorId:t.id,code:code}); if(v.error) throw v.error; fin(true); }
+      catch(e){ m.textContent='Code refusé : '+((e&&e.message)||e); b.disabled=false; b.textContent='Valider'; } };
+    document.getElementById('sss-mfa-ok').onclick=go; inp.onkeydown=function(e){ if(e.key==='Enter') go(); }; document.getElementById('sss-mfa-no').onclick=function(){ fin(false); };
+  });
+}
+async function sssAgir(el,appel,opts){
+  opts=opts||{}; if(el&&el.getAttribute&&el.getAttribute('data-occupe')==='1') return null;
+  if(!(await sssMfaAssurer())){ sssToast('Action annulée : le code de double authentification est requis.',false); return null; }
+  var lib=null; if(el){ el.setAttribute('data-occupe','1'); lib=el.innerHTML; try{ el.disabled=true; }catch(e){} el.innerHTML='⏳ '+(el.textContent||'').trim().slice(0,30); }
+  var r; try{ r=await appel(); }catch(e){ r={error:{message:(e&&e.message)||String(e)}}; }
+  var fin=function(){ if(el&&document.body.contains(el)){ el.removeAttribute('data-occupe'); try{ el.disabled=false; }catch(e){} if(lib!=null) el.innerHTML=lib; } };
+  if(r&&r.error){ fin(); var m=(r.error.message||String(r.error)); if(/row-level security|42501|aal2|double authentification/i.test(m)) m+=' (vérifie que ta session est validée par le code de double authentification)';
+    sssToast((opts.echec||'Action impossible')+' : '+m,false); try{ alert((opts.echec||'Action impossible')+' : '+m); }catch(e){} return null; }
+  fin(); var d=r?r.data:null; try{ sssToast(opts.succes?opts.succes(d):((d&&d.message)||'Enregistré ✓'),true); }catch(e){ sssToast('Enregistré ✓',true); }
+  return d==null?true:d;
 }
 async function sssFLire(b){
   b.disabled=true; var t=b.textContent; b.textContent='Lecture des PDF…';
@@ -7006,6 +7057,7 @@ async function renderFournisseurs(){
   await sssFoCharger();
 }
 async function sssFoCharger(){
+  if(typeof sssMfaAssurer==='function' && !(await sssMfaAssurer())) return;   /* 0047 : code demandé si la session ne l'a pas */
   var r=await db.rpc('sss_fournisseurs_liste',{p_filtre:SSSFO.filtre,p_q:SSSFO.q||null,p_groupe:SSSFO.groupe});
   var h=document.getElementById('sssfo'); if(!h||VIEW!=='fin_fourn') return;
   if(r.error){ h.className=''; h.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
@@ -7053,6 +7105,7 @@ async function sssFoLire(b){ b.disabled=true; var t=b.textContent; b.textContent
 
 /* ------------------------------------------------------------------ fiche */
 async function sssFoFiche(id){
+  if(typeof sssMfaAssurer==='function' && !(await sssMfaAssurer())) return;
   SSSFO.sel=id; var r=await db.rpc('sss_fournisseur_fiche',{p_id:id}); if(r.error||!r.data){ alert('Fiche introuvable'+(r.error?' : '+r.error.message:'')); return; }
   var F=r.data, f=F.facture||{}; var e=SSSFO_ETAT[f.etat]||[f.etat,'#888','']; var cats=(SSSFO.data&&SSSFO.data.categories)||[];
   var ligne=function(l,v){ return "<div style='display:flex;gap:10px;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px'><span style='color:var(--text-3)'>"+l+"</span><span style='text-align:right'>"+v+"</span></div>"; };
@@ -7092,9 +7145,11 @@ async function sssFoFiche(id){
   sssFFenetre(esc(f.fournisseur||'Facture fournisseur')+(f.numero?" · "+esc(f.numero):""),c,pied,"Facture fournisseur · reçue le "+sssFoD(f.recu_le)+(f.expediteur?" de "+esc(f.expediteur):""));
 }
 async function sssFoAct(id,p){
-  var lourd=['paiement','confirmer_auto','payee_manuel','contester','annuler','rouvrir','fusionner','separer','retirer_paiement','valider','corriger'].indexOf(p.action)>=0;
-  var r=await db.rpc('sss_facture_decider',{p_id:id,p:p}); if(r.error){ alert('Action impossible : '+r.error.message); return; }
-  if(lourd){ try{ await db.rpc('sss_rapprocher_factures'); }catch(e){} }
+  /* 0047 : la décision renvoie la situation recalculée ; plus de rapprochement global relancé à chaque clic (≈ 8 s → échec
+     silencieux), plus d'erreur avalée ; code de double authentification demandé si la session ne l'a pas encore. */
+  var el=sssBoutonEvt();
+  var d=await sssAgir(el,function(){ return db.rpc('sss_facture_decider',{p_id:id,p:p}); },{succes:sssSituationMsg});
+  if(!d) return;
   if(p.action==='fusionner'){ sssFFermer(); } else { await sssFoFiche(id); }
   sssFoCharger();
 }
@@ -7310,10 +7365,10 @@ async function sssFcPlanSave(id){
 async function sssFcConfirmer(id,bexioId,reste){
   var m=prompt('Montant confirmé reçu (CHF) ?',reste); if(m==null) return; var d=prompt('Date du paiement (AAAA-MM-JJ) ?',new Date().toISOString().slice(0,10)); if(d==null) return;
   var n=prompt('Note (facultatif)','Paiement confirmé par la direction — rapprochement CAMT en attente')||null;
-  var r=await db.rpc('sss_facturation_confirmer',{p_affaire:id,p_bexio_id:bexioId,p_montant:Number(String(m).replace(/[^\d.]/g,'')),p_date:d,p_note:n}); if(r.error){ alert('Confirmation impossible : '+r.error.message); return; }
+  var ok=await sssAgir(sssBoutonEvt(),function(){ return db.rpc('sss_facturation_confirmer',{p_affaire:id,p_bexio_id:bexioId,p_montant:Number(String(m).replace(/[^\d.]/g,'')),p_date:d,p_note:n}); },{echec:'Confirmation impossible',succes:function(){ return 'Paiement client confirmé ✓ (niveau direction)'; }}); if(!ok) return;
   await sssFcFiche(id); sssFcCharger();
 }
-async function sssFcConfAnnuler(cid,id){ if(!confirm('Retirer cette confirmation ?')) return; var r=await db.rpc('sss_facturation_confirmation_annuler',{p_id:cid}); if(r.error){ alert(r.error.message); return; } await sssFcFiche(id); sssFcCharger(); }
+async function sssFcConfAnnuler(cid,id){ if(!confirm('Retirer cette confirmation ?')) return; var ok=await sssAgir(sssBoutonEvt(),function(){ return db.rpc('sss_facturation_confirmation_annuler',{p_id:cid}); },{succes:function(){ return 'Confirmation retirée ✓'; }}); if(!ok) return; await sssFcFiche(id); sssFcCharger(); }
 
 /* ------------------------------------------------------------------ branchement : nouvel écran + anciens indicateurs retirés de l'affichage officiel */
 (function(){
@@ -7424,10 +7479,10 @@ function sssFiPoste(poste){
 }
 async function sssFiConfirmer(cle,mouvementId,montant){
   var n=prompt('Affecter ce versement de '+sssFiM(montant)+' à '+cle+' ? Note (facultatif) :','Affectation confirmée par la direction'); if(n==null) return;
-  var r=await db.rpc('sss_fisc_confirmer',{p_cle_obligation:cle,p_type:'paiement',p_mouvement_id:mouvementId,p_montant:montant,p_note:n||null}); if(r.error){ alert('Impossible : '+r.error.message); return; }
+  var ok=await sssAgir(sssBoutonEvt(),function(){ return db.rpc('sss_fisc_confirmer',{p_cle_obligation:cle,p_type:'paiement',p_mouvement_id:mouvementId,p_montant:montant,p_note:n||null}); },{succes:function(){ return 'Versement affecté ✓'; }}); if(!ok) return;
   sssFFermer(); await sssFiCharger(); sssFiPoste(cle.split(':')[0]);
 }
-async function sssFiConfAnnuler(id){ if(!confirm('Retirer cette décision ?')) return; var r=await db.rpc('sss_fisc_confirmation_annuler',{p_id:id}); if(r.error){ alert(r.error.message); return; } var p=SSSFI.ouvert; sssFFermer(); await sssFiCharger(); if(p) sssFiPoste(p); }
+async function sssFiConfAnnuler(id){ if(!confirm('Retirer cette décision ?')) return; var ok=await sssAgir(sssBoutonEvt(),function(){ return db.rpc('sss_fisc_confirmation_annuler',{p_id:id}); },{succes:function(){ return 'Décision retirée ✓'; }}); if(!ok) return; var p=SSSFI.ouvert; sssFFermer(); await sssFiCharger(); if(p) sssFiPoste(p); }
 function sssFiParametres(){
   var P=(SSSFI.data||{}).parametres||{}; var cles=['tva.methode','tva.taux','tva.periodicite','tva.base','fpv.taux','suva.taux','innova.taux','axa.part_employeur'];
   var lib={'tva.methode':'TVA — méthode','tva.taux':'TVA — taux TDFN (%)','tva.periodicite':'TVA — périodicité','tva.base':'TVA — contre-prestations (recues / convenues)','fpv.taux':'FPV — taux (JSON, %)','suva.taux':'SUVA — taux (JSON, %) et masse annoncée','innova.taux':'Innova — taux (JSON, %)','axa.part_employeur':'AXA — part employeur (% de la part salarié, vide = hypothèse)'};
@@ -7687,7 +7742,7 @@ function sssFinFraisCarte(x){
     +(hist?"<details style='margin-top:6px;font-size:12px;color:var(--text-3)'><summary style='cursor:pointer'>Historique</summary>"+hist+"</details>":'')+"</div>";
 }
 async function sssFinFraisAct(id,act){
-  var x=(SSSFR.dir.data.lignes||[]).filter(function(l){ return l.id===id; })[0]; if(!x) return; var note=null, mvt=null;
+  var __el=sssBoutonEvt(); var x=(SSSFR.dir.data.lignes||[]).filter(function(l){ return l.id===id; })[0]; if(!x) return; var note=null, mvt=null;
   if(act==='proposer'){ var pr=await db.rpc('sss_frais_proposer_rapprochement',{p_id:id}); if(pr.error){ alert(pr.error.message); return; } renderFinFrais(); return; }
   if(act==='refuser'||act==='correction'){ note=prompt(act==='refuser'?'Motif du refus (envoyé à la personne) :':'Que faut-il corriger ? (envoyé à la personne)'); if(!note) return; }
   else if(act==='rapprocher'){
@@ -7700,10 +7755,10 @@ async function sssFinFraisAct(id,act){
     return;
   }
   else { note=prompt('Note (facultatif) :')||null; if(note===null&&act!=='valider'&&act!=='archiver'&&act!=='rembourser'&&act!=='doublon'&&act!=='rouvrir') return; }
-  var r=await db.rpc('sss_frais_decider',{p_id:id,p_action:act,p_note:note,p_mouvement:mvt}); if(r.error){ alert(r.error.message); return; } renderFinFrais();
+  var ok=await sssAgir(__el,function(){ return db.rpc('sss_frais_decider',{p_id:id,p_action:act,p_note:note,p_mouvement:mvt}); },{succes:function(d){ return 'Frais : '+((SSSFR_STATUTS[(d||{}).statut]||[(d||{}).statut])[0])+' ✓'; }}); if(ok) renderFinFrais();
 }
 function sssFinJ(d,n){ var x=new Date((''+d).slice(0,10)+'T12:00:00'); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }
-async function sssFinRapprocherGo(id){ var mv=sssFrV('ssf-mvt'); if(!mv){ msg(document.getElementById('ssf-msg'),'Choisis le mouvement bancaire.','err'); return; } var r=await db.rpc('sss_frais_decider',{p_id:id,p_action:'rapprocher',p_note:sssFrV('ssf-note')||null,p_mouvement:mv}); if(r.error){ msg(document.getElementById('ssf-msg'),r.error.message,'err'); return; } sssFrFermer(); renderFinFrais(); }
+async function sssFinRapprocherGo(id){ var mv=sssFrV('ssf-mvt'); if(!mv){ msg(document.getElementById('ssf-msg'),'Choisis le mouvement bancaire.','err'); return; } var ok=await sssAgir(sssBoutonEvt(),function(){ return db.rpc('sss_frais_decider',{p_id:id,p_action:'rapprocher',p_note:sssFrV('ssf-note')||null,p_mouvement:mv}); },{succes:function(){ return 'Rapprochement confirmé ✓'; }}); if(!ok) return; sssFrFermer(); renderFinFrais(); }
 function sssFinLocs(L){
   if(!L.length) return "<div class='empty'>Aucune location.</div>";
   return L.map(function(l){ var st={depart:['Départ en cours','#e0a52b'],en_cours:['Véhicule en main','#2563eb'],retournee:['Restituée — à comparer / clôturer','#e5484d'],cloturee:['Clôturée','#22a06b'],annulee:['Annulée','#8a8f98']}[l.statut]||[l.statut,'#8a8f98'];
@@ -7730,7 +7785,7 @@ async function sssFinLocDetail(id){
 async function sssFinLocAct(id,act){
   if(act==='comparaison'){ var b=event&&event.target; if(b){ b.disabled=true; b.textContent='Comparaison…'; } try{ var r=await db.functions.invoke('agent',{body:{action:'location_comparaison',location_id:id}}); var d=(r&&r.data)||{}; if(d.ok===false) throw new Error(d.error||'comparaison impossible'); }catch(e){ alert('Comparaison : '+((e&&e.message)||e)); } renderFinFrais(); return; }
   var note=prompt(act==='cloturer'?'Note de clôture (facultatif) :':'Motif :')||null; if(act==='annuler'&&!note) return;
-  var r2=await db.rpc('sss_location_decider',{p_id:id,p_action:act,p_note:note}); if(r2.error){ alert(r2.error.message); return; } renderFinFrais();
+  var ok=await sssAgir(null,function(){ return db.rpc('sss_location_decider',{p_id:id,p_action:act,p_note:note}); },{succes:function(){ return 'Location : '+act+' ✓'; }}); if(ok) renderFinFrais();
 }
 
 /* =============================== branchement =============================== */
