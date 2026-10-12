@@ -8162,6 +8162,125 @@ async function sstdFicheMaj(btn,id,p){ if(p.archivee&&!confirm('Archiver cette f
 
 /* SSS-TARIFS-FIN */
 
+/* SSS-AGENDA-COM-DEBUT */
+/* ==========================================================================
+   SSS OS — Commercial → Agenda personnel (0051).
+   • Les rendez-vous pris depuis une fiche PROSPECT (table prospect_rdv) apparaissent dans l'agenda du commercial, à côté de
+     ses rendez-vous clients (rendez_vous) — vues liste / jour / semaine / mois existantes. Rien n'est recopié : l'agenda lit
+     la source, donc un déplacement ou une annulation modifie le même rendez-vous et aucun doublon n'est possible.
+   • Clic : fiche du rendez-vous (client, date, adresse, téléphone, type, notes, lien vers la fiche prospect, Déplacer, Annuler).
+     Glisser-déposer dans le calendrier : déplace le même rendez-vous (sss_prospect_rdv_deplacer).
+   • Mise à jour en direct : abonnement Realtime aux deux tables de rendez-vous (droits RLS appliqués) + filet de sécurité
+     (retour sur l'application, toutes les 60 s quand l'agenda est ouvert). Jamais besoin de recharger.
+   • Commercial : ses rendez-vous. Direction (super administrateur / direction) : les rendez-vous de TOUS les commerciaux, avec le
+     commercial concerné — même rendez-vous, pas une copie. Planning des installateurs inchangé.
+   ========================================================================== */
+var SSSAG={canal:null,minuteur:null,poll:null,enAttente:false};
+var SSSAG_TYPES={visite:'Visite',etude:'Étude',signature:'Signature',telephone:'Téléphone',visio:'Visio',autre:'Autre'};
+function sssAgEstCom(){ return typeof ME!=='undefined'&&ME&&ME.role==='commercial'; }
+function sssAgEstDir(){ return typeof ME!=='undefined'&&ME&&(ME.role==='superadmin'||ME.role==='direction'); }
+function sssAgConcerne(){ return sssAgEstCom()||sssAgEstDir(); }
+function sssAgYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function sssAgHm(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+async function sssAgProspects(){
+  if(!sssAgConcerne()) return [];
+  var dir=sssAgEstDir();
+  var q=db.from('prospect_rdv').select('id,prospect_id,debut,fin,adresse,type,commentaire,statut,intervenant_id,cree_par,prospect:prospect_id(numero,prenom,nom,societe,telephone,rue,npa,localite),intervenant:intervenant_id(prenom,nom),createur:cree_par(prenom,nom)')
+    .not('statut','in','(annule,reporte)');
+  if(!dir) q=q.or('intervenant_id.eq.'+ME.id+',and(intervenant_id.is.null,cree_par.eq.'+ME.id+')');
+  var r=await q.order('debut',{ascending:true});
+  if(r.error) return [];
+  return (r.data||[]).map(function(x){ var p=x.prospect||{}, d=new Date(x.debut);
+    var adr=x.adresse||[p.rue,[p.npa,p.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ')||null;
+    return {id:'prdv:'+x.id, _prdv:x, prospect_id:x.prospect_id, type:'rdv_commercial', date_rdv:sssAgYmd(d), heure:sssAgHm(d),
+      contact:{nom:p.nom||p.societe||('Prospect n° '+(p.numero||'')),prenom:p.prenom||'',adresse:adr,localite:p.localite||null,npa:p.npa||null,telephone:p.telephone||null},
+      source:'Prospect n° '+(p.numero||'?')+' · '+(SSSAG_TYPES[x.type]||x.type||'RDV')+(x.statut&&x.statut!=='prevu'?' · '+x.statut.replace(/_/g,' '):''),
+      assigne_a:dir?(x.intervenant_id||x.cree_par||null):ME.id, assigne:dir?(x.intervenant||x.createur||null):{prenom:ME.prenom||'',nom:ME.nom||''}, recu_commercial:true, confirme_client:true, debouche:null, notes:x.commentaire||null};
+  });
+}
+/* appelé par renderAgenda (injecté juste après le chargement des rendez-vous clients) : ajoute les rendez-vous prospects */
+async function sssAgFusion(data){
+  if(!Array.isArray(data)||!sssAgConcerne()) return;
+  try{ sssAgTempsReel(); }catch(e){}
+  var px=await sssAgProspects(); if(!px.length) return;
+  Array.prototype.push.apply(data,px);
+  data.sort(function(a,b){ return (''+(a.date_rdv||'')).localeCompare(''+(b.date_rdv||''))||(''+(a.heure||'')).localeCompare(''+(b.heure||'')); });
+}
+function sssAgCarte(it){
+  var x=it._prdv||{}, c=it.contact||{}, d=new Date(x.debut), tel=(c.telephone||'').replace(/\s/g,'');
+  var lieu=c.adresse?"<a href='https://maps.google.com/?q="+encodeURIComponent(c.adresse)+"' target='_blank' rel='noopener'>📍 "+esc(c.adresse)+"</a>":'📍 —';
+  return "<h3 style='margin:0 0 4px'>"+esc(((c.nom||'')+' '+(c.prenom||'')).trim()||'Rendez-vous')+"</h3>"
+    +"<div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>"+esc(it.source||'')+(it.assigne?' · commercial : '+esc(((it.assigne.prenom||'')+' '+(it.assigne.nom||'')).trim()):'')+"</div>"
+    +"<div class='row' style='margin:6px 0'>🗓 <b>"+esc(d.toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}))+" à "+esc(sssAgHm(d))+"</b></div>"
+    +"<div class='row' style='margin:6px 0'>"+lieu+"</div>"
+    +(c.telephone?"<div class='row' style='margin:6px 0'><a href='tel:"+esc(tel)+"' style='color:var(--green)'>📞 "+esc(c.telephone)+"</a></div>":'')
+    +(x.commentaire?"<div class='row' style='margin:6px 0;white-space:pre-wrap'>📝 "+esc(x.commentaire)+"</div>":'')
+    +"<div id='sssag-dep' style='display:none;margin-top:10px'><div class='field'><label>Nouvelle date</label><input id='sssag-d' type='date' value='"+sssAgYmd(d)+"'></div>"
+    +"<div class='field'><label>Heure</label><input id='sssag-h' type='time' step='900' value='"+sssAgHm(d)+"'></div>"
+    +"<button class='btn' onclick=\"sssAgDeplacerDepuisFiche('"+x.id+"')\">Enregistrer le nouvel horaire</button></div>"
+    +"<div class='modal-actions' style='flex-wrap:wrap;gap:8px'>"
+    +"<button class='btn btn-ghost' style='width:auto;padding:10px 14px' onclick=\"closeModal();sssAgOuvrirFiche('"+it.prospect_id+"')\">📇 Fiche prospect</button>"
+    +(x.statut==='prevu'?"<button class='btn btn-ghost' style='width:auto;padding:10px 14px' onclick=\"document.getElementById('sssag-dep').style.display='block'\">🕒 Déplacer</button>"
+                       +"<button class='btn btn-ghost' style='width:auto;padding:10px 14px;color:#e5484d' onclick=\"sssAgAnnuler('"+x.id+"','"+it.prospect_id+"')\">✖ Annuler le RDV</button>":'')
+    +"<button class='btn' style='width:auto;padding:10px 18px' onclick='closeModal()'>Fermer</button></div>";
+}
+function sssAgOuvrirProspectRdv(rid){
+  var it=(window.__AGALL||[]).find(function(r){ return r.id==='prdv:'+rid; });
+  if(!it){ renderAgenda(); return; }
+  modal(sssAgCarte(it));
+}
+function sssAgOuvrirFiche(pid){ go('prospects'); setTimeout(function(){ try{ if(typeof SSSPR!=='undefined') SSSPR.sel=pid; sssPrFiche(pid); }catch(e){} },250); }
+async function sssAgDeplacer(rid,ds,heure){
+  var it=(window.__AGALL||[]).find(function(r){ return r.id==='prdv:'+rid; }); if(!it) return;
+  var h=heure||it.heure||'09:00'; var nd=new Date(ds+'T'+h+':00');
+  if(isNaN(nd.getTime())) return;
+  if(sssAgYmd(nd)===it.date_rdv && sssAgHm(nd)===it.heure) return;
+  var r=await db.rpc('sss_prospect_rdv_deplacer',{p_rdv:rid,p_debut:nd.toISOString(),p_note:null});
+  if(r.error){ try{ sssToast('Déplacement impossible : '+r.error.message,false); }catch(e){ alert('Déplacement impossible : '+r.error.message); } }
+  else { try{ sssToast((r.data&&r.data.message)||'Rendez-vous déplacé ✓',true); }catch(e){} }
+  renderAgenda();
+}
+async function sssAgDeplacerDepuisFiche(rid){
+  var ds=(document.getElementById('sssag-d')||{}).value, h=(document.getElementById('sssag-h')||{}).value;
+  if(!ds||!h){ alert('Indique la date et l’heure.'); return; }
+  closeModal(); await sssAgDeplacer(rid,ds,h);
+}
+async function sssAgAnnuler(rid,pid){
+  var motif=prompt('Annuler ce rendez-vous ? Motif (facultatif) :',''); if(motif===null) return;
+  var r=await db.rpc('sss_prospect_action',{p_id:pid,p_action:'rdv_compte_rendu',d:{rdv_id:rid,resultat:'annule',note:motif||'Annulé depuis l’agenda'}});
+  if(r.error){ alert('Annulation impossible : '+r.error.message); return; }
+  closeModal(); try{ sssToast('Rendez-vous annulé ✓',true); }catch(e){} renderAgenda();
+}
+/* ---- mise à jour en direct ---- */
+function sssAgModaleOuverte(){ var m=document.getElementById('modal-root'); return !!(m&&m.innerHTML); }
+function sssAgRafraichir(){
+  if(typeof VIEW==='undefined'||VIEW!=='agenda') return;
+  if(sssAgModaleOuverte()){ SSSAG.enAttente=true; return; }   // pas de rafraîchissement sous une fenêtre ouverte : repris à sa fermeture
+  SSSAG.enAttente=false; try{ renderAgenda(); }catch(e){}
+}
+function sssAgPlanifier(){ clearTimeout(SSSAG.minuteur); SSSAG.minuteur=setTimeout(sssAgRafraichir,700); }
+function sssAgTempsReel(){
+  if(SSSAG.canal||!sssAgConcerne()) return;
+  try{
+    SSSAG.canal=db.channel('agenda-com-'+ME.id)
+      .on('postgres_changes',{event:'*',schema:'public',table:'prospect_rdv'},sssAgPlanifier)
+      .on('postgres_changes',{event:'*',schema:'public',table:'rendez_vous'},sssAgPlanifier)
+      .subscribe();
+  }catch(e){ SSSAG.canal=null; }
+  if(!SSSAG.poll) SSSAG.poll=setInterval(function(){ if(document.visibilityState==='visible') sssAgRafraichir(); },60000);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') sssAgPlanifier(); });
+  setInterval(function(){ if(SSSAG.enAttente&&!sssAgModaleOuverte()) sssAgRafraichir(); },1500);
+}
+
+/* =============================== branchement =============================== */
+(function(){
+  try{ var _o=openRdv; openRdv=function(id){ if((''+id).indexOf('prdv:')===0) return sssAgOuvrirProspectRdv((''+id).slice(5)); return _o.apply(this,arguments); }; }catch(e){}
+  try{ var _vt=vtAnticipee; vtAnticipee=function(id){ if((''+id).indexOf('prdv:')===0){ alert('La VT anticipée concerne un rendez-vous client : ouvre d’abord la fiche prospect et convertis-le en client.'); return; } return _vt.apply(this,arguments); }; }catch(e){}
+  try{ var _m=agMoveRdv; agMoveRdv=function(id,ds,heure){ if((''+id).indexOf('prdv:')===0) return sssAgDeplacer((''+id).slice(5),ds,heure); return _m.apply(this,arguments); }; }catch(e){}
+})();
+
+/* SSS-AGENDA-COM-FIN */
+
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
 function go(v){ try{ if(typeof gwClean==='function') gwClean(); }catch(_e){}
@@ -9648,7 +9767,7 @@ async function renderAgenda(){
   const {data,error}=await db.from('rendez_vous')
     .select('id,contact_id,date_rdv,heure,source,canton,confirme_client,debouche,assigne_a,recu_commercial,recu_at,contact:contact_id(nom,prenom,npa,localite,adresse,telephone,telephone2),assigne:assigne_a(prenom,nom)')
     .eq('type','rdv_commercial').order('date_rdv',{ascending:true});
-  try{ dvBuild(data||[]); }catch(_e){}
+  try{ dvBuild(data||[]); }catch(_e){} try{ if(typeof sssAgFusion==='function') await sssAgFusion(data); }catch(_e){}
   const list=$('#agenda-list'); list.className='';
   if(error){ list.innerHTML='<div class="empty">Erreur : '+esc(error.message)+'</div>'; return; }
   if(!data||!data.length){ list.innerHTML='<div class="empty">Aucun RDV importé pour l\'instant.'+(canSync?' Clique sur « Connecter / Synchroniser Google ».':'')+'</div>'; return; }
@@ -9753,7 +9872,7 @@ async function renderAgenda(){
 
   } else {
     const g={today:[],demain:[],avenir:[]};
-    rows0.filter(function(r){ return r.assigne_a ? (r.assigne_a===ME.id) : true; }).forEach(r=>{ const d=r.date_rdv||''; if(d && d<t0) return; let bk; if(!d) bk='avenir'; else if(d===t0) bk='today'; else if(d===tm) bk='demain'; else bk='avenir'; g[bk].push(r); });
+    rows0.filter(function(r){ return (typeof sssAgEstDir==='function'&&sssAgEstDir()) ? true : (r.assigne_a ? (r.assigne_a===ME.id) : true); }).forEach(r=>{ const d=r.date_rdv||''; if(d && d<t0) return; let bk; if(!d) bk='avenir'; else if(d===t0) bk='today'; else if(d===tm) bk='demain'; else bk='avenir'; g[bk].push(r); });
     const sec=(t,arr,col)=> arr.length? '<div class="agenda-sec" style="color:'+(col||'var(--text-2)')+'">'+t+' <span style="color:var(--text-3);font-weight:600">('+arr.length+')</span></div><div class="cards">'+arr.map(card).join('')+'</div>' : '';
     ahtml=pastPicker+'<div class="agenda-head"><div class="agenda-date">'+esc(frDateLong(t0))+'</div></div>';
     var body=sec("Aujourd'hui",g.today,'var(--green)')+sec('Demain',g.demain)+sec('À venir',g.avenir);
