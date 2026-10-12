@@ -7808,7 +7808,8 @@ async function sssFinLocAct(id,act){
      grille (brouillon → active → archivée, jamais effacée), coût complet et marge estimée calculés depuis le catalogue
      d'achat SSS existant, paramètres privés, suppléments, demandes exceptionnelles, fiches techniques (glisser-déposer).
    ========================================================================== */
-var SSST={data:null,tech:'each',cap:'pv',n:10,avant:'',remMode:'chf',remise:'',cx:'standard',supp:{},lien:{},offres:null,mes:null,dernier:null};
+var SSST={data:null,tech:'each',cap:'pv',n:10,avant:'',remMode:'chf',remise:'',cx:'standard',ech:'0',supp:{},lien:{},offres:null,mes:null,dernier:null,echT:null,echN:0};
+var SSST_ECH=[['0','0 pan'],['1','1 pan'],['2','2 pans'],['a_chiffrer','À chiffrer']];
 var SSST_TECH=[['each','EACH'],['solax','SolaX'],['atmoce','ATMOCE'],['enphase','Enphase']];
 var SSST_PANNEAUX=[6,8,10,12,14,16,18,20];
 var SSST_CX=[['standard','Standard'],['complexe','Complexe'],['a_chiffrer','À faire chiffrer']];
@@ -7878,18 +7879,32 @@ function sstPeindre(){
   var l=sstLigne();
   h+="<div class='sst-card' id='sst-res'>"+sstCarteRes(l)+"</div>";
   if(l&&l.valide){
-    var S=(D.supplements||[]);
-    h+="<details"+(Object.keys(SSST.supp).some(function(k){ return SSST.supp[k]&&SSST.supp[k].on; })?' open':'')+"><summary>➕ Suppléments <span class='sst-small' style='margin-left:6px'>(échafaudage non inclus sauf ajout)</span></summary>"
+    var S=(D.supplements||[]).filter(function(s){ return s.code!=='echafaudage'; });
+    h+="<details"+(Object.keys(SSST.supp).some(function(k){ return SSST.supp[k]&&SSST.supp[k].on; })?' open':'')+"><summary>➕ Suppléments</summary>"
       +S.map(function(s){ var v=SSST.supp[s.code]||{}; return "<div class='sst-sup'><input type='checkbox' "+(v.on?'checked':'')+" onchange=\"sstSupp('"+s.code+"','on',this.checked)\" style='width:22px;height:22px'><div><b>"+esc(s.libelle)+"</b> <span class='sst-small'>/"+esc(s.unite)+"</span><div class='sst-small'>"+(s.prix_min_ttc!=null?'min '+sstChf(s.prix_min_ttc)+(s.prix_conseille_ttc!=null?' · conseillé '+sstChf(s.prix_conseille_ttc):''):'Prix à définir par la direction')+(s.note?' · '+esc(s.note):'')+"</div></div>"
         +"<input class='sst-in' type='number' inputmode='decimal' placeholder='CHF TTC' value='"+esc(v.prix==null?'':v.prix)+"' oninput=\"sstSupp('"+s.code+"','prix',this.value)\"></div>"; }).join('')+"</details>";
+    h+="<div class='sst-lbl'>Échafaudage</div><div class='sst-chips'>"+SSST_ECH.map(function(c){ return "<button class='sst-chip"+(SSST.ech===c[0]?' on':'')+"' onclick=\"sstChoix('ech','"+c[0]+"')\">"+c[1]+"</button>"; }).join('')+"</div><div id='sst-ech' class='sst-card' style='margin:8px 0;font-weight:800'>"+(SSST.ech==='0'?'Sans échafaudage':'Calcul…')+"</div>";
     h+="<div class='sst-lbl'>Complexité du chantier</div><div class='sst-chips'>"+SSST_CX.map(function(c){ return "<button class='sst-chip"+(SSST.cx===c[0]?' on':'')+"' onclick=\"sstChoix('cx','"+c[0]+"')\">"+c[1]+"</button>"; }).join('')+"</div>";
     h+="<details><summary>🔗 Rattacher à une offre (facultatif)</summary><div class='sst-f'><label>Mon offre / prospect</label><select id='sst-offre' onchange='sstLien(this.value)'><option value=''>— aucune —</option>"+sstOptionsOffres()+"</select>"
       +"<label>Client</label><input id='sst-client' value='"+esc(SSST.lien.client||'')+"' oninput=\"SSST.lien.client=this.value\"><label>N° d'offre</label><input id='sst-ref' value='"+esc(SSST.lien.ref||'')+"' oninput=\"SSST.lien.ref=this.value\"></div></details>";
     h+="<button class='sst-btn p' onclick='sstEnregistrer(this)'>💾 Enregistrer le contrôle prix</button><div id='sst-apres'></div>";
   }
   h+="<div class='sst-lbl' style='margin-top:20px'>Mes contrôles & demandes</div><div id='sst-mes'><div class='sst-small'>Chargement…</div></div></div>";
-  m.innerHTML=h; sstPeindreMes(); if(!SSST.offres) sstChargerOffres();
+  m.innerHTML=h; sstPeindreMes(); if(!SSST.offres) sstChargerOffres(); sstEchMaj();
 }
+/* échafaudage : la base calcule (coûts jamais envoyés au navigateur) ; l'écran ne reçoit que l'état et le supplément */
+function sstEchMaj(){ clearTimeout(SSST.echT); SSST.echT=setTimeout(sstEchCalcul,350); }
+async function sstEchCalcul(){
+  var z=document.getElementById('sst-ech'), l=sstLigne(); if(!z||!l||!l.valide) return;
+  if(SSST.ech==='0'){ z.innerHTML='Sans échafaudage'; z.style.borderLeft=''; return; }
+  var v=sstCalcVals(l), n=++SSST.echN;
+  var r=await db.rpc('sss_tarif_echafaudage_com',{p:{technologie:l.technologie,config:l.config,capacite_kwh:l.capacite_kwh,nb_panneaux:l.nb_panneaux,prix_avant_remise:v?v.av:null,prix_final:v?v.fin:null,echafaudage:SSST.ech}});
+  if(n!==SSST.echN||!document.getElementById('sst-ech')) return;
+  if(r.error){ z.innerHTML=esc(r.error.message); return; }
+  var e=r.data||{}, col={inclus:'#16a34a',partiel:'#d97706',necessaire:'#dc2626',a_chiffrer:'#dc2626'}[e.etat]||'var(--line)';
+  z.innerHTML=esc(e.libelle||''); z.style.borderLeft='5px solid '+col;
+}
+
 function sstCarteRes(l){
   if(!l) return "<div style='font-size:17px;font-weight:900'>Tarif direction à définir</div><div class='sst-small'>Pas encore de tarif pour "+SSST.n+" panneaux ("+(SSST.n*0.49).toFixed(2)+" kWc) dans cette configuration : demande à la direction.</div>";
   var h="<div style='display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap'><div style='flex:1 1 200px'><div style='font-size:17px;font-weight:900'>"+esc(l.technologie_lib)+" · "+esc(l.libelle)+"</div><div class='sst-small'>"+l.nb_panneaux+" × "+esc(l.module)+" = "+Number(l.kwc).toFixed(2)+" kWc · "+(l.valide?'✅ '+esc(l.etat_tarif):'⚠ '+esc(l.etat_tarif))+"</div></div>"
@@ -7917,7 +7932,7 @@ function sstCalcHtml(l){
     +(cx?"<div class='sst-card sst-warn' style='margin:8px 0 0'>Chantier "+(SSST.cx==='complexe'?'complexe':'à faire chiffrer')+" : validation direction / technique obligatoire.</div>":'');
 }
 function sstSuppTot(){ var D=SSST.data||{}, o={n:0,tot:0,rouge:false,def:false}; (D.supplements||[]).forEach(function(s){ var v=SSST.supp[s.code]; if(!v||!v.on) return; o.n++; var p=sstNum(v.prix); o.tot+=p||0; if(s.prix_min_ttc==null) o.def=true; else if(p==null||p<Number(s.prix_min_ttc)) o.rouge=true; }); return o; }
-function sstCalc(){ var l=sstLigne(), z=document.getElementById('sst-calc'); if(z&&l) z.innerHTML=sstCalcHtml(l); }
+function sstCalc(){ var l=sstLigne(), z=document.getElementById('sst-calc'); if(z&&l) z.innerHTML=sstCalcHtml(l); sstEchMaj(); }
 function sstSupp(code,k,v){ SSST.supp[code]=SSST.supp[code]||{}; SSST.supp[code][k]=v; sstCalc(); }
 function sstChoix(k,v){ SSST[k]=v; if(k==='tech'){ if(!sstCapacites().some(function(c){ return c[0]===SSST.cap; })) SSST.cap='pv'; } sstPeindre(); }
 async function sstChargerOffres(){ try{ var r=await db.rpc('sss_com_devis'); SSST.offres=(r&&r.data)||{}; }catch(e){ SSST.offres={}; } var s=document.getElementById('sst-offre'); if(s) s.innerHTML="<option value=''>— aucune —</option>"+sstOptionsOffres(); }
@@ -7928,11 +7943,12 @@ function sstLien(v){ SSST.lien={}; if(v){ var p=v.split('|'), id=p[0]; if(id.ind
 async function sstEnregistrer(btn){
   var l=sstLigne(); if(!l) return; var v=sstCalcVals(l); if(!v){ alert('Saisis le prix proposé au client.'); return; }
   var supp=[]; Object.keys(SSST.supp).forEach(function(k){ var s=SSST.supp[k]; if(s&&s.on) supp.push({code:k,prix:sstNum(s.prix)}); });
-  var p={technologie:l.technologie,config:l.config,capacite_kwh:l.capacite_kwh,nb_panneaux:l.nb_panneaux,prix_avant_remise:v.av,prix_final:v.fin,supplements:supp,complexite:SSST.cx,
+  var p={technologie:l.technologie,config:l.config,capacite_kwh:l.capacite_kwh,nb_panneaux:l.nb_panneaux,prix_avant_remise:v.av,prix_final:v.fin,supplements:supp,complexite:SSST.cx,echafaudage:SSST.ech,
          client:SSST.lien.client||null,reference_offre:SSST.lien.ref||null,prospect_id:SSST.lien.prospect_id||null,affaire_id:SSST.lien.affaire_id||null};
   var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_controle_enregistrer',{p:p}); },{succes:function(x){ return (x&&x.message)||'Contrôle enregistré ✓'; }});
   if(!d) return; SSST.dernier=d; var z=document.getElementById('sst-apres'), F=SSST_FEU[d.feu]||SSST_FEU.a_confirmer;
   if(z) z.innerHTML="<div class='sst-card'><b>"+esc(d.feu_lib||(F[0]+' '+F[1]))+"</b><div class='sst-small'>Contrôle enregistré avec la grille v"+esc(d.grille_version)+" — "+sstChf(d.prix_final)+(d.total_ttc&&Number(d.total_ttc)!==Number(d.prix_final)?' · total avec suppléments '+sstChf(d.total_ttc):'')+"</div>"
+    +(d.echafaudage_resultat&&d.echafaudage_resultat.choix!=='0'?"<div class='sst-small' style='margin-top:4px'>Échafaudage : "+esc(d.echafaudage_resultat.libelle||'')+"</div>":'')
     +(d.validation_requise?"<button class='sst-btn r' onclick=\"sstDemander('"+d.controle_id+"')\">Demander validation direction</button>":'')+"</div>";
   var x=await db.rpc('sss_tarif_mes_controles',{p_limite:30}); SSST.mes=(x&&x.data)||[]; sstPeindreMes();
 }
@@ -7981,12 +7997,12 @@ async function renderFinTarifs(){
 }
 function sstdPeindre(){
   var m=document.getElementById('main'); if(!m||VIEW!=='fin_tarifs') return; var D=SSSTD.data||{}, g=D.grille||{}, att=(D.exceptions||[]).filter(function(e){ return e.statut==='en_attente'; }).length;
-  var tabs=[['grille','Grille'],['exceptions','Demandes'+(att?' ('+att+')':'')],['supplements','Suppléments'],['fiches','Fiches techniques'+((D.fiches_manquantes||[]).length?' ('+(D.fiches_manquantes||[]).length+' manquantes)':'')],['historique','Historique'],['rapport','Rapport']];
+  var tabs=[['grille','Grille'],['echafaudage','Échafaudage'],['exceptions','Demandes'+(att?' ('+att+')':'')],['supplements','Suppléments'],['fiches','Fiches techniques'+((D.fiches_manquantes||[]).length?' ('+(D.fiches_manquantes||[]).length+' manquantes)':'')],['historique','Historique'],['rapport','Rapport']];
   var h="<div class='sst sst-d'><div class='page-head'><h2>Paramètres commerciaux / Tarifs</h2><div class='spacer'></div><span class='sst-small'>🔒 Super administrateur · coûts et marges jamais visibles du commercial</span></div>"
     +"<div class='sst-chips' style='margin-bottom:10px'>"+tabs.map(function(t){ return "<button class='sst-chip"+(SSSTD.onglet===t[0]?' on':'')+"' onclick=\"SSSTD.onglet='"+t[0]+"';sstdPeindre()\">"+esc(t[1])+"</button>"; }).join('')+"</div>";
   if(SSSTD.onglet==='grille') h+=sstdGrille(D,g); else if(SSSTD.onglet==='exceptions') h+=sstdExceptions(D); else if(SSSTD.onglet==='supplements') h+=sstdSupplements(D,g);
-  else if(SSSTD.onglet==='fiches') h+=sstdFiches(D); else if(SSSTD.onglet==='historique') h+=sstdHistorique(D); else h+="<div id='sstd-rapport'><div class='sst-small'>Chargement…</div></div>";
-  m.innerHTML=h+"</div>"; if(SSSTD.onglet==='rapport') sstdRapport(); if(SSSTD.onglet==='fiches') sstdDropInit();
+  else if(SSSTD.onglet==='echafaudage') h+="<div id='sstd-ech'><div class='sst-small'>Chargement…</div></div>"; else if(SSSTD.onglet==='fiches') h+=sstdFiches(D); else if(SSSTD.onglet==='historique') h+=sstdHistorique(D); else h+="<div id='sstd-rapport'><div class='sst-small'>Chargement…</div></div>";
+  m.innerHTML=h+"</div>"; if(SSSTD.onglet==='rapport') sstdRapport(); if(SSSTD.onglet==='echafaudage') sstdEch(); if(SSSTD.onglet==='fiches') sstdDropInit();
 }
 function sstdGrille(D,g){
   var brouillon=(D.grilles||[]).filter(function(x){ return x.statut==='brouillon'; })[0], edit=g.statut==='brouillon';
@@ -8153,6 +8169,57 @@ async function sstdDeposer(files,remplace){
 }
 function sstdRemplacer(id){ var i=document.createElement('input'); i.type='file'; i.accept='application/pdf,image/png,image/jpeg,image/webp'; i.onchange=function(){ if(i.files&&i.files[0]) sstdDeposer([i.files[0]],id); }; i.click(); }
 async function sstdFicheMaj(btn,id,p){ if(p.archivee&&!confirm('Archiver cette fiche ? Elle ne sera plus visible du commercial (elle reste dans l’historique).')) return; var d=await sssAgir(btn,function(){ return db.rpc('sss_fiche_maj',{p_id:id,p:p}); }); if(d) renderFinTarifs(); }
+
+/* ---- échafaudage (direction) : paramètres historisés, tableau de la grille, détail complet du calcul ---- */
+var SSSTD_ECH={achat:null,tab:null,hist:null};
+var SSSTD_ECH_P=[['tdfn_pct','Taux TDFN (%)'],['seuil_marge','Seuil de marge chantier (CHF)'],['echafaudage_1pan','Échafaudage 1 pan (CHF)'],['echafaudage_2pans','Échafaudage 2 pans (CHF)'],
+  ['transport','Transport (CHF)'],['petit_materiel','Petit matériel / protections (CHF)'],['ciel','CIEL (CHF)'],['frais_fixes','Administratif + véhicule + déchets + SAV (CHF)'],
+  ['structure_panneau','Structure K2 par panneau (CHF HT)'],['cout_horaire','Coût horaire employeur (CHF)'],['heures_base','Heures de pose — 10 panneaux'],['heures_par_panneau','Heures par panneau supplémentaire'],
+  ['heures_batterie','Heures en plus si batterie'],['tva_ch_pct','TVA suisse sur achats (%)'],['tva_fr_pct','TVA française si retrait (%)'],['taux_eur_reel','Taux EUR/CHF réellement payé']];
+function sstdEchEtat(x){ if(!x) return '—'; var s=x.etat; return s==='inclus'?'🟢':s==='partiel'?'🟠 '+sstChf(x.supplement_ttc):s==='necessaire'?'🔴 '+sstChf(x.supplement_ttc):'à chiffrer'; }
+async function sstdEch(){
+  var R=await Promise.all([db.rpc('sss_tarif_echafaudage_tableau',SSSTD_ECH.achat?{p_achat:SSSTD_ECH.achat}:{}),db.rpc('sss_tarif_couts_historique')]);
+  var z=document.getElementById('sstd-ech'); if(!z) return;
+  if(R[0].error){ z.innerHTML="<div class='empty'>"+esc(R[0].error.message)+"</div>"; return; }
+  SSSTD_ECH.tab=R[0].data||{}; SSSTD_ECH.hist=R[1].data||[]; var P=SSSTD_ECH.tab.parametres||{}, ach=SSSTD_ECH.achat||P.achat_mavisun||'suisse';
+  var actif=SSSTD_ECH.hist.filter(function(v){ return v.actif; })[0]||{};
+  var h="<div class='sst-card'><b>Principe</b><div class='sst-small'>Recette nette = prix TTC × (1 − TDFN) ; coûts réellement supportés (TVA comprise) ; capacité d’absorption = max(0, marge − seuil) ; supplément client = (échafaudage − capacité) ÷ (1 − TDFN), arrondi à 10 CHF. Anne ne voit que 🟢 / 🟠 / 🔴 et le supplément, calculés sur le prix qu’elle envisage.</div>"
+    +"<div class='sst-chips' style='margin-top:8px'><button class='sst-chip"+(ach==='suisse'?' on':'')+"' onclick=\"SSSTD_ECH.achat='suisse';sstdEch()\">Achat Mavisun : livraison Suisse</button><button class='sst-chip"+(ach==='france'?' on':'')+"' onclick=\"SSSTD_ECH.achat='france';sstdEch()\">Retrait France (TVA FR = coût, provisoire)</button></div></div>";
+  h+="<div class='sst-card'><b>Grille v"+esc(SSSTD_ECH.tab.grille_version)+" — supplément client conseillé (TTC)</b><div style='overflow-x:auto'><table class='tbl' style='width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px'><thead><tr>"
+    +['Configuration','Pann.','Coûts réels','Marge au min.','1 pan','2 pans','Marge au cons.','1 pan','2 pans',''].map(function(t){ return "<th style='text-align:left;padding:5px'>"+t+"</th>"; }).join('')+"</tr></thead><tbody>"
+    +(SSSTD_ECH.tab.lignes||[]).map(function(x){ var a=x.min_1||{}, c=x.cons_1||{};
+      return "<tr style='border-top:1px solid var(--line)'><td style='padding:5px'>"+esc(x.technologie+' '+x.libelle)+"</td><td>"+x.nb_panneaux+"</td><td>"+(a.couts!=null?sstChf(a.couts):'—')+"</td><td>"+(a.marge_avant_echafaudage!=null?sstChf(a.marge_avant_echafaudage):'—')+"</td><td>"+sstdEchEtat(x.min_1)+"</td><td>"+sstdEchEtat(x.min_2)+"</td><td>"+(c.marge_avant_echafaudage!=null?sstChf(c.marge_avant_echafaudage):'—')+"</td><td>"+sstdEchEtat(x.cons_1)+"</td><td>"+sstdEchEtat(x.cons_2)+"</td>"
+        +"<td><button class='sst-chip' style='min-height:30px;padding:3px 9px' onclick=\"sstdEchDetail('"+x.ligne_id+"',"+(x.prix_min_ttc||'null')+")\">Détail</button></td></tr>"; }).join('')+"</tbody></table></div></div>";
+  h+="<div class='sst-card'><b>Paramètres Direction (version active v"+esc(actif.version)+")</b><div class='sst-small'>Chaque enregistrement crée une nouvelle version ; l’ancienne reste dans l’historique. Jamais visibles du commercial.</div><div class='sst-f sst-g2'>"
+    +SSSTD_ECH_P.map(function(k){ return "<div><label>"+esc(k[1])+"</label><input id='sp-"+k[0]+"' inputmode='decimal' value='"+esc(P[k[0]]==null?'':P[k[0]])+"'></div>"; }).join('')
+    +"<div><label>Achat Mavisun par défaut</label><select id='sp-achat_mavisun'><option value='suisse'"+(P.achat_mavisun!=='france'?' selected':'')+">Livraison Suisse</option><option value='france'"+(P.achat_mavisun==='france'?' selected':'')+">Retrait France</option></select></div>"
+    +"<div><label>Montants échafaudage</label><select id='sp-echafaudage_base'><option value='budget'"+(P.echafaudage_base!=='ht'?' selected':'')+">Budget de coût réel (tels quels)</option><option value='ht'"+(P.echafaudage_base==='ht'?' selected':'')+">Montants HT (+ TVA suisse)</option></select></div></div>"
+    +"<button class='sst-btn p' onclick='sstdEchSauver(this)'>Enregistrer une nouvelle version des paramètres</button></div>";
+  h+="<div class='sst-card'><b>Historique des paramètres</b>"+SSSTD_ECH.hist.map(function(v){ return "<div class='sst-it'><div><b>v"+v.version+"</b>"+(v.actif?" <span class='sst-badge'>active</span>":'')+" · "+sstDate(v.cree_at)+" · "+esc(v.cree_par||'—')+"<div class='sst-small'>"+esc(v.motif||'')+"</div></div><div class='sst-small'>seuil "+sstChf(v.params.seuil_marge)+" · TDFN "+esc(v.params.tdfn_pct)+" %</div></div>"; }).join('')+"</div>";
+  z.innerHTML=h;
+}
+async function sstdEchSauver(btn){
+  var p={}; SSSTD_ECH_P.forEach(function(k){ var e=document.getElementById('sp-'+k[0]); if(e&&e.value.trim()!=='') p[k[0]]=sstNum(e.value); });
+  p.achat_mavisun=document.getElementById('sp-achat_mavisun').value; p.echafaudage_base=document.getElementById('sp-echafaudage_base').value;
+  var motif=prompt('Motif de la modification des paramètres :'); if(!motif) return;
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_couts_maj',{p:p,p_motif:motif}); }); if(d) sstdEch();
+}
+async function sstdEchDetail(lid,prix,choix){
+  choix=choix||'1';
+  var r=await db.rpc('sss_tarif_echafaudage_direction',{p_ligne:lid,p_prix:prix,p_choix:choix,p_achat:SSSTD_ECH.achat||null}); if(r.error){ alert(r.error.message); return; } var d=r.data||{};
+  var L=function(a,b,fort){ return "<span"+(fort?" style='font-weight:800'":'')+">"+a+"</span><span class='r'"+(fort?" style='font-weight:800'":'')+">"+b+"</span>"; };
+  var vu={sans:'Sans échafaudage',inclus:'🟢 Inclus dans le prix',partiel:'🟠 Supplément conseillé : '+sstChf(d.supplement_ttc),necessaire:'🔴 Supplément nécessaire : '+sstChf(d.supplement_ttc)}[d.etat]||'🔴 À chiffrer';
+  sstSheet("<h3 style='margin:0'>"+esc(({each:'EACH',solax:'SolaX',atmoce:'ATMOCE',enphase:'Enphase'}[d.technologie]||d.technologie)+' '+d.libelle)+" · "+d.nb_panneaux+" panneaux</h3><div class='sst-small'>Paramètres v"+esc(d.parametres_version)+" · achat Mavisun : "+esc(d.achat_mavisun)+" · minimum "+sstChf(d.prix_min_ttc)+" · conseillé "+sstChf(d.prix_conseille_bas_ttc)+"</div>"
+    +"<div class='sst-f sst-g2'><div><label>Prix client TTC</label><input id='se-prix' inputmode='decimal' value='"+esc(prix==null?'':prix)+"'></div><div><label>Échafaudage</label><select id='se-ch'>"+SSST_ECH.map(function(c){ return "<option value='"+c[0]+"'"+(c[0]===choix?' selected':'')+">"+c[1]+"</option>"; }).join('')+"</select></div></div>"
+    +"<button class='sst-chip' style='margin:6px 0' onclick=\"sstdEchDetail('"+lid+"',sstNum(document.getElementById('se-prix').value),document.getElementById('se-ch').value)\">Recalculer</button>"
+    +(d.etat==='a_chiffrer'||d.etat==='prix_requis'?"<div class='sst-card sst-warn'>"+esc(d.raison||d.etat)+"</div>":
+     "<div class='sst-tab'>"+L('Prix client TTC',sstChf(d.prix_ttc))+L('Recette nette (− TDFN '+d.tdfn_pct+' %)',sstChf(d.recette_nette),true)
+      +L('Matériel Mavisun (TVA comprise)',sstChf(d.materiel_mavisun))+L('Matériel importé EACH (taux réel + TVA import)',sstChf(d.materiel_import))+L('Structure K2',sstChf(d.structure))
+      +L('Main-d’œuvre ('+d.heures+' h)',sstChf(d.main_oeuvre))+L('Transport',sstChf(d.transport))+L('Petit matériel / protections',sstChf(d.petit_materiel))+L('CIEL',sstChf(d.ciel))+L('Frais fixes',sstChf(d.frais_fixes))
+      +L('Coûts réels',sstChf(d.couts),true)+L('Marge avant échafaudage',sstChf(d.marge_avant_echafaudage),true)+L('Seuil Direction',sstChf(d.seuil_marge))+L('Capacité d’absorption',sstChf(d.capacite_absorption),true)
+      +L('Coût échafaudage',sstChf(d.cout_echafaudage))+L('Absorbé par SSS',sstChf(d.absorbe))+L('Manque',sstChf(d.manque))+L('Supplément client TTC',sstChf(d.supplement_ttc),true)+L('Marge après échafaudage',sstChf(d.marge_apres_echafaudage))+"</div>")
+    +"<div class='sst-card' style='margin-top:8px;font-weight:800'>Anne voit : "+esc(vu)+"</div><button class='sst-btn' onclick='sstFermer()'>Fermer</button>");
+}
 
 /* =============================== branchement =============================== */
 (function(){
