@@ -8369,7 +8369,9 @@ function sssCtCss(){ if(document.getElementById('ssct-css')) return; var s=docum
  +".ssct-card{border:1px solid var(--line);border-left:5px solid;border-radius:12px;padding:10px 12px;margin:6px 0}.ssct-card .t{font-weight:900}.ssct-card .s{font-size:12.5px;color:var(--text-3);margin-top:2px}"
  +".ssct-badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#2563eb22;color:#2563eb;margin-left:6px}"
  +".ssct-leg{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text-3);margin:4px 0 10px}.ssct-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle}"
- +"@media(max-width:600px){.ssct-day{min-height:52px}.ssct-ev{font-size:0;height:7px;padding:0;margin-top:3px;background:var(--c)!important;border-left:0}.ssct-ev.moi{height:9px;box-shadow:0 0 0 1.5px var(--text,#fff)}}";
+ +".ssct-ev .c{display:none}"
+ +"@media(max-width:600px){.ssct-grid{gap:2px}.ssct-day{min-height:64px;padding:2px}.ssct-ev{font-size:9px;line-height:1.2;font-weight:700;color:#fff;padding:1px 2px;margin-top:2px;background:var(--c)!important;border-left:0;border-radius:3px}"
+ +".ssct-ev .l{display:none}.ssct-ev .c{display:inline}.ssct-ev.moi{font-weight:900;box-shadow:0 0 0 1.5px var(--text,#fff)}.ssct-num{font-size:10px}}";
   document.head.appendChild(s); }
 function sssCtYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function sssCtJours(e){ var out=[], d=new Date(e.date_debut+'T00:00:00'), f=new Date((e.date_fin||e.date_debut)+'T00:00:00'), i=0; while(d<=f && i<60){ out.push(sssCtYmd(d)); d.setDate(d.getDate()+1); i++; } return out; }
@@ -8400,6 +8402,8 @@ function sssCtCarte(e){
     +"<div class='s'>👷 "+esc((e.equipe||[]).join(', ')||'équipe à définir')+(e.sous_traitant?' · sous-traitant : '+esc(e.sous_traitant):'')+" · "+esc(e.statut||'')+"</div>"
     +(e.moi?"<div class='s'><a href='#' onclick=\"go('mes_chantiers');return false\">Voir le détail dans Mes chantiers →</a></div>":'')+"</div>";
 }
+/* nom court pour le téléphone : nom de famille du client (dernier mot), « SAV » devant pour un SAV */
+function sssCtCourt(e){ var n=(''+(e.chantier||'')).replace(/^SAV — /,'').split(' — ')[0].split(' · ')[0].trim(); var m=n.split(/\s+/).filter(Boolean); var court=m.length?m[m.length-1]:(e.intervention||''); return (e.sav?'SAV ':'')+court; }
 function sstCtD(s){ var p=(''+s).slice(0,10).split('-'); return p.length===3?p[2]+'.'+p[1]+'.'+p[0]:s; }
 function sssCtJour(ds){
   var l=sssCtParJour()[ds]||[], d=new Date(ds+'T00:00:00');
@@ -8420,7 +8424,7 @@ function sssCtPeindre(P){
     var d=new Date(P.du);
     for(var i=0;i<42;i++){ var ds=sssCtYmd(d), l=parJ[ds]||[];
       h+="<div class='ssct-day"+(d.getMonth()!==P.ref.getMonth()?' out':'')+(ds===auj?' today':'')+"' onclick=\"sssCtJour('"+ds+"')\"><div class='ssct-num'>"+d.getDate()+"</div>"
-        +l.slice(0,3).map(function(e){ var c=SSSCT_COUL[e.intervention]||'#6b7280'; return "<div class='ssct-ev"+(e.moi?' moi':'')+"' style='--c:"+c+";border-color:"+c+";background:color-mix(in srgb,"+c+" 14%,transparent)'>"+esc((e.heure_debut?e.heure_debut+' ':'')+(e.chantier||e.intervention))+"</div>"; }).join('')
+        +l.slice(0,3).map(function(e){ var c=SSSCT_COUL[e.intervention]||'#6b7280'; return "<div class='ssct-ev"+(e.moi?' moi':'')+"' style='--c:"+c+";border-color:"+c+";background:color-mix(in srgb,"+c+" 14%,transparent)'><span class='l'>"+esc((e.heure_debut?e.heure_debut+' ':'')+(e.chantier||e.intervention))+"</span><span class='c'>"+esc(sssCtCourt(e))+"</span></div>"; }).join('')
         +(l.length>3?"<div class='ssct-more'>+"+(l.length-3)+"</div>":'')+"</div>";
       d.setDate(d.getDate()+1); }
     h+="</div><div class='sst-small' style='font-size:12px;color:var(--text-3);margin-top:6px'>Touchez un jour pour voir le détail.</div>";
