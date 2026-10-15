@@ -8450,6 +8450,143 @@ function sssCtPeindre(P){
 
 /* SSS-CALENDRIER-TECH-FIN */
 
+/* SSS-EVENEMENTS-DEBUT */
+/* ==========================================================================
+   SSS OS — Agenda de l'équipe dans l'application (0054). Remplace l'ouverture d'Infomaniak depuis « Agenda technique ».
+   La direction / l'administration ajoute un événement (intervention, réunion, formation, livraison, autre) : il reste dans
+   SSS OS, apparaît dans « Agenda technique » et dans « Calendrier des chantiers » des personnes concernées (toute l'équipe
+   technique ou les personnes choisies), qui reçoivent une notification. Modifier / annuler : direction / administration.
+   Les techniciens voient les événements, sans pouvoir les modifier. Aucun autre agenda n'est touché.
+   ========================================================================== */
+var SSSEVT={liste:[],equipe:null};
+var SSSEVT_COUL='#0891b2';
+var SSSEVT_TYPES=[['intervention','Intervention'],['reunion','Réunion'],['formation','Formation'],['livraison','Livraison'],['autre','Autre']];
+function sssEvtStaff(){ try{ return !!ME && (['superadmin','direction','admin'].indexOf(ME.role)>=0 || ME.acces_admin===true); }catch(e){ return false; } }
+function sssEvtTypeLib(t){ var x=SSSEVT_TYPES.filter(function(p){ return p[0]===t; })[0]; return x?(x[0]==='autre'?'Événement':x[1]):'Événement'; }
+function sssEvtYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function sssEvtD(s){ var p=(''+(s||'')).slice(0,10).split('-'); return p.length===3?p[2]+'.'+p[1]+'.'+p[0]:''; }
+
+/* événements visibles par la personne (la base filtre : direction = tout, technicien = « toute l'équipe » ou participant) */
+async function sssEvtCharger(){
+  var d=new Date(); d.setDate(d.getDate()-120);
+  var r=await db.from('evenements_equipe').select('id,titre,type,date_debut,date_fin,heure_debut,heure_fin,lieu,notes,pour_tous,participants').eq('annule',false).gte('date_debut',sssEvtYmd(d)).order('date_debut');
+  SSSEVT.liste=(r&&r.data)||[]; return SSSEVT.liste;
+}
+async function sssEvtEquipe(){
+  if(SSSEVT.equipe) return SSSEVT.equipe;
+  var r=await db.from('utilisateurs').select('id,prenom,nom,email,role,services,actif').eq('actif',true);
+  SSSEVT.equipe=((r&&r.data)||[]).filter(function(u){ return u.role==='technicien'||u.role==='soustraitant'||(Array.isArray(u.services)&&u.services.indexOf('technique')>=0); })
+    .map(function(u){ return {id:u.id,nom:((u.prenom||'')+' '+(u.nom||'')).trim()||u.email}; }).sort(function(a,b){ return a.nom.localeCompare(b.nom); });
+  return SSSEVT.equipe;
+}
+function sssEvtNoms(e){ if(e.pour_tous) return "Toute l'équipe technique"; var eq=SSSEVT.equipe||[]; return (e.participants||[]).map(function(id){ var u=eq.filter(function(x){ return x.id===id; })[0]; return u?u.nom:null; }).filter(Boolean).join(', ')||'Personnes choisies'; }
+
+/* Agenda technique : ajoute les événements à la liste du calendrier (même présentation que les chantiers) */
+async function sssEvtTechFlat(flat,pushSpan){
+  try{ var l=await sssEvtCharger(); try{ if(sssEvtStaff()) await sssEvtEquipe(); }catch(_e){}
+    l.forEach(function(e){ var moi=(e.participants||[]).indexOf(ME.id)>=0;
+      pushSpan(e.date_debut,e.date_fin||e.date_debut,{_mine:(e.pour_tous||moi),_evt:e.id,t:sssEvtTypeLib(e.type),col:SSSEVT_COUL,nm:e.titre,adr:e.lieu||'',tel:'',
+        rdv:(e.heure_debut?{start:e.heure_debut,end:e.heure_fin||''}:null),mat:'',brief:e.notes||'',docs:-1,open:"sssEvtOuvrir('"+e.id+"')"}); });
+  }catch(e){ console.error(e); }
+}
+function sssEvtBandeau(){
+  if(!sssEvtStaff()) return '';
+  return "<div class='card' style='margin-bottom:14px;padding:14px 17px;display:flex;align-items:center;gap:14px;flex-wrap:wrap'>"
+    +"<div style='font-size:26px;line-height:1'>📆</div>"
+    +"<div style='flex:1;min-width:210px'><div style='font-weight:800;font-size:13.5px'>Agenda de l'équipe</div><div style='font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.5'>Les événements ajoutés ici restent dans l'application : ils apparaissent dans l'agenda et le calendrier des chantiers des personnes concernées, qui reçoivent une notification.</div></div>"
+    +"<button class='btn' style='width:auto;padding:9px 15px' onclick=\"sssEvtFormulaire({date_debut:'"+sssEvtYmd(new Date())+"'})\">＋ Ajouter un événement</button></div>";
+}
+
+/* formulaire : création (e.id absent) ou modification */
+async function sssEvtFormulaire(e){
+  if(!sssEvtStaff()){ alert("Seules la direction et l'administration ajoutent des événements à l'agenda de l'équipe."); return; }
+  e=e||{}; var eq=[]; try{ eq=await sssEvtEquipe(); }catch(_e){}
+  var tous=(e.pour_tous!==false), part=e.participants||[];
+  var h="<h3 style='margin:0 0 10px'>"+(e.id?"Modifier l'événement":'Nouvel événement')+"</h3>"
+    +"<label class='f'><span>Titre</span><input id='sevt-titre' maxlength='140' value=\""+esc(e.titre||'')+"\" placeholder='Ex. : livraison panneaux au dépôt, réunion d’équipe…'></label>"
+    +"<label class='f'><span>Type</span><select id='sevt-type'>"+SSSEVT_TYPES.map(function(t){ return "<option value='"+t[0]+"'"+((e.type||'intervention')===t[0]?' selected':'')+">"+t[1]+"</option>"; }).join('')+"</select></label>"
+    +"<div class='grid2'><label class='f'><span>Date</span><input type='date' id='sevt-deb' value='"+esc((e.date_debut||'').slice(0,10))+"'></label>"
+    +"<label class='f'><span>Jusqu'au (facultatif)</span><input type='date' id='sevt-fin' value='"+esc((e.date_fin||'').slice(0,10))+"'></label>"
+    +"<label class='f'><span>Heure de début</span><input type='time' id='sevt-hd' value='"+esc(e.heure_debut||'')+"'></label>"
+    +"<label class='f'><span>Heure de fin</span><input type='time' id='sevt-hf' value='"+esc(e.heure_fin||'')+"'></label></div>"
+    +"<label class='f'><span>Lieu (facultatif)</span><input id='sevt-lieu' maxlength='200' value=\""+esc(e.lieu||'')+"\"></label>"
+    +"<label class='f'><span>Notes (facultatif)</span><textarea id='sevt-notes' rows='3' maxlength='2000'>"+esc(e.notes||'')+"</textarea></label>"
+    +"<div style='font-weight:800;font-size:13px;margin:10px 0 6px'>Qui doit le voir ?</div>"
+    +"<label style='display:flex;gap:8px;align-items:center;margin-bottom:6px'><input type='radio' name='sevt-qui' value='tous'"+(tous?' checked':'')+" onchange='sssEvtQui()'> Toute l'équipe technique</label>"
+    +"<label style='display:flex;gap:8px;align-items:center'><input type='radio' name='sevt-qui' value='choix'"+(tous?'':' checked')+" onchange='sssEvtQui()'> Seulement certaines personnes</label>"
+    +"<div id='sevt-pers' style='display:"+(tous?'none':'grid')+";gap:6px;margin:8px 0 0 24px'>"
+    +(eq.length?eq.map(function(u){ return "<label style='display:flex;gap:8px;align-items:center'><input type='checkbox' class='sevt-p' value='"+esc(u.id)+"'"+(part.indexOf(u.id)>=0?' checked':'')+"> "+esc(u.nom)+"</label>"; }).join(''):"<div style='font-size:12.5px;color:var(--text-3)'>Aucun technicien actif.</div>")
+    +"</div><div style='font-size:12px;color:var(--text-3);margin-top:10px'>Les personnes concernées reçoivent une notification. La direction voit tous les événements.</div>"
+    +"<div id='sevt-err' style='color:#dc2626;font-size:12.5px;margin-top:8px'></div>"
+    +"<div class='modal-actions' style='display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px'><button class='btn-out' style='width:auto;padding:10px 16px' onclick='closeModal()'>Annuler</button>"
+    +"<button class='btn' id='sevt-ok' style='width:auto;padding:10px 18px' onclick=\"sssEvtSauver('"+esc(e.id||'')+"')\">"+(e.id?'Enregistrer':"Ajouter à l'agenda")+"</button></div>";
+  modal(h);
+}
+function sssEvtQui(){ var c=document.querySelector("input[name='sevt-qui']:checked"); var p=document.getElementById('sevt-pers'); if(p) p.style.display=(c&&c.value==='choix')?'grid':'none'; }
+async function sssEvtSauver(id){
+  var v=function(i){ var x=document.getElementById(i); return x?(''+x.value).trim():''; }, err=document.getElementById('sevt-err'), ok=document.getElementById('sevt-ok');
+  var qui=document.querySelector("input[name='sevt-qui']:checked"), tous=!qui||qui.value==='tous';
+  var part=Array.prototype.slice.call(document.querySelectorAll('.sevt-p:checked')).map(function(x){ return x.value; });
+  if(!v('sevt-titre')){ err.textContent='Indique un titre.'; return; }
+  if(!v('sevt-deb')){ err.textContent='Indique la date.'; return; }
+  if(!tous && !part.length){ err.textContent='Choisis au moins une personne (ou « Toute l’équipe technique »).'; return; }
+  var p={titre:v('sevt-titre'),type:v('sevt-type'),date_debut:v('sevt-deb'),date_fin:v('sevt-fin'),heure_debut:v('sevt-hd'),heure_fin:v('sevt-hf'),lieu:v('sevt-lieu'),notes:v('sevt-notes'),pour_tous:tous,participants:tous?[]:part};
+  if(id) p.id=id;
+  if(ok){ ok.disabled=true; ok.textContent='Enregistrement…'; }
+  var r=await db.rpc('sss_evenement_enregistrer',{p:p});
+  if(r.error){ if(ok){ ok.disabled=false; ok.textContent=id?'Enregistrer':"Ajouter à l'agenda"; } err.textContent=r.error.message; return; }
+  closeModal(); try{ sssToast((r.data&&r.data.message)||'Enregistré ✓'); }catch(_e){} sssEvtRafraichir();
+}
+function sssEvtRafraichir(){ try{ if(VIEW==='tech_today') renderTechToday(); else if(VIEW==='calendrier_equipe') renderCalendrierEquipe(); }catch(e){ console.error(e); } }
+
+/* fiche d'un événement */
+async function sssEvtOuvrir(id){
+  var e=(SSSEVT.liste||[]).filter(function(x){ return x.id===id; })[0];
+  if(!e){ var r=await db.from('evenements_equipe').select('id,titre,type,date_debut,date_fin,heure_debut,heure_fin,lieu,notes,pour_tous,participants').eq('id',id).eq('annule',false).maybeSingle(); e=r&&r.data; }
+  if(!e){ alert('Événement introuvable ou annulé.'); return; }
+  if(sssEvtStaff()){ try{ await sssEvtEquipe(); }catch(_e){} }
+  var dates=e.date_fin&&e.date_fin!==e.date_debut?('du '+sssEvtD(e.date_debut)+' au '+sssEvtD(e.date_fin)):new Date(e.date_debut+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var hr=e.heure_debut?(e.heure_debut+(e.heure_fin?' – '+e.heure_fin:'')):'Horaire non précisé';
+  var adr=encodeURIComponent(e.lieu||'');
+  var h="<div style='display:flex;align-items:flex-start;gap:12px;margin-bottom:14px'><div style='width:6px;align-self:stretch;border-radius:4px;background:"+SSSEVT_COUL+";flex:none;min-height:46px'></div><div style='flex:1;min-width:0'>"
+    +"<span class='badge' style='background:"+SSSEVT_COUL+"22;color:"+SSSEVT_COUL+"'>"+esc(sssEvtTypeLib(e.type))+"</span>"
+    +"<div style='font-size:19px;font-weight:800;margin-top:6px;line-height:1.25'>"+esc(e.titre)+"</div>"
+    +"<div style='font-size:13px;color:var(--text-3);margin-top:3px;text-transform:capitalize'>"+esc(dates)+"</div><div style='font-size:13px;color:var(--text-3)'>🕘 "+esc(hr)+"</div></div></div>"
+    +"<div style='display:grid;gap:9px;background:rgba(127,127,127,.05);border-radius:12px;padding:12px 14px;margin-bottom:12px'>"
+    +(e.lieu?"<div>📍 "+esc(e.lieu)+"</div>":'')
+    +"<div>👷 "+esc(sssEvtNoms(e))+"</div>"
+    +(e.notes?"<div style='white-space:pre-wrap'>📝 "+esc(e.notes)+"</div>":'')+"</div>"
+    +(e.lieu?"<div style='display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px'><a href='https://waze.com/ul?q="+adr+"&navigate=yes' target='_blank' rel='noopener' class='relbtn' style='text-decoration:none'>🧭 Waze</a><a href='https://www.google.com/maps/search/?api=1&query="+adr+"' target='_blank' rel='noopener' class='relbtn' style='text-decoration:none'>📍 Maps</a></div>":'')
+    +"<div style='display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end'>"
+    +(sssEvtStaff()?"<button class='btn-out' style='width:auto;padding:10px 16px;color:#dc2626' onclick=\"sssEvtAnnuler('"+e.id+"')\">Annuler l'événement</button><button class='btn-out' style='width:auto;padding:10px 16px' onclick=\"sssEvtModifier('"+e.id+"')\">Modifier</button>":'')
+    +"<button class='btn' style='width:auto;padding:10px 18px' onclick='closeModal()'>Fermer</button></div>";
+  modal(h);
+}
+function sssEvtModifier(id){ var e=(SSSEVT.liste||[]).filter(function(x){ return x.id===id; })[0]; closeModal(); if(e) sssEvtFormulaire(e); }
+async function sssEvtAnnuler(id){
+  if(!confirm("Annuler cet événement ?\n\nIl disparaît de l'agenda et les personnes concernées sont prévenues.")) return;
+  var r=await db.rpc('sss_evenement_annuler',{p_id:id,p_motif:null});
+  if(r.error){ alert(r.error.message); return; }
+  closeModal(); try{ sssToast('Événement annulé'); }catch(_e){} sssEvtRafraichir();
+}
+
+/* =============================== branchement =============================== */
+(function(){
+  /* jour libre / « + Événement » de l'Agenda technique : formulaire dans l'application (plus d'Infomaniak) */
+  try{ techCalNew=function(k){ if(sssEvtStaff()){ sssEvtFormulaire({date_debut:k}); return; }
+    var dt=new Date(k+'T12:00:00'); modal("<h3 style='margin:0 0 8px;text-transform:capitalize'>"+esc(dt.toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long'}))+"</h3><div class='empty'>Rien de planifié ce jour-là.</div><div class='modal-actions'><button class='btn' style='width:auto;padding:10px 18px' onclick='closeModal()'>Fermer</button></div>"); }; }catch(e){}
+  try{ var _teo=techEvtOpen; techEvtOpen=function(i){ var x=(window.TECH_FLAT||[])[i]; if(x&&x._evt){ sssEvtOuvrir(x._evt); return; } return _teo.apply(this,arguments); }; }catch(e){}
+  /* Calendrier des chantiers (0053) : couleur des événements, fiche cliquable, « + Ajouter » pour la direction */
+  try{ ['Réunion','Formation','Livraison','Événement'].forEach(function(k){ SSSCT_COUL[k]=SSSEVT_COUL; }); }catch(e){}
+  try{ var _ctc=sssCtCarte; sssCtCarte=function(e){ if(!e||!e.evenement) return _ctc.apply(this,arguments);
+    var h=e.heure_debut?(e.heure_debut+(e.heure_fin?'–'+e.heure_fin:'')):'', dates=e.date_fin&&e.date_fin!==e.date_debut?'du '+sstCtD(e.date_debut)+' au '+sstCtD(e.date_fin):sstCtD(e.date_debut);
+    return "<div class='ssct-card' style='border-left-color:"+SSSEVT_COUL+";cursor:pointer' onclick=\"closeModal();sssEvtOuvrir('"+esc(e.evenement_id)+"')\"><div class='t'>"+esc(e.intervention)+" · "+esc(e.chantier||'')+(e.moi?"<span class='ssct-badge'>Vous êtes concerné</span>":'')+"</div>"
+      +"<div class='s'>🗓 "+esc(dates)+(h?' · 🕒 '+esc(h):'')+(e.localite?' · 📍 '+esc(e.localite):'')+"</div><div class='s'>👷 "+esc((e.equipe||[]).join(', '))+"</div>"+(e.notes?"<div class='s'>📝 "+esc(e.notes)+"</div>":'')+"</div>"; }; }catch(e){}
+  try{ var _ctj=sssCtJour; sssCtJour=function(ds){ var r=_ctj.apply(this,arguments); if(sssEvtStaff()){ try{ var a=document.querySelector('#modal-root .modal-actions'); if(a) a.insertAdjacentHTML('afterbegin',"<button class='btn-out' style='width:auto;padding:10px 16px' onclick=\"closeModal();sssEvtFormulaire({date_debut:'"+ds+"'})\">＋ Ajouter un événement</button>"); }catch(_e){} } return r; }; }catch(e){}
+})();
+
+/* SSS-EVENEMENTS-FIN */
+
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
 function go(v){ try{ if(typeof gwClean==='function') gwClean(); }catch(_e){}
@@ -13715,6 +13852,7 @@ async function renderTechToday(){
     flat.push({_mine:savInvite(x),d:(''+rdv.date).slice(0,10),t:'SAV',col:'#e5484d',nm:x.contact_nom||'Client',adr:adr,tel:x.telephone||cc.telephone||'',rdv:(rdv.start?{start:rdv.start,end:rdv.end}:null),mat:(SAV_MAT[x.materiel]||x.materiel||''),brief:x.motif||'',docs:-1,open:"savOpen('"+x.id+"')"}); });
   try{ var rm=await db.from('missions_st').select('id,client_nom,adresse,type,date_prevue,assignee,assignee_nom,statut').eq('statut','a_faire');
     ((rm&&rm.data)||[]).forEach(function(m){ if(!m.date_prevue) return; flat.push({_mine:(!techExterne()||m.assignee===ME.id),d:(''+m.date_prevue).slice(0,10),t:'Sous-traitant',col:'#a855f7',nm:(m.client_nom||'Client')+' — '+(m.assignee_nom||'ST'),adr:m.adresse||'',tel:'',rdv:null,mat:((STM_TYPES[m.type]||[''])[0]||'').replace(/^[^ ]+ /,''),brief:'',docs:-1,open:"stOpen('"+m.id+"')"}); }); }catch(e){}
+  if(typeof sssEvtTechFlat==='function') await sssEvtTechFlat(flat,pushSpan);
   flat.sort(function(a,b){ var ha=a.d+((a.rdv&&a.rdv.start)||'99:99'), hb=b.d+((b.rdv&&b.rdv.start)||'99:99'); return ha.localeCompare(hb); });
   if(techExterne()) flat=flat.filter(function(x){ return x._mine!==false; });
   window.TECH_FLAT=flat;
@@ -13739,13 +13877,7 @@ async function renderTechToday(){
     +"<button class='iconbtn' onclick=\"techTodaySetView('taches')\" style='padding:8px 14px;"+(TECHTD_VIEW==='taches'?'border-color:var(--green);color:var(--green);font-weight:700':'')+"'>📋 Tâches à venir</button></div>";
   var h="<div class='page-head'><h2>Agenda technique</h2><div class='spacer'></div><button class='iconbtn' onclick='renderTechToday()' title='Rafraîchir'>↻</button></div>"+tabs;
   if(TECHTD_VIEW==='cal'){
-    h+="<div class='card' style='margin-bottom:14px;padding:14px 17px;display:flex;align-items:center;gap:14px;flex-wrap:wrap'>"
-      +"<div style='font-size:26px;line-height:1'>📆</div>"
-      +"<div style='flex:1;min-width:210px'><div style='font-weight:800;font-size:13.5px'>Infomaniak Calendar</div><div style='font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.5'>Les rendez-vous planifiés depuis l'application y sont créés automatiquement, avec les invités et l'adresse du chantier.</div></div>"
-      +"<div style='display:flex;gap:8px;flex-wrap:wrap'>"
-      +"<a href='https://calendar.infomaniak.com/' target='_blank' rel='noopener' class='btn-out' style='width:auto;padding:9px 15px;text-decoration:none'>↗ Ouvrir mon agenda</a>"
-      +"<a href='https://calendar.infomaniak.com/' target='_blank' rel='noopener' class='relbtn' style='text-decoration:none'>Vue du jour</a>"
-      +"</div></div>";
+    h+=(typeof sssEvtBandeau==='function'?sssEvtBandeau():'');
     h+=techCalHtml(flat); $('#main').innerHTML=h; return; }
   function keyOf(n){ var d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
   var MOIS_C=['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'];
