@@ -7809,7 +7809,7 @@ async function sssFinLocAct(id,act){
      grille (brouillon → active → archivée, jamais effacée), coût complet et marge estimée calculés depuis le catalogue
      d'achat SSS existant, paramètres privés, suppléments, demandes exceptionnelles, fiches techniques (glisser-déposer).
    ========================================================================== */
-var SSST={data:null,tech:'each',cap:'pv',n:10,avant:'',remMode:'chf',remise:'',cx:'standard',ech:'0',supp:{},lien:{},offres:null,mes:null,dernier:null,echT:null,echN:0};
+var SSST={data:null,inst:'pv',tech:'each',cap:'pv',n:10,fiches:{},avant:'',remMode:'chf',remise:'',cx:'standard',ech:'0',supp:{},lien:{},offres:null,mes:null,dernier:null,echT:null,echN:0};
 var SSST_ECH=[['0','0 pan'],['1','1 pan'],['2','2 pans'],['a_chiffrer','À chiffrer']];
 var SSST_TECH=[['each','EACH'],['solax','SolaX'],['atmoce','ATMOCE'],['enphase','Enphase']];
 var SSST_PANNEAUX=[6,8,10,12,14,16,18,20];
@@ -7856,15 +7856,22 @@ async function sstOuvrirFiche(chemin){
 
 /* =============================== COMMERCIAL =============================== */
 function sstLignes(){ return ((SSST.data||{}).lignes)||[]; }
-function sstLigne(){ var t=SSST.tech, c=SSST.cap, n=SSST.n; return sstLignes().filter(function(l){ return l.technologie===t && l.nb_panneaux===n && (c==='pv'?l.config==='pv':(l.config==='pv_bat' && (''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)))===c)); })[0]||null; }
-function sstCapacites(){ var vus={}, out=[]; sstLignes().forEach(function(l){ if(l.technologie!==SSST.tech||l.config!=='pv_bat') return; var k=''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)); if(vus[k]) return; vus[k]=1; out.push([k,l.capacite_kwh==null?'Stockage':(Number(l.capacite_kwh)+' kWh'),l.capacite_kwh==null?'à confirmer':'']); }); return out.sort(function(a,b){ return (Number(a[0])||99)-(Number(b[0])||99); }); }
+function sstLigne(){ var t=SSST.tech, c=SSST.cap, n=SSST.n;
+  if(SSST.inst==='bat') return sstLignes().filter(function(l){ return l.technologie===t && l.config==='bat' && (''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)))===c; })[0]||null;
+  return sstLignes().filter(function(l){ return l.technologie===t && l.nb_panneaux===n && (c==='pv'?l.config==='pv':(l.config==='pv_bat' && (''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)))===c)); })[0]||null; }
+/* type d'installation : PV seul (config pv), PV + batterie (pv_bat), batterie seule (bat) — marques proposées selon la grille */
+var SSST_INST=[['pv','PV seul'],['pv_bat','PV + batterie'],['bat','Batterie seule']];
+function sstTechsInst(){ var c=SSST.inst; return SSST_TECH.filter(function(t){ return sstLignes().some(function(l){ return l.technologie===t[0]&&l.config===c; }); }); }
+function sstCapacites(){ var vus={}, out=[], cfg=SSST.inst==='bat'?'bat':'pv_bat'; sstLignes().forEach(function(l){ if(l.technologie!==SSST.tech||l.config!==cfg) return; var k=''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)); if(vus[k]) return; vus[k]=1; out.push([k,l.capacite_kwh==null?'Stockage':(Number(l.capacite_kwh)+' kWh'),l.capacite_kwh==null?'à confirmer':'']); }); return out.sort(function(a,b){ return (Number(a[0])||99)-(Number(b[0])||99); }); }
+function sstNormaliser(){ var T=sstTechsInst(); if(!T.length){ SSST.inst='pv'; T=sstTechsInst(); } if(T.length&&!T.some(function(t){ return t[0]===SSST.tech; })) SSST.tech=T[0][0];
+  if(SSST.inst==='pv'){ SSST.cap='pv'; return; } var C=sstCapacites(); if(!C.some(function(c){ return c[0]===SSST.cap; })) SSST.cap=C.length?C[0][0]:'pv'; }
 async function renderTarifsSss(){
   var m=document.getElementById('main'); if(!m) return; sstCss();
   m.innerHTML="<div class='page-head'><h2>Tarifs SSS</h2></div><div class='loading'>Chargement…</div>";
   try{ await sssMfaAssurer(); }catch(e){}
   var r=await db.rpc('sss_tarifs_com'); if(VIEW!=='tarifs_sss') return;
   if(r.error){ m.innerHTML="<div class='page-head'><h2>Tarifs SSS</h2></div><div class='empty'>"+esc(r.error.message)+"</div>"; return; }
-  SSST.data=r.data||{}; if(!sstCapacites().some(function(c){ return c[0]===SSST.cap; })) SSST.cap='pv';
+  SSST.data=r.data||{}; SSST.fiches={}; sstNormaliser();
   db.rpc('sss_tarif_mes_controles',{p_limite:30}).then(function(x){ SSST.mes=(x&&x.data)||[]; if(VIEW==='tarifs_sss') sstPeindreMes(); });
   sstPeindre();
 }
@@ -7872,31 +7879,32 @@ function sstPeindre(){
   var m=document.getElementById('main'); if(!m||VIEW!=='tarifs_sss') return; var D=SSST.data||{}, g=D.grille;
   var h="<div class='sst'><div class='page-head'><h2>Tarifs SSS</h2><div class='spacer'></div>"+(g?"<span class='sst-badge'>Grille v"+esc(g.version)+" · dès "+sstDate(g.valable_des)+(g.valable_jusqu?' → '+sstDate(g.valable_jusqu):'')+"</span>":'')+"</div>";
   if(!g){ m.innerHTML=h+"<div class='sst-card sst-warn'><b>Tarif à confirmer par la direction</b><div class='sst-small'>Aucune grille active pour l'instant.</div></div></div>"; return; }
-  h+="<div class='sst-lbl'>Technologie</div><div class='sst-chips'>"+SSST_TECH.map(function(t){ return "<button class='sst-chip"+(SSST.tech===t[0]?' on':'')+"' onclick=\"sstChoix('tech','"+t[0]+"')\">"+t[1]+"</button>"; }).join('')+"</div>";
+  h+="<div class='sst-lbl'>Type d'installation</div><div class='sst-chips'>"+SSST_INST.map(function(t){ return "<button class='sst-chip"+(SSST.inst===t[0]?' on':'')+"' onclick=\"sstChoix('inst','"+t[0]+"')\">"+(t[0]==='bat'?'🔋 ':'')+t[1]+"</button>"; }).join('')+"</div>";
+  h+="<div class='sst-lbl'>Marque / solution</div><div class='sst-chips'>"+sstTechsInst().map(function(t){ return "<button class='sst-chip"+(SSST.tech===t[0]?' on':'')+"' onclick=\"sstChoix('tech','"+t[0]+"')\">"+t[1]+"</button>"; }).join('')+"</div>";
   var caps=sstCapacites();
-  h+="<div class='sst-lbl'>Batterie</div><div class='sst-chips'><button class='sst-chip"+(SSST.cap==='pv'?' on':'')+"' onclick=\"sstChoix('cap','pv')\">Sans batterie</button>"
+  if(SSST.inst!=='pv') h+="<div class='sst-lbl'>"+(SSST.inst==='bat'?'Capacité':'Batterie')+"</div><div class='sst-chips'>"
     +caps.map(function(c){ return "<button class='sst-chip"+(SSST.cap===c[0]?' on':'')+"' onclick=\"sstChoix('cap','"+c[0]+"')\">🔋 "+esc(c[1])+(c[2]?"<small>"+esc(c[2])+"</small>":'')+"</button>"; }).join('')+"</div>";
-  h+="<div class='sst-lbl'>Panneaux MaviWatt PULSE 490 W</div><div class='sst-chips'>"+SSST_PANNEAUX.map(function(n){ return "<button class='sst-chip"+(SSST.n===n?' on':'')+"' onclick=\"sstChoix('n',"+n+")\">"+n+"<small>"+(n*0.49).toFixed(2)+" kWc</small></button>"; }).join('')+"</div>";
+  if(SSST.inst!=='bat') h+="<div class='sst-lbl'>Panneaux MaviWatt PULSE 490 W</div><div class='sst-chips'>"+SSST_PANNEAUX.map(function(n){ return "<button class='sst-chip"+(SSST.n===n?' on':'')+"' onclick=\"sstChoix('n',"+n+")\">"+n+"<small>"+(n*0.49).toFixed(2)+" kWc</small></button>"; }).join('')+"</div>";
   var l=sstLigne();
-  h+="<div class='sst-card' id='sst-res'>"+sstCarteRes(l)+"</div>";
+  h+="<div class='sst-card' id='sst-res'>"+sstCarteRes(l)+"</div>"+(l?"<div class='sst-card' id='sst-fiches'><b>📄 Fiches techniques</b><div class='sst-small'>Chargement…</div></div>":'');
   if(l&&l.valide){
     var S=(D.supplements||[]).filter(function(s){ return s.code!=='echafaudage'; });
     h+="<details"+(Object.keys(SSST.supp).some(function(k){ return SSST.supp[k]&&SSST.supp[k].on; })?' open':'')+"><summary>➕ Suppléments</summary>"
       +S.map(function(s){ var v=SSST.supp[s.code]||{}; return "<div class='sst-sup'><input type='checkbox' "+(v.on?'checked':'')+" onchange=\"sstSupp('"+s.code+"','on',this.checked)\" style='width:22px;height:22px'><div><b>"+esc(s.libelle)+"</b> <span class='sst-small'>/"+esc(s.unite)+"</span><div class='sst-small'>"+(s.prix_min_ttc!=null?'min '+sstChf(s.prix_min_ttc)+(s.prix_conseille_ttc!=null?' · conseillé '+sstChf(s.prix_conseille_ttc):''):'Prix à définir par la direction')+(s.note?' · '+esc(s.note):'')+"</div></div>"
         +"<input class='sst-in' type='number' inputmode='decimal' placeholder='CHF TTC' value='"+esc(v.prix==null?'':v.prix)+"' oninput=\"sstSupp('"+s.code+"','prix',this.value)\"></div>"; }).join('')+"</details>";
-    h+="<div class='sst-lbl'>Échafaudage</div><div class='sst-chips'>"+SSST_ECH.map(function(c){ return "<button class='sst-chip"+(SSST.ech===c[0]?' on':'')+"' onclick=\"sstChoix('ech','"+c[0]+"')\">"+c[1]+"</button>"; }).join('')+"</div><div id='sst-ech' class='sst-card' style='margin:8px 0;font-weight:800'>"+(SSST.ech==='0'?'Sans échafaudage':'Calcul…')+"</div>";
+    if(l.config!=='bat') h+="<div class='sst-lbl'>Échafaudage</div><div class='sst-chips'>"+SSST_ECH.map(function(c){ return "<button class='sst-chip"+(SSST.ech===c[0]?' on':'')+"' onclick=\"sstChoix('ech','"+c[0]+"')\">"+c[1]+"</button>"; }).join('')+"</div><div id='sst-ech' class='sst-card' style='margin:8px 0;font-weight:800'>"+(SSST.ech==='0'?'Sans échafaudage':'Calcul…')+"</div>";
     h+="<div class='sst-lbl'>Complexité du chantier</div><div class='sst-chips'>"+SSST_CX.map(function(c){ return "<button class='sst-chip"+(SSST.cx===c[0]?' on':'')+"' onclick=\"sstChoix('cx','"+c[0]+"')\">"+c[1]+"</button>"; }).join('')+"</div>";
     h+="<details><summary>🔗 Rattacher à une offre (facultatif)</summary><div class='sst-f'><label>Mon offre / prospect</label><select id='sst-offre' onchange='sstLien(this.value)'><option value=''>— aucune —</option>"+sstOptionsOffres()+"</select>"
       +"<label>Client</label><input id='sst-client' value='"+esc(SSST.lien.client||'')+"' oninput=\"SSST.lien.client=this.value\"><label>N° d'offre</label><input id='sst-ref' value='"+esc(SSST.lien.ref||'')+"' oninput=\"SSST.lien.ref=this.value\"></div></details>";
     h+="<button class='sst-btn p' onclick='sstEnregistrer(this)'>💾 Enregistrer le contrôle prix</button><div id='sst-apres'></div>";
   }
   h+="<div class='sst-lbl' style='margin-top:20px'>Mes contrôles & demandes</div><div id='sst-mes'><div class='sst-small'>Chargement…</div></div></div>";
-  m.innerHTML=h; sstPeindreMes(); if(!SSST.offres) sstChargerOffres(); sstEchMaj();
+  m.innerHTML=h; sstPeindreMes(); if(!SSST.offres) sstChargerOffres(); sstEchMaj(); if(l) sstFichesInline(l);
 }
 /* échafaudage : la base calcule (coûts jamais envoyés au navigateur) ; l'écran ne reçoit que l'état et le supplément */
 function sstEchMaj(){ clearTimeout(SSST.echT); SSST.echT=setTimeout(sstEchCalcul,350); }
 async function sstEchCalcul(){
-  var z=document.getElementById('sst-ech'), l=sstLigne(); if(!z||!l||!l.valide) return;
+  var z=document.getElementById('sst-ech'), l=sstLigne(); if(!z||!l||!l.valide||l.config==='bat') return;
   if(SSST.ech==='0'){ z.innerHTML='Sans échafaudage'; z.style.borderLeft=''; return; }
   var v=sstCalcVals(l), n=++SSST.echN;
   var r=await db.rpc('sss_tarif_echafaudage_com',{p:{technologie:l.technologie,config:l.config,capacite_kwh:l.capacite_kwh,nb_panneaux:l.nb_panneaux,prix_avant_remise:v?v.av:null,prix_final:v?v.fin:null,echafaudage:SSST.ech}});
@@ -7907,10 +7915,10 @@ async function sstEchCalcul(){
 }
 
 function sstCarteRes(l){
+  if(!l&&SSST.inst==='bat') return "<div style='font-size:17px;font-weight:900'>🔴 Tarif Direction à définir</div><div class='sst-small'>Pas encore de configuration batterie seule pour cette solution : demande à la direction.</div>";
   if(!l) return "<div style='font-size:17px;font-weight:900'>Tarif direction à définir</div><div class='sst-small'>Pas encore de tarif pour "+SSST.n+" panneaux ("+(SSST.n*0.49).toFixed(2)+" kWc) dans cette configuration : demande à la direction.</div>";
-  var h="<div style='display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap'><div style='flex:1 1 200px'><div style='font-size:17px;font-weight:900'>"+esc(l.technologie_lib)+" · "+esc(l.libelle)+"</div><div class='sst-small'>"+l.nb_panneaux+" × "+esc(l.module)+" = "+Number(l.kwc).toFixed(2)+" kWc · "+(l.valide?'✅ '+esc(l.etat_tarif):'⚠ '+esc(l.etat_tarif))+"</div></div>"
-    +"<button class='sst-chip' onclick=\"sstFiches('"+l.id+"')\">📄 Fiche technique</button></div>";
-  if(!l.valide){ return h+"<div class='sst-feu' style='background:#6b7280'>"+esc(l.message||'Tarif à confirmer par la direction')+"</div>"; }
+  var h="<div style='display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap'><div style='flex:1 1 200px'><div style='font-size:17px;font-weight:900'>"+esc(l.technologie_lib)+" · "+esc(l.libelle)+"</div><div class='sst-small'>"+(l.config==='bat'?'Batterie seule · aucun panneau'+(l.capacite_kwh!=null?' · '+Number(l.capacite_kwh)+' kWh':''):l.nb_panneaux+" × "+esc(l.module)+" = "+Number(l.kwc).toFixed(2)+" kWc")+" · "+(l.valide?'✅ '+esc(l.etat_tarif):'⚠ '+esc(l.etat_tarif))+"</div></div></div>";
+  if(!l.valide){ return h+"<div class='sst-feu' style='background:"+(l.config==='bat'?'#dc2626':'#6b7280')+"'>"+esc(l.message||'Tarif à confirmer par la direction')+"</div>"; }
   h+="<div class='sst-prix' style='margin-top:12px'><div><div class='k'>MINIMUM SSS</div><div class='v'>"+sstChf(l.prix_min_ttc)+"</div><div class='sst-small'>TTC</div></div><div><div class='k'>CONSEILLÉ</div><div class='v'>"+sstChf(l.prix_conseille_bas_ttc)+(l.prix_conseille_haut_ttc&&l.prix_conseille_haut_ttc!==l.prix_conseille_bas_ttc?"<span style='font-size:15px'> – "+sstChf(l.prix_conseille_haut_ttc)+"</span>":'')+"</div><div class='sst-small'>TTC</div></div></div>";
   h+="<div class='sst-lbl'>Prix client TTC</div><div class='sst-row'><input class='sst-in' id='sst-avant' type='text' inputmode='decimal' placeholder='Prix avant remise' value='"+esc(SSST.avant)+"' oninput='SSST.avant=this.value;sstCalc()'></div>"
     +"<div class='sst-row' style='margin-top:8px'><input class='sst-in' id='sst-remise' type='text' inputmode='decimal' placeholder='Remise' value='"+esc(SSST.remise)+"' oninput='SSST.remise=this.value;sstCalc()'>"
@@ -7935,7 +7943,7 @@ function sstCalcHtml(l){
 function sstSuppTot(){ var D=SSST.data||{}, o={n:0,tot:0,rouge:false,def:false}; (D.supplements||[]).forEach(function(s){ var v=SSST.supp[s.code]; if(!v||!v.on) return; o.n++; var p=sstNum(v.prix); o.tot+=p||0; if(s.prix_min_ttc==null) o.def=true; else if(p==null||p<Number(s.prix_min_ttc)) o.rouge=true; }); return o; }
 function sstCalc(){ var l=sstLigne(), z=document.getElementById('sst-calc'); if(z&&l) z.innerHTML=sstCalcHtml(l); sstEchMaj(); }
 function sstSupp(code,k,v){ SSST.supp[code]=SSST.supp[code]||{}; SSST.supp[code][k]=v; sstCalc(); }
-function sstChoix(k,v){ SSST[k]=v; if(k==='tech'){ if(!sstCapacites().some(function(c){ return c[0]===SSST.cap; })) SSST.cap='pv'; } sstPeindre(); }
+function sstChoix(k,v){ SSST[k]=v; if(k==='inst'||k==='tech') sstNormaliser(); sstPeindre(); }
 async function sstChargerOffres(){ try{ var r=await db.rpc('sss_com_devis'); SSST.offres=(r&&r.data)||{}; }catch(e){ SSST.offres={}; } var s=document.getElementById('sst-offre'); if(s) s.innerHTML="<option value=''>— aucune —</option>"+sstOptionsOffres(); }
 function sstOptionsOffres(){ var O=SSST.offres||{}, out=''; (O.prospects||[]).slice(0,80).forEach(function(p){ out+="<option value='p:"+esc(p.prospect_id)+"|"+esc(p.numero_offre||'')+"|"+esc(p.nom||'')+"'"+(SSST.lien.prospect_id===p.prospect_id?' selected':'')+">"+esc((p.nom||'?')+(p.numero_offre?' · '+p.numero_offre:'')+(p.localite?' · '+p.localite:''))+"</option>"; });
   (O.dossiers||[]).slice(0,80).forEach(function(d){ var c=d.client||{}; var nom=[c.prenom,c.nom].filter(Boolean).join(' ')||c.societe||'?'; out+="<option value='a:"+esc(d.affaire_id)+"|"+esc(d.numero||'')+"|"+esc(nom)+"'"+(SSST.lien.affaire_id===d.affaire_id?' selected':'')+">"+esc(nom+(d.numero?' · '+d.numero:''))+"</option>"; }); return out; }
@@ -7944,7 +7952,7 @@ function sstLien(v){ SSST.lien={}; if(v){ var p=v.split('|'), id=p[0]; if(id.ind
 async function sstEnregistrer(btn){
   var l=sstLigne(); if(!l) return; var v=sstCalcVals(l); if(!v){ alert('Saisis le prix proposé au client.'); return; }
   var supp=[]; Object.keys(SSST.supp).forEach(function(k){ var s=SSST.supp[k]; if(s&&s.on) supp.push({code:k,prix:sstNum(s.prix)}); });
-  var p={technologie:l.technologie,config:l.config,capacite_kwh:l.capacite_kwh,nb_panneaux:l.nb_panneaux,prix_avant_remise:v.av,prix_final:v.fin,supplements:supp,complexite:SSST.cx,echafaudage:SSST.ech,
+  var p={technologie:l.technologie,config:l.config,capacite_kwh:l.capacite_kwh,nb_panneaux:l.nb_panneaux,prix_avant_remise:v.av,prix_final:v.fin,supplements:supp,complexite:SSST.cx,echafaudage:(l.config==='bat'?'0':SSST.ech),
          client:SSST.lien.client||null,reference_offre:SSST.lien.ref||null,prospect_id:SSST.lien.prospect_id||null,affaire_id:SSST.lien.affaire_id||null};
   var d=await sssAgir(btn,function(){ return db.rpc('sss_tarif_controle_enregistrer',{p:p}); },{succes:function(x){ return (x&&x.message)||'Contrôle enregistré ✓'; }});
   if(!d) return; SSST.dernier=d; var z=document.getElementById('sst-apres'), F=SSST_FEU[d.feu]||SSST_FEU.a_confirmer;
@@ -7975,6 +7983,15 @@ function sstPeindreMes(){
       +"<div class='sst-small'>"+(c.client?esc(c.client)+' · ':'')+(c.reference_offre?esc(c.reference_offre)+' · ':'')+"prix "+sstChf(c.prix_final_ttc)+(Number(c.remise_chf)>0?' (remise '+sstChf(c.remise_chf)+')':'')+" · minimum "+sstChf(c.prix_min_ttc)+"</div>"
       +"<div style='margin-top:4px;font-size:13.5px;font-weight:800'>"+esc(SSST_STATUT[c.statut]||c.statut)+(e&&e.statut==='contre_proposition'?' : '+sstChf(e.prix_propose_ttc):'')+(e&&e.decision_note?" <span class='sst-small'>— "+esc(e.decision_note)+"</span>":'')+"</div>"
       +(c.validation_requise&&(c.statut==='enregistre'||c.statut==='refuse_direction'||c.statut==='contre_proposition')?"<button class='sst-chip' style='margin-top:6px' onclick=\"sstDemander('"+c.id+"')\">Demander validation direction</button>":'')+"</div>"; }).join('');
+}
+async function sstFichesInline(l){
+  var z=document.getElementById('sst-fiches'); if(!z) return; var P=SSST.fiches[l.id];
+  if(!P){ var r=await db.rpc('sss_fiches_com',{p_ligne:l.id}); z=document.getElementById('sst-fiches'); if(!z) return; if(r.error){ z.innerHTML="<b>📄 Fiches techniques</b><div class='sst-small'>"+esc(r.error.message)+"</div>"; return; } P=SSST.fiches[l.id]=r.data||[]; }
+  if(sstLigne()!==l) return;
+  z.innerHTML="<b>📄 Fiches techniques</b>"+(P.length?P.map(function(p){ var F=p.fiches||[];
+    return "<div style='margin-top:8px'><div class='sst-small' style='font-weight:800;text-transform:uppercase'>"+esc(p.role||'')+"</div><div style='font-weight:800'>"+esc(p.marque)+" "+esc(p.reference)+(p.quantite?" <span class='sst-small'>× "+esc(p.quantite)+"</span>":'')+"</div>"
+      +(F.length?F.map(function(f){ return "<button class='sst-chip' style='display:block;width:100%;text-align:left;margin-top:5px' onclick=\"sstOuvrirFiche('"+esc(f.chemin).replace(/'/g,"\\'")+"')\">📄 "+esc({fiche_technique:'Fiche technique',manuel:'Manuel',garantie:'Garantie',certificat:'Certificat',autre:'Document'}[f.type]||f.type)+" · "+esc((f.langue||'').toUpperCase())+" · v"+esc(f.version)+(f.date_doc?' · '+sstDate(f.date_doc):'')+"</button>"; }).join('')
+         :"<div class='sst-small'>Fiche non disponible — à fournir par la direction.</div>")+"</div>"; }).join(''):"<div class='sst-small'>Aucun produit renseigné pour cette configuration.</div>");
 }
 async function sstFiches(ligneId){
   sstSheet("<h3 style='margin:0 0 6px'>📄 Fiches techniques</h3><div class='sst-small'>Chargement…</div>");
@@ -8018,7 +8035,7 @@ function sstdGrille(D,g){
     +"<div class='sst-kpi' style='margin-top:8px'><div><div class='k'>TVA</div><div class='v'>"+esc(g.tva_pct)+" %</div></div><div><div class='k'>Coût d'une journée d'équipe</div><div class='v'>"+(g.cout_jour_equipe!=null?sstChf(g.cout_jour_equipe):'à définir')+"</div></div><div><div class='k'>Alerte prix fournisseur</div><div class='v'>&gt; "+esc(g.alerte_mois)+" mois</div></div></div>"
     +(edit?"<button class='sst-chip' style='margin-top:8px' onclick='sstdParams()'>⚙️ Paramètres de la version</button> <button class='sst-chip' style='margin-top:8px' onclick='sstdLigne(null)'>+ Ajouter une configuration</button>":"<div class='sst-small' style='margin-top:8px'>Version figée : pour modifier un prix, crée une nouvelle version (l'historique est conservé, les offres déjà contrôlées gardent leur version).</div>")+"</div>";
   h+=(D.lignes||[]).map(function(l){ var c=l.calcul||{}, man=c.manquants||[];
-    return "<div class='sst-card"+(c.alerte_marge?' sst-err':(man.length?' sst-warn':''))+"'><div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center'><b style='flex:1 1 220px'>"+esc(l.technologie_lib)+" · "+esc(l.libelle)+" <span class='sst-small'>· "+l.nb_panneaux+" × "+esc(l.module)+" = "+Number(l.kwc).toFixed(2)+" kWc</span></b>"
+    return "<div class='sst-card"+(c.alerte_marge?' sst-err':(man.length?' sst-warn':''))+"'><div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center'><b style='flex:1 1 220px'>"+esc(l.technologie_lib)+" · "+esc(l.libelle)+" <span class='sst-small'>· "+(l.config==='bat'?'batterie seule, aucun panneau':l.nb_panneaux+" × "+esc(l.module)+" = "+Number(l.kwc).toFixed(2)+" kWc")+"</span></b>"
       +(l.statut!=='valide'?"<span class='sst-badge'>"+esc(l.message_commercial||'à confirmer')+"</span>":'')+(edit?"<button class='sst-chip' onclick=\"sstdLigne('"+l.id+"')\">Modifier</button>":'')+"</div>"
       +"<div class='sst-kpi' style='margin-top:8px'><div><div class='k'>Minimum TTC</div><div class='v'>"+sstChf(l.prix_min_ttc)+"</div></div><div><div class='k'>Conseillé TTC</div><div class='v'>"+sstChf(l.prix_conseille_bas_ttc)+(l.prix_conseille_haut_ttc?' – '+sstChf(l.prix_conseille_haut_ttc):'')+"</div></div>"
       +"<div><div class='k'>Coût matériel documenté</div><div class='v'>"+(c.materiel_catalogue_chf!=null?sstChf(c.materiel_catalogue_chf):'—')+"</div>"+(c.materiel_catalogue_chf!=null&&!c.materiel_catalogue_complet?"<div class='sst-small'>partiel : "+esc((c.items||[]).filter(function(i){ return i.manquant; }).map(function(i){ return i.libelle; }).join(', '))+" sans prix d’achat</div>":'')+"</div>"
@@ -8059,7 +8076,7 @@ function sstdLigne(id){
   SSSTD_L={id:id,nom:JSON.parse(JSON.stringify(l.nomenclature||[])),prod:JSON.parse(JSON.stringify(l.produits||[]))};
   var f=function(k,lib,val,t){ return "<div><label>"+lib+"</label><input id='sl-"+k+"' "+(t||"inputmode='decimal'")+" value='"+esc(val==null?'':val)+"'></div>"; };
   var h="<h3 style='margin:0'>"+(id?'Modifier':'Ajouter')+" une configuration</h3><div class='sst-f'>";
-  if(!id) h+="<div class='sst-g2'><div><label>Technologie</label><select id='sl-tech'>"+SSST_TECH.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div><div><label>Configuration</label><select id='sl-config'><option value='pv'>PV seul</option><option value='pv_bat'>PV + batterie</option></select></div>"+f('cap','Capacité batterie (kWh)','')+f('n','Nombre de panneaux',10,"inputmode='numeric'")+"</div>";
+  if(!id) h+="<div class='sst-g2'><div><label>Technologie</label><select id='sl-tech'>"+SSST_TECH.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div><div><label>Configuration</label><select id='sl-config'><option value='pv'>PV seul</option><option value='pv_bat'>PV + batterie</option><option value='bat'>Batterie seule (sans panneaux)</option></select></div>"+f('cap','Capacité batterie (kWh)','')+f('n','Nombre de panneaux',10,"inputmode='numeric'")+"</div>";
   h+="<label>Libellé</label><input id='sl-lib' value='"+esc(l.libelle||'')+"'><div class='sst-g2'>"+f('min','Prix minimum TTC',l.prix_min_ttc)+f('cb','Conseillé TTC (bas)',l.prix_conseille_bas_ttc)+f('ch','Conseillé TTC (haut)',l.prix_conseille_haut_ttc)
     +"<div><label>État</label><select id='sl-st'><option value='valide'"+(l.statut==='valide'?' selected':'')+">Tarif SSS valide</option><option value='a_confirmer'"+(l.statut!=='valide'?' selected':'')+">À confirmer par la direction</option></select></div></div>"
     +"<label>Message au commercial (si à confirmer)</label><input id='sl-msg' value='"+esc(l.message_commercial||'')+"'>";
@@ -8082,7 +8099,7 @@ function sstdProdAjout(){ SSSTD_L.prod.push({role:'',marque:'',reference:'',quan
 async function sstdLigneOk(btn){
   var g=(SSSTD.data||{}).grille||{}, v=function(i){ var e=document.getElementById(i); return e?(e.value||'').trim():''; }, p;
   p={libelle:v('sl-lib'),prix_min_ttc:sstNum(v('sl-min')),prix_conseille_bas_ttc:sstNum(v('sl-cb')),prix_conseille_haut_ttc:sstNum(v('sl-ch')),statut:v('sl-st'),message_commercial:v('sl-msg')};
-  if(!SSSTD_L.id){ p.technologie=v('sl-tech'); p.config=v('sl-config'); p.capacite_kwh=sstNum(v('sl-cap')); p.nb_panneaux=sstNum(v('sl-n')); }
+  if(!SSSTD_L.id){ p.technologie=v('sl-tech'); p.config=v('sl-config'); p.capacite_kwh=sstNum(v('sl-cap')); p.nb_panneaux=p.config==='bat'?0:sstNum(v('sl-n')); if(p.config==='bat'&&!p.libelle) p.libelle='Batterie seule'+(p.capacite_kwh?' '+p.capacite_kwh+' kWh':''); }
   else { p.main_oeuvre_jours=sstNum(v('sl-jours')); p.cout_main_oeuvre_ht=sstNum(v('sl-mo')); p.cout_admin_ht=sstNum(v('sl-adm')); p.frais_chantier_ht=sstNum(v('sl-fc')); p.risque_sav_ht=sstNum(v('sl-sav'));
     p.marge_min_pct=sstNum(v('sl-mm')); p.marge_reco_pct=sstNum(v('sl-mr')); p.cout_materiel_ht=sstNum(v('sl-mat')); p.cout_materiel_source=v('sl-matsrc'); p.notes_direction=v('sl-note');
     p.nomenclature=SSSTD_L.nom.filter(function(x){ return x.article_id||x.libelle; }); p.produits=SSSTD_L.prod.filter(function(x){ return x.marque&&x.reference; }); }
@@ -8129,21 +8146,61 @@ async function sstdRapport(){
 }
 /* ---- fiches techniques (direction) ---- */
 var SSST_TYPES=[['fiche_technique','Fiche technique'],['manuel','Manuel'],['garantie','Garantie'],['certificat','Certificat'],['autre','Autre']];
+var SSST_CATS=[['panneau','Panneau'],['onduleur','Onduleur'],['batterie','Batterie'],['micro_onduleur','Micro-onduleur'],['passerelle','Passerelle'],['borne','Borne'],['autre','Autre']];
+function sstdCatRole(role){ var x=(role||'').toLowerCase(); return /micro/.test(x)?'micro_onduleur':/panneau/.test(x)?'panneau':/onduleur/.test(x)?'onduleur':/batter|bms|câble batt/.test(x)?'batterie':/passerelle|meter|compt|relais|kit|gateway/.test(x)?'passerelle':/borne/.test(x)?'borne':''; }
 function sstdFiches(D){
-  var F=D.fiches||[], M=D.fiches_manquantes||[];
-  var h="<div class='sst-card'><b>Ajouter des fiches techniques</b><div class='sst-small'>PDF ou image · 25 Mo max · coffre séparé des documents fournisseurs (factures, conditions, remises : jamais ici).</div>"
+  var F=D.fiches||[];
+  var h=sstdProduitsHtml(D)+"<details class='sst-card'><summary>➕ Nouveau produit (absent de Tarifs SSS et du catalogue) — formulaire complet</summary><div class='sst-small'>PDF ou image · 25 Mo max · coffre séparé des documents fournisseurs (factures, conditions, remises : jamais ici).</div>"
     +"<div class='sst-f sst-g2'><div><label>Marque</label><input id='fd-marque' list='fd-marques'></div><div><label>Produit</label><input id='fd-produit' placeholder='ex. Onduleur hybride'></div><div><label>Référence</label><input id='fd-ref' placeholder='ex. X3-IES'></div><div><label>Date du document</label><input id='fd-date' type='date'></div>"
-    +"<div><label>Langue</label><select id='fd-langue'><option value='fr'>FR</option><option value='de'>DE</option><option value='it'>IT</option><option value='en'>EN</option><option value='autre'>Autre</option></select></div><div><label>Type</label><select id='fd-type'>"+SSST_TYPES.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div></div>"
+    +"<div><label>Langue</label><select id='fd-langue'><option value='fr'>FR</option><option value='de'>DE</option><option value='it'>IT</option><option value='en'>EN</option><option value='autre'>Autre</option></select></div><div><label>Type de document</label><select id='fd-type'>"+SSST_TYPES.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div><div><label>Catégorie</label><select id='fd-cat'><option value=''>—</option>"+SSST_CATS.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div></div>"
     +"<label style='display:flex;gap:8px;align-items:center;margin:8px 0;font-weight:800'><input id='fd-vis' type='checkbox' checked style='width:22px;height:22px'> Visible commercial</label>"
     +"<div class='sst-drop' id='fd-drop'>⬇ Glisse les fichiers ici<br><span class='sst-small'>ou clique pour choisir</span><input id='fd-file' type='file' multiple accept='application/pdf,image/png,image/jpeg,image/webp' style='display:none'></div><div id='fd-etat' class='sst-small' style='margin-top:6px'></div>"
-    +"<datalist id='fd-marques'>"+['MaviWatt','Each Energy','Solax','Atmoce','Enphase'].map(function(x){ return "<option value='"+x+"'>"; }).join('')+"</datalist></div>";
-  h+="<div class='sst-card"+(M.length?' sst-warn':'')+"'><b>Fiches techniques manquantes ("+M.length+")</b>"+(M.length?M.map(function(x){ return "<div class='sst-it'><div><b>"+esc(x.marque)+" "+esc(x.reference)+"</b>"+(x.a_confirmer?" <span class='sst-small'>(référence à confirmer)</span>":'')+"<div class='sst-small'>"+esc(x.role||'')+" · "+esc((x.configurations||[]).join(' · '))+"</div></div><button class='sst-chip' onclick=\"sstdPrefill('"+esc(x.marque).replace(/'/g,"\\'")+"','"+esc(x.reference).replace(/'/g,"\\'")+"','"+esc(x.role||'').replace(/'/g,"\\'")+"')\">Préparer</button></div>"; }).join(''):"<div class='sst-small'>Toutes les configurations actives ont leur fiche technique.</div>")+"</div>";
-  h+="<div class='sst-lbl'>Bibliothèque ("+F.length+")</div>"+(F.map(function(f){ return "<div class='sst-card' style='"+(f.archivee?'opacity:.55':'')+"'><div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center'><div style='flex:1 1 240px'><b>"+esc(f.marque)+" "+esc(f.reference)+"</b> · "+esc(f.produit)+"<div class='sst-small'>"+esc((SSST_TYPES.filter(function(t){ return t[0]===f.type; })[0]||[0,f.type])[1])+" · "+esc((f.langue||'').toUpperCase())+" · v"+f.version+(f.date_doc?' · '+sstDate(f.date_doc):'')+" · ajoutée le "+sstDate(f.created_at)+" par "+esc(f.ajoute_par_nom||'—')+(f.archivee?' · 🗄 archivée':'')+"</div></div>"
+    +"<datalist id='fd-marques'>"+['MaviWatt','Each Energy','Solax','Atmoce','Enphase'].map(function(x){ return "<option value='"+x+"'>"; }).join('')+"</datalist></details>";
+  h+="<div class='sst-lbl'>Bibliothèque ("+F.length+")</div>"+(F.map(function(f){ return "<div class='sst-card' style='"+(f.archivee?'opacity:.55':'')+"'><div style='display:flex;gap:8px;flex-wrap:wrap;align-items:center'><div style='flex:1 1 240px'><b>"+esc(f.marque)+" "+esc(f.reference)+"</b> · "+esc(f.produit)+"<div class='sst-small'>"+(f.categorie?esc((SSST_CATS.filter(function(t){ return t[0]===f.categorie; })[0]||[0,f.categorie])[1])+" · ":'')+esc((SSST_TYPES.filter(function(t){ return t[0]===f.type; })[0]||[0,f.type])[1])+" · "+esc((f.langue||'').toUpperCase())+" · v"+f.version+(f.date_doc?' · '+sstDate(f.date_doc):'')+" · ajoutée le "+sstDate(f.created_at)+" par "+esc(f.ajoute_par_nom||'—')+(f.archivee?' · 🗄 archivée':'')+"</div></div>"
     +"<button class='sst-chip' onclick=\"sstOuvrirFiche('"+esc(f.chemin).replace(/'/g,"\\'")+"')\">👁 Ouvrir</button>"
     +(!f.archivee?"<button class='sst-chip"+(f.visible_commercial?' on':'')+"' onclick=\"sstdFicheMaj(this,'"+f.id+"',{visible_commercial:"+(!f.visible_commercial)+"})\">"+(f.visible_commercial?'Visible commercial ✓':'Direction seule')+"</button><button class='sst-chip' onclick=\"sstdRemplacer('"+f.id+"')\">↻ Nouvelle version</button><button class='sst-chip' onclick=\"sstdFicheMaj(this,'"+f.id+"',{archivee:true})\">Archiver</button>":"")+"</div></div>"; }).join('')||"<div class='sst-small'>Aucune fiche pour l'instant.</div>");
   return h;
 }
-function sstdPrefill(marque,ref,role){ var a=document.getElementById('fd-marque'), b=document.getElementById('fd-ref'), c=document.getElementById('fd-produit'); if(a) a.value=marque; if(b) b.value=ref.replace(/\s*\(.*\)\s*$/,''); if(c&&role) c.value=role.charAt(0).toUpperCase()+role.slice(1); try{ document.getElementById('fd-drop').scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
+/* produits connus : ceux des configurations Tarifs SSS (ce que voit Anne) puis le reste du catalogue d'achat SSS ; aucune ressaisie */
+var SSSTD_PROD=[];
+function sstdNorm(x){ return (x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function sstdMarqueEq(a,b){ a=sstdNorm(a); b=sstdNorm(b); return !!a&&!!b&&(a===b||a.indexOf(b+' ')===0||b.indexOf(a+' ')===0); }
+function sstdCouvre(f,marque,ref){ var fr=sstdNorm(f.reference), pr=sstdNorm(ref); return sstdMarqueEq(f.marque,marque)&&!!fr&&!!pr&&pr.indexOf(fr)===0; }
+function sstdCatArticle(a){ var c=((a.categorie||'')+' '+(a.designation||'')).toLowerCase(); return /micro/.test(c)?'micro_onduleur':/batter/.test(c)?'batterie':/onduleur/.test(c)?'onduleur':/panneau|module/.test(c)?'panneau':/monitoring|compt|passerelle|relais/.test(c)?'passerelle':/borne|recharge/.test(c)?'borne':'autre'; }
+function sstdProduits(D){
+  var out=[], vus={}, lib={pv:'PV seul',pv_bat:'PV + batterie',bat:'batterie seule'};
+  (D.lignes||[]).forEach(function(l){ (l.produits||[]).forEach(function(p){ if(!p.marque||!p.reference) return; var ref=(''+p.reference).replace(/\s*\(.*\)\s*$/,''), k=sstdNorm(p.marque)+'|'+sstdNorm(ref), x=vus[k];
+    if(!x){ var role=(p.role||'').replace(/\s*\(.*\)\s*$/,''); x=vus[k]={marque:p.marque,reference:ref,produit:role?role.charAt(0).toUpperCase()+role.slice(1):'Produit',categorie:sstdCatRole(p.role)||'autre',configs:[],grille:true}; out.push(x); }
+    var c=(l.technologie_lib||'')+' '+(lib[l.config]||l.config); if(x.configs.indexOf(c)<0) x.configs.push(c); }); });
+  (D.articles||[]).forEach(function(a){ if(!a.marque||!a.modele) return;
+    if(out.some(function(x){ var m=sstdNorm(a.modele), rr=sstdNorm(x.reference); return sstdMarqueEq(x.marque,a.marque)&&(m.indexOf(rr)===0||rr.indexOf(m)===0); })) return;
+    out.push({marque:a.marque,reference:a.modele,produit:a.designation||a.categorie||a.modele,categorie:sstdCatArticle(a),configs:[],grille:false}); });
+  return out;
+}
+function sstdProduitsHtml(D){
+  SSSTD_PROD=sstdProduits(D); var F=(D.fiches||[]).filter(function(f){ return !f.archivee; }), cat=function(c){ return (SSST_CATS.filter(function(t){ return t[0]===c; })[0]||[0,c])[1]; };
+  var ligne=function(p,i){ var L=F.filter(function(f){ return sstdCouvre(f,p.marque,p.reference); }), vis=L.filter(function(f){ return f.visible_commercial; }).length;
+    return "<div class='sst-it' style='align-items:center'><div><b>"+esc(p.marque)+" "+esc(p.reference)+"</b> · "+esc(p.produit)+" <span class='sst-badge'>"+esc(cat(p.categorie))+"</span>"
+      +"<div class='sst-small'>"+(vis?'✅ '+vis+' fiche(s) visible(s) chez Anne':L.length?'🔒 fiche(s) réservée(s) à la direction':'❌ Aucune fiche')+(p.configs.length?' · '+esc(p.configs.join(' · ')):'')+"</div></div>"
+      +"<button class='sst-chip"+(vis?'':' on')+"' onclick='sstdProdDepot("+i+")'>📎 "+(L.length?'Ajouter une fiche':'Déposer la fiche')+"</button></div>"; };
+  var g=[], a=[]; SSSTD_PROD.forEach(function(p,i){ (p.grille?g:a).push(ligne(p,i)); });
+  return "<div class='sst-card'><b>Produits de Tarifs SSS ("+g.length+")</b><div class='sst-small'>Clique sur « 📎 Déposer la fiche » puis glisse le PDF : marque, produit, référence et catégorie sont repris du produit. La fiche apparaît chez Anne sur chaque configuration qui contient ce produit.</div>"+g.join('')+"</div>"
+    +(a.length?"<details class='sst-card'><summary>Autres produits du catalogue d'achat SSS ("+a.length+")</summary><div class='sst-small'>Visibles chez Anne dès qu'ils font partie d'une configuration de Tarifs SSS.</div>"+a.join('')+"</details>":'');
+}
+function sstdProdDepot(i){
+  var p=SSSTD_PROD[i]; if(!p) return; var cat=(SSST_CATS.filter(function(t){ return t[0]===p.categorie; })[0]||[0,p.categorie])[1];
+  sstSheet("<h3 style='margin:0'>📎 Déposer la fiche</h3><div class='sst-card' style='margin:10px 0'><b>"+esc(p.marque)+" "+esc(p.reference)+"</b><div class='sst-small'>"+esc(p.produit)+" · catégorie : "+esc(cat)+(p.configs.length?' · '+esc(p.configs.join(' · ')):'')+"</div></div>"
+    +"<div class='sst-f sst-g2'><div><label>Langue</label><select id='fp-langue'><option value='fr'>FR</option><option value='de'>DE</option><option value='it'>IT</option><option value='en'>EN</option><option value='autre'>Autre</option></select></div>"
+    +"<div><label>Type de document</label><select id='fp-type' onchange=\"if(this.value==='fiche_technique') document.getElementById('fp-vis').checked=true\">"+SSST_TYPES.map(function(t){ return "<option value='"+t[0]+"'>"+t[1]+"</option>"; }).join('')+"</select></div></div>"
+    +"<label style='display:flex;gap:8px;align-items:center;margin:8px 0;font-weight:800'><input id='fp-vis' type='checkbox' checked style='width:22px;height:22px'> Visible commercial</label>"
+    +"<div class='sst-drop' id='fp-drop'>⬇ Glisse le PDF ici<br><span class='sst-small'>ou clique pour choisir</span><input id='fp-file' type='file' multiple accept='application/pdf,image/png,image/jpeg,image/webp' style='display:none'></div><div id='fp-etat' class='sst-small' style='margin-top:6px'></div>"
+    +"<button class='sst-btn' onclick='sstFermer()'>Annuler</button>");
+  var z=document.getElementById('fp-drop'), inp=document.getElementById('fp-file'), go=function(l){ if(l.length) sstdDeposer(l,null,p); };
+  z.onclick=function(){ inp.click(); }; inp.onchange=function(){ var l=Array.prototype.slice.call(inp.files||[]); inp.value=''; go(l); };
+  z.ondragover=function(e){ e.preventDefault(); z.classList.add('on'); }; z.ondragleave=function(){ z.classList.remove('on'); };
+  z.ondrop=function(e){ e.preventDefault(); z.classList.remove('on'); go(Array.prototype.slice.call((e.dataTransfer&&e.dataTransfer.files)||[])); };
+}
+function sstdPrefill(marque,ref,role){ var a=document.getElementById('fd-marque'), b=document.getElementById('fd-ref'), c=document.getElementById('fd-produit'), k=document.getElementById('fd-cat'); if(k) k.value=sstdCatRole(role); if(a) a.value=marque; if(b) b.value=ref.replace(/\s*\(.*\)\s*$/,''); if(c&&role) c.value=role.charAt(0).toUpperCase()+role.slice(1); try{ document.getElementById('fd-drop').scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
 function sstdDropInit(){
   var z=document.getElementById('fd-drop'), inp=document.getElementById('fd-file'); if(!z||!inp) return;
   z.onclick=function(){ inp.click(); }; inp.onchange=function(){ var l=Array.prototype.slice.call(inp.files||[]); inp.value=''; if(l.length) sstdDeposer(l,null); };
@@ -8151,13 +8208,14 @@ function sstdDropInit(){
   z.ondrop=function(e){ e.preventDefault(); z.classList.remove('on'); var l=Array.prototype.slice.call((e.dataTransfer&&e.dataTransfer.files)||[]); if(l.length) sstdDeposer(l,null); };
 }
 function sstdSlug(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'x'; }
-async function sstdDeposer(files,remplace){
+async function sstdDeposer(files,remplace,fixe){
   var v=function(i){ var e=document.getElementById(i); return e?(e.value||'').trim():''; }, ancien=remplace?((SSSTD.data||{}).fiches||[]).filter(function(f){ return f.id===remplace; })[0]:null;
   var meta={marque:ancien?ancien.marque:v('fd-marque'),produit:ancien?ancien.produit:v('fd-produit'),reference:ancien?ancien.reference:v('fd-ref'),date_doc:v('fd-date')||null,langue:ancien?ancien.langue:(v('fd-langue')||'fr'),type:ancien?ancien.type:(v('fd-type')||'fiche_technique'),
-            visible_commercial:ancien?ancien.visible_commercial:!!(document.getElementById('fd-vis')||{}).checked};
+            visible_commercial:ancien?ancien.visible_commercial:!!(document.getElementById('fd-vis')||{}).checked,categorie:ancien?(ancien.categorie||null):(v('fd-cat')||null)};
+  if(fixe) meta={marque:fixe.marque,produit:fixe.produit,reference:fixe.reference,categorie:fixe.categorie||null,date_doc:null,langue:v('fp-langue')||'fr',type:v('fp-type')||'fiche_technique',visible_commercial:!!(document.getElementById('fp-vis')||{}).checked};
   if(!meta.marque||!meta.produit||!meta.reference){ alert('Indique la marque, le produit et la référence avant de déposer.'); return; }
   if(!(await sssMfaAssurer())){ sssToast('Code de double authentification requis.',false); return; }
-  var etat=document.getElementById('fd-etat'), ok=0, ko=[];
+  var etat=document.getElementById(fixe?'fp-etat':'fd-etat'), ok=0, ko=[];
   for(var i=0;i<files.length;i++){ var f=files[i];
     if(['application/pdf','image/png','image/jpeg','image/webp'].indexOf(f.type)<0){ ko.push(f.name+' : format non accepté (PDF ou image)'); continue; }
     if(f.size>26214400){ ko.push(f.name+' : plus de 25 Mo'); continue; }
@@ -8166,7 +8224,7 @@ async function sstdDeposer(files,remplace){
     var up=await db.storage.from('fiches-techniques').upload(chemin,f,{upsert:false,contentType:f.type}); if(up.error){ ko.push(f.name+' : '+up.error.message); continue; }
     var r=await db.rpc('sss_fiche_enregistrer',{p:Object.assign({},meta,{chemin:chemin,nom_fichier:f.name,mime:f.type,taille:f.size,remplace:remplace||null})});
     if(r.error){ ko.push(f.name+' : '+r.error.message); try{ await db.storage.from('fiches-techniques').remove([chemin]); }catch(e){} continue; } ok++; remplace=null; }
-  if(ok) sssToast(ok+' fiche(s) enregistrée(s) ✓',true); if(ko.length) alert('Non enregistré :\n'+ko.join('\n')); renderFinTarifs();
+  if(ok) sssToast(ok+' fiche(s) enregistrée(s) ✓',true); if(ko.length) alert('Non enregistré :\n'+ko.join('\n')); if(fixe&&ok) sstFermer(); renderFinTarifs();
 }
 function sstdRemplacer(id){ var i=document.createElement('input'); i.type='file'; i.accept='application/pdf,image/png,image/jpeg,image/webp'; i.onchange=function(){ if(i.files&&i.files[0]) sstdDeposer([i.files[0]],id); }; i.click(); }
 async function sstdFicheMaj(btn,id,p){ if(p.archivee&&!confirm('Archiver cette fiche ? Elle ne sera plus visible du commercial (elle reste dans l’historique).')) return; var d=await sssAgir(btn,function(){ return db.rpc('sss_fiche_maj',{p_id:id,p:p}); }); if(d) renderFinTarifs(); }
@@ -8188,7 +8246,7 @@ async function sstdEch(){
     +"<div class='sst-chips' style='margin-top:8px'><button class='sst-chip"+(ach==='suisse'?' on':'')+"' onclick=\"SSSTD_ECH.achat='suisse';sstdEch()\">Achat Mavisun : livraison Suisse</button><button class='sst-chip"+(ach==='france'?' on':'')+"' onclick=\"SSSTD_ECH.achat='france';sstdEch()\">Retrait France (TVA FR = coût, provisoire)</button></div></div>";
   h+="<div class='sst-card'><b>Grille v"+esc(SSSTD_ECH.tab.grille_version)+" — supplément client conseillé (TTC)</b><div style='overflow-x:auto'><table class='tbl' style='width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px'><thead><tr>"
     +['Configuration','Pann.','Coûts réels','Marge au min.','1 pan','2 pans','Marge au cons.','1 pan','2 pans',''].map(function(t){ return "<th style='text-align:left;padding:5px'>"+t+"</th>"; }).join('')+"</tr></thead><tbody>"
-    +(SSSTD_ECH.tab.lignes||[]).map(function(x){ var a=x.min_1||{}, c=x.cons_1||{};
+    +(SSSTD_ECH.tab.lignes||[]).filter(function(x){ return x.config!=='bat'; }).map(function(x){ var a=x.min_1||{}, c=x.cons_1||{};
       return "<tr style='border-top:1px solid var(--line)'><td style='padding:5px'>"+esc(x.technologie+' '+x.libelle)+"</td><td>"+x.nb_panneaux+"</td><td>"+(a.couts!=null?sstChf(a.couts):'—')+"</td><td>"+(a.marge_avant_echafaudage!=null?sstChf(a.marge_avant_echafaudage):'—')+"</td><td>"+sstdEchEtat(x.min_1)+"</td><td>"+sstdEchEtat(x.min_2)+"</td><td>"+(c.marge_avant_echafaudage!=null?sstChf(c.marge_avant_echafaudage):'—')+"</td><td>"+sstdEchEtat(x.cons_1)+"</td><td>"+sstdEchEtat(x.cons_2)+"</td>"
         +"<td><button class='sst-chip' style='min-height:30px;padding:3px 9px' onclick=\"sstdEchDetail('"+x.ligne_id+"',"+(x.prix_min_ttc||'null')+")\">Détail</button></td></tr>"; }).join('')+"</tbody></table></div></div>";
   h+="<div class='sst-card'><b>Paramètres Direction (version active v"+esc(actif.version)+")</b><div class='sst-small'>Chaque enregistrement crée une nouvelle version ; l’ancienne reste dans l’historique. Jamais visibles du commercial.</div><div class='sst-f sst-g2'>"
