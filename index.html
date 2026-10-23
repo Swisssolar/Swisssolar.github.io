@@ -2446,6 +2446,7 @@ function renderNav(){
     ['frais','Frais & véhicule','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 11h18M7 15h3"/></svg>',['superadmin','direction','commercial','technicien','soustraitant','supply_chain']],
     ['fin_frais','Frais & véhicules (équipe)','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14l1-6H4l1 6Z"/><path d="M7 11l1.5-4h7L17 11"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>',['superadmin','direction']],
     ['tarifs_sss','Tarifs SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1 1-1.8 2.5-1.8s2.5.8 2.5 1.8-1 1.6-2.5 2-2.5 1-2.5 2 1 1.8 2.5 1.8 2.5-.8 2.5-1.8"/></svg>',['superadmin','direction','commercial']],
+    ['offres','Offres / devis','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',['superadmin','direction','commercial']],
     ['fin_tarifs','Paramètres commerciaux / Tarifs','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',['superadmin']],
     ['fin_fisc','Fiscalité & Charges sociales','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9m4 12V9m6 12V9m4 12V9M2 9l10-6 10 6"/></svg>',['superadmin']],
     ['fin_clients','Facturation clients','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',['superadmin']],
@@ -2536,7 +2537,7 @@ function renderNav(){
   const isDir=['superadmin','direction'].includes(ME.role);
   const GROUPS_COM=[
     {id:'g1',title:'Activité',keys:['prospects','base_clients','planning_com','agenda','contacts']},
-    {id:'g2',title:'Ventes & dossiers',keys:['devis','tarifs_sss','relances','vivier','retours','avalider','generateur']},
+    {id:'g2',title:'Ventes & dossiers',keys:['offres','devis','tarifs_sss','relances','vivier','retours','avalider','generateur']},
     {id:'g4',title:'Ressources',keys:['temoins','support','tarifs']}
   ];
   if(isDir){ GROUPS_COM.splice(2,0,{id:'g3p',title:'Performances',keys:['perf','perfcc']}); GROUPS_COM.push({id:'gfour',title:'Fournitures',keys:['commandes']}); }
@@ -6353,6 +6354,20 @@ async function renderProspects(){
   if(r.error){ box.innerHTML="<div class='empty'>"+esc(r.error.message)+"</div>"; return; }
   SSSPR.liste=r.data||[]; sssPrListe();
 }
+/* Liste avec champ de recherche : pendant la frappe, on ne remplace que ce qui entoure le champ actif. Le champ lui-même
+   n'est jamais recréé : il garde le focus (et le clavier du téléphone reste ouvert). Sinon, rendu complet comme avant. */
+function sssMajSaisie(box,h){
+  var a=document.activeElement;
+  if(!a||!box.contains(a)||(a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA')){ box.innerHTML=h; return; }
+  var t=document.createElement('div'); t.innerHTML=h;
+  (function fusion(vieux,neuf){
+    var vk=Array.prototype.slice.call(vieux.childNodes), nk=Array.prototype.slice.call(neuf.childNodes), i;
+    for(i=0;i<nk.length;i++){ var v=vk[i], n=nk[i];
+      if(v&&v.nodeType===1&&n.nodeType===1&&v.tagName===n.tagName&&v.contains(a)){ if(v!==a) fusion(v,n); continue; }
+      if(v) vieux.replaceChild(n,v); else vieux.appendChild(n); }
+    for(i=nk.length;i<vk.length;i++) vieux.removeChild(vk[i]);
+  })(box,t);
+}
 function sssPrListe(){
   var box=document.getElementById('sspr-c'); if(!box) return; var F=SSSPR.f, now=Date.now();
   var coms=(SSSPR.users||[]).filter(function(u){ return u.role==='commercial'||u.role==='superadmin'||u.role==='direction'; }).map(function(u){ return [u.id,((u.prenom||'')+' '+(u.nom||'')).trim()]; });
@@ -6381,7 +6396,7 @@ function sssPrListe(){
     +(sssPrPatron()?sel('commercial',[['aucun','— sans commercial —']].concat(coms),'Tous les commerciaux'):'')+sel('source',SSSPR_SOURCES,'Toutes les sources')+sel('statut',SSSPR_STATUTS.map(function(x){ return [x[0],x[1]]; }),'Tous les statuts')
     +sel('categorie',SSSPR_CATS,'Tous les types')+sel('canton',cantons.sort().map(function(c){ return [c,c]; }),'Tous les cantons')
     +sel('periode',[['1','Aujourd’hui'],['7','7 jours'],['30','30 jours'],['90','90 jours'],['3650','Tout']],'Période')+"<span style='font-size:12.5px;color:var(--text-3)'>"+L.length+" prospect(s)</span></div>";
-  if(!L.length){ box.innerHTML=h+"<div class='empty'>Aucun prospect dans cette sélection.</div>"; return; }
+  if(!L.length){ sssMajSaisie(box,h+"<div class='empty'>Aucun prospect dans cette sélection.</div>"); return; }
   h+="<div class='card' style='padding:0;overflow-x:auto'><table class='table' style='width:100%;font-size:13px'><thead><tr><th>Prospect</th><th>Localité</th><th>Type</th><th>Source</th><th>Reçu</th><th>Statut</th><th>Commercial</th><th>Dernière activité</th><th>Prochaine action</th><th>Rappel</th><th>Appel</th></tr></thead><tbody>"
     +L.map(function(p){ var retard=p.prochain_rappel && new Date(p.prochain_rappel).getTime()<now && ['vendu','perdu','hors_cible'].indexOf(p.statut)<0;
       var attente=!p.premier_contact_at ? (now-new Date(p.recu_at).getTime())/36e5 : null;
@@ -6390,7 +6405,7 @@ function sssPrListe(){
         +"<td>"+sssPrDate(p.recu_at,!(p.source_infos&&p.source_infos.heure_inconnue))+"</td><td>"+sssPrStatut(p.statut)+"</td><td>"+esc(p.commercial_id?sssPrUser(p.commercial_id):'—')+"</td><td>"+sssPrDate(p.dernier_evenement_at)+"</td>"
         +"<td>"+esc(p.prochaine_action||'—')+"</td><td style='"+(retard?'color:#e5484d;font-weight:700':'')+"'>"+sssPrDate(p.prochain_rappel)+"</td>"
         +"<td>"+(p.premier_contact_at?"<span style='color:#22a06b'>✔ appelé</span>":p.importe_le?"<span style='color:var(--text-3)' title='Demande reprise de la liste devis.ch : appels antérieurs non connus dans SSS OS'>avant SSS OS</span>":"<span style='color:"+(attente>48?'#e5484d':attente>24?'#e0a52b':'var(--text-3)')+"'>jamais"+(attente!=null?' ('+sssPrDuree(attente*60)+')':'')+"</span>")+"</td></tr>"; }).join('')+"</tbody></table></div>";
-  box.innerHTML=h;
+  sssMajSaisie(box,h);
 }
 
 async function sssPrFiche(id){
@@ -6504,7 +6519,7 @@ function sssPrCartes(box,L){ if(typeof sssCss==='function') sssCss(); var F=SSSP
   var nF=['rapide','statut','source','categorie','localite','commercial'].filter(function(k){ return F[k]; }).length;
   var h="<div class='ssc-top'><input placeholder='Nom, téléphone, localité, n°…' value=\""+esc(F.q)+"\" oninput=\"SSSPR.f.q=this.value;clearTimeout(window.__sspr_t);window.__sspr_t=setTimeout(sssPrListe,250)\"><button class='relbtn' onclick='sssPrFiltres()'>Filtres"+(nF?' ('+nF+')':'')+"</button></div>"
     +"<div style='font-size:13px;color:var(--text-3);margin-bottom:8px'>"+L.length+" prospect(s)</div>";
-  if(!L.length){ box.innerHTML=h+"<div class='empty'>Aucun prospect dans cette sélection.</div>"; return; }
+  if(!L.length){ sssMajSaisie(box,h+"<div class='empty'>Aucun prospect dans cette sélection.</div>"); return; }
   h+="<div class='ssc-cards'>"+vis.map(function(p){ var ap=p.origine_commerciale==='apport_commercial'; var resp=p.commercial_id?sssPrUser(p.commercial_id):'non attribué';
     return "<div class='ssc-card"+(ap?' apport':'')+"'><div style='cursor:pointer' onclick=\"SSSPR.sel='"+p.id+"';sssPrFiche('"+p.id+"')\"><div style='display:flex;gap:8px;align-items:flex-start'><h4 style='flex:1'>"+esc(sssPrNom(p))+"</h4>"+sssPrStatut(p.statut)+"</div>"
       +"<div class='ssc-sub'>"+esc([p.localite,sssPrLib(SSSPR_CATS,p.categorie)].filter(Boolean).join(' · '))+"</div>"
@@ -6514,7 +6529,7 @@ function sssPrCartes(box,L){ if(typeof sssCss==='function') sssCss(); var F=SSSP
       +"<div class='ssc-btns'>"+(p.telephone?"<a class='appel' href='"+telHref(p.telephone)+"' onclick=\"SSSPR.p=null;setTimeout(function(){sssPrAppelResultat('"+p.id+"')},1200)\">📞 Appeler</a>":"<button disabled>📞</button>")
       +"<button onclick=\"sssPrNote('"+p.id+"')\">📝 Note</button><button onclick=\"sssPrRappel('"+p.id+"')\">⏰ Rappel</button><button onclick=\"SSSPR.p=SSSPR.liste.filter(function(x){return x.id==='"+p.id+"'})[0];sssPrRdv('"+p.id+"')\">📅 RDV</button></div></div>"; }).join('')+"</div>";
   if(L.length>vis.length) h+="<button class='btn btn-ghost' style='width:100%;min-height:48px;margin-top:10px' onclick='SSSPR.nCartes+=100;sssPrListe()'>Afficher 100 de plus ("+(L.length-vis.length)+" restants)</button>";
-  box.innerHTML=h; }
+  sssMajSaisie(box,h); }
 function sssPrFiltres(){ var F=SSSPR.f; var ch=function(k,t){ return "<button class='relbtn"+(F.rapide===k?' win':'')+"' onclick=\"SSSPR.f.rapide=(SSSPR.f.rapide==='"+k+"'?'':'"+k+"');sssSheetFermer();sssPrListe()\">"+t+"</button>"; };
   var o=function(L,v){ return L.map(function(x){ return "<option value='"+esc(x[0])+"'"+(v===x[0]?' selected':'')+">"+esc(x[1])+"</option>"; }).join(''); };
   sssSheet("<h3 style='margin:0 0 12px'>Filtres</h3><div class='ssc-chips'>"+ch('nouveau','🆕 Nouveaux')+ch('non_appele','📵 À appeler / jamais appelés')+ch('retard','⏰ Rappel en retard')+ch('rdv','📅 RDV fixé')+ch('vendu','✔ Vendus')+ch('perdu','✖ Perdus')+ch('apport','★ Apports')+(sssPrPatron()?ch('sans_commercial','👤 Sans commercial'):'')+"</div>"
@@ -6622,7 +6637,7 @@ function sssBcListe(){
     +"<button class='relbtn' onclick='sssBcFiltres()'>Filtres"+(nF?' ('+nF+')':'')+"</button></div>"
     +"<div style='font-size:13px;color:var(--text-3);margin-bottom:8px'>"+L.length+" client(s)"+(F.apport==='oui'?' · ★ apports':'')+"</div>";
   SSSBC.sources=sources; var vis=L.slice(0,300);
-  if(!L.length){ box.innerHTML=h+"<div class='empty'>Aucun client dans cette sélection.</div>"; return; }
+  if(!L.length){ (typeof sssMajSaisie==='function'?sssMajSaisie(box,h+"<div class='empty'>Aucun client dans cette sélection.</div>"):(box.innerHTML=h+"<div class='empty'>Aucun client dans cette sélection.</div>")); return; }
   if(mob){
     h+="<div class='ssc-cards'>"+vis.map(function(c){ var ap=c.origine_commerciale==='apport_commercial';
       return "<div class='ssc-card"+(ap?' apport':'')+"'><div onclick=\"SSSBC.sel='"+c.id+"';sssBcFiche('"+c.id+"')\" style='cursor:pointer'><h4>"+esc(((c.prenom||'')+' '+(c.nom||'')).trim()||'—')+"</h4>"
@@ -6639,7 +6654,7 @@ function sssBcListe(){
         +"<td>"+esc(c.source||'client SSS')+"</td><td>"+esc(sssBcStatut(c))+"</td><td>"+sssPrDate(c.created_at,false)+"</td><td>"+sssPrDate(c.dernier_contact_at)+"</td><td>"+esc(c.prochaine_action||'—')+(c.prochain_rappel?' · '+sssPrDate(c.prochain_rappel):'')+"</td></tr>"; }).join('')+"</tbody></table></div>";
   }
   if(L.length>vis.length) h+="<div style='font-size:13px;color:var(--text-3);margin-top:8px'>"+(L.length-vis.length)+" autre(s) : affine la recherche.</div>";
-  box.innerHTML=h;
+  if(typeof sssMajSaisie==='function') sssMajSaisie(box,h); else box.innerHTML=h;
 }
 function sssBcFiltres(){ var F=SSSBC.f; var o=function(L,v){ return L.map(function(x){ return "<option value='"+esc(x[0])+"'"+(v===x[0]?' selected':'')+">"+esc(x[1])+"</option>"; }).join(''); };
   sssSheet("<h3 style='margin:0 0 12px'>Filtres</h3><label>Provenance</label><select id='ssbc-fa'>"+o([['','Toutes'],['oui','★ Apports personnels'],['non','Clients SSS']],F.apport)+"</select>"
@@ -8644,6 +8659,359 @@ async function sssEvtAnnuler(id){
 })();
 
 /* SSS-EVENEMENTS-FIN */
+
+/* SSS-OFFRES-DEBUT */
+/* ==========================================================================
+   SSS OS — Offres commerciales (0057). Commercial → Ventes & dossiers → « Offres / devis ».
+   La commerciale crée l'offre dans SSS OS, sans Bexio : client repris de la fiche, configuration Tarifs SSS (mode A) ou
+   prestations du catalogue / personnalisées (mode B), aperçu PDF illimité (aucun numéro consommé), validation direction si
+   le prix descend sous le minimum ou si une prestation n'a pas de tarif Direction, finalisation = numéro + photographie figée.
+   La BASE recalcule tout (prix plancher, totaux, validation) : l'écran ne fait qu'afficher. Jamais de coût ni de marge ici,
+   sauf pour la direction (onglet Direction). Aucune écriture Bexio.
+   ========================================================================== */
+var SOF={ctx:null,liste:null,o:null,dir:false,onglet:'offres',dl:null,fiches:{},q:null};
+var SOF_PROJETS=[['pv','☀️ Photovoltaïque'],['pv_batterie','☀️🔋 PV + batterie'],['batterie','🔋 Batterie seule'],['borne','🔌 Borne'],['pac','🌡 Pompe à chaleur'],['electricite','⚡ Travaux électriques'],['administratif','📋 Administratif'],['personnalise','✏️ Personnalisé']];
+var SOF_STATUT={brouillon:['Brouillon','#6b7280'],a_valider:['À valider (direction)','#d97706'],valide:['Validée par la direction','#2563eb'],finalise:['Finalisée','#16a34a'],envoye:['Envoyée','#0891b2'],accepte:['Acceptée ✓','#15803d'],refuse:['Refusée','#dc2626'],expire:['Expirée','#9ca3af']};
+var SOF_CAT={pv:'Photovoltaïque',batterie:'Batterie',borne:'Borne de recharge',pac:'Pompe à chaleur',electricite:'Travaux électriques',administratif:'Administratif',autre:'Autre'};
+var SOF_INTRO="Nous vous remercions de l'intérêt que vous portez à Swiss Solar System. Suite à notre échange, nous avons le plaisir de vous soumettre notre offre pour votre projet. Nous restons à votre entière disposition pour toute question.";
+var SOF_EXCL="Échafaudage non inclus sauf mention explicite dans l'offre. Travaux de maçonnerie, de peinture et de génie civil non mentionnés non inclus. Démarches et taxes du gestionnaire de réseau selon les conditions en vigueur.";
+function sofCss(){ if(document.getElementById('sof-css')) return; var s=document.createElement('style'); s.id='sof-css'; s.textContent=
+  ".sof{max-width:820px;margin:0 auto}.sof *{box-sizing:border-box}.sof h3{margin:0 0 8px;font-size:15px}"
+ +".sof-card{border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;background:var(--card,transparent)}"
+ +".sof-lbl{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin:14px 0 7px}"
+ +".sof-chips{display:flex;flex-wrap:wrap;gap:7px}.sof-chip{min-height:44px;padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:inherit;font-size:14.5px;font-weight:800;cursor:pointer}"
+ +".sof-chip.on{background:#2563eb;color:#fff;border-color:#2563eb}.sof-chip small{display:block;font-size:11px;font-weight:600;opacity:.75}"
+ +".sof-in,.sof select,.sof textarea{width:100%;min-height:46px;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg,transparent);color:inherit}"
+ +".sof textarea{min-height:80px;line-height:1.45}.sof-g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:520px){.sof-g2{grid-template-columns:1fr}}"
+ +".sof-ligne{border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}.sof-ligne .t{font-weight:900;font-size:15px}.sof-ligne .d{font-size:12.5px;color:var(--text-3);white-space:pre-wrap;margin-top:3px}"
+ +".sof-row{display:grid;grid-template-columns:80px 90px 1fr 90px;gap:6px;margin-top:8px}@media(max-width:520px){.sof-row{grid-template-columns:1fr 1fr}}"
+ +".sof-mini{font-size:12px;color:var(--text-3)}.sof-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;width:100%;border-radius:14px;font-size:16px;font-weight:900;border:2px solid var(--line);background:transparent;color:inherit;cursor:pointer;margin-top:8px}"
+ +".sof-btn.p{background:#16a34a;border-color:#16a34a;color:#fff}.sof-btn.o{background:#d97706;border-color:#d97706;color:#fff}.sof-btn.n{background:#111827;border-color:#111827;color:#fff}.sof-btn:disabled{opacity:.45}"
+ +".sof-tot{position:sticky;bottom:0;z-index:5;border-radius:18px 18px 0 0;padding:12px 16px;background:var(--card,#fff);border:1px solid var(--line);box-shadow:0 -6px 20px #0002;margin-top:14px}"
+ +".sof-tot .l{display:flex;justify-content:space-between;font-size:13.5px;margin:2px 0}.sof-tot .g{font-size:22px;font-weight:900}@media(max-width:700px){.sof-tot{padding-right:78px}}"
+ +".sof-feu{border-radius:12px;padding:10px 12px;font-weight:900;color:#fff;margin-top:8px}.sof-alerte{border-left:5px solid #d97706;background:#d9770614;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:13.5px}"
+ +".sof-item{display:grid;grid-template-columns:1fr auto;gap:4px 12px;border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0;cursor:pointer}.sof-badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11.5px;font-weight:800;color:#fff}"
+ +".sof-res{border:1px solid var(--line);border-radius:12px;margin-top:6px;overflow:hidden}.sof-res div{padding:10px 12px;border-top:1px solid var(--line);cursor:pointer}.sof-res div:first-child{border-top:0}";
+  document.head.appendChild(s); }
+function sofChf(n){ var v=Number(n||0); return (v<0?'-':'')+Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,"'"); }
+function sofNum(v){ if(v===''||v==null) return null; var n=Number((''+v).replace(/['’\s]/g,'').replace(',','.')); return isFinite(n)?n:null; }
+function sofD(d){ if(!d) return ''; var p=(''+d).slice(0,10).split('-'); return p.length===3?p[2]+'.'+p[1]+'.'+p[0]:d; }
+function sofNomCli(c){ c=c||{}; return [c.prenom,c.nom].filter(Boolean).join(' ')||c.societe||'Client'; }
+function sofEstDir(){ try{ return ME && ME.role==='superadmin'; }catch(e){ return false; } }
+function sofFeu(p,min,cons){ if(p==null||min==null) return 'a_confirmer'; if(cons!=null&&p>=cons) return 'vert'; return p>=min?'orange':'rouge'; }
+var SOF_FEU={vert:['🟢','Bon prix','#16a34a'],orange:['🟠','Autorisé — sous le prix recommandé','#d97706'],rouge:['🔴','Sous le minimum SSS — validation direction','#dc2626'],a_confirmer:['⚪','Tarif à confirmer par la direction','#6b7280']};
+
+/* ================================ LISTE ================================ */
+async function renderOffres(){
+  var m=document.getElementById('main'); if(!m) return; sofCss();
+  m.innerHTML="<div class='sof'><div class='page-head'><h2>Offres / devis</h2></div><div class='loading'>Chargement…</div></div>";
+  try{ await sssMfaAssurer(); }catch(e){}
+  SOF.dir=sofEstDir();
+  var r=await db.rpc(SOF.dir&&SOF.onglet!=='mes'?'sss_offres_direction':'sss_offres_mes'); if(VIEW!=='offres') return;
+  if(r.error){ m.innerHTML="<div class='sof'><div class='page-head'><h2>Offres / devis</h2></div><div class='empty'>"+esc(r.error.message)+"</div></div>"; return; }
+  SOF.liste=r.data||[]; sofListe();
+}
+function sofListe(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='offres') return; var L=SOF.liste||[];
+  var h="<div class='sof'><div class='page-head'><h2>Offres / devis</h2><div class='spacer'></div><button class='btn' style='width:auto;padding:10px 16px' onclick='sofNouvelle()'>＋ Créer une offre</button></div>";
+  if(SOF.dir) h+="<div class='sof-chips' style='margin-bottom:6px'>"+[['offres','Toutes les offres'],['catalogue','Catalogue de vente'],['paiements','Conditions de paiement'],['descriptions','Descriptions produits']].map(function(t){ return "<button class='sof-chip"+(SOF.onglet===t[0]?' on':'')+"' onclick=\"SOF.onglet='"+t[0]+"';"+(t[0]==='offres'?'renderOffres()':'sofDirParam()')+"\">"+t[1]+"</button>"; }).join('')+"</div>";
+  var att=L.filter(function(o){ return o.statut==='a_valider'; });
+  if(SOF.dir&&att.length) h+="<div class='sof-alerte'><b>"+att.length+" offre(s) à valider</b> — ouvre-les pour décider.</div>";
+  if(!L.length) h+="<div class='sof-card' style='text-align:center'><div style='font-size:34px'>📝</div><b>Aucune offre pour l'instant</b><div class='sof-mini' style='margin-top:4px'>Crée ta première offre : client → solution → prix → aperçu PDF → finaliser.</div></div>";
+  h+=L.map(function(o){ var st=o.expiree?['Expirée','#9ca3af']:(SOF_STATUT[o.statut]||[o.statut,'#6b7280']); var mc=o.marge_configuration;
+    return "<div class='sof-item' onclick=\"sofOuvrir('"+o.id+"')\"><div><b>"+esc(sofNomCli(o.client))+"</b> <span class='sof-mini'>"+esc(o.numero||'brouillon')+"</span><div class='sof-mini'>"+esc(o.titre||((SOF_PROJETS.filter(function(p){return p[0]===o.projet;})[0]||[0,''])[1]))
+      +(SOF.dir?' · '+esc(o.auteur_nom||''):'')+" · "+sofD(o.maj_at)+"</div>"
+      +(SOF.dir&&mc?"<div class='sof-mini'>Marge config. : <b>"+sofChf(mc.marge)+" CHF</b> (coûts "+sofChf(mc.couts)+")</div>":'')
+      +(o.validation&&o.validation.requise&&o.statut==='brouillon'?"<div class='sof-mini' style='color:#d97706'>⚠ validation direction requise</div>":'')+"</div>"
+      +"<div style='text-align:right'><div style='font-weight:900'>"+sofChf(o.totaux&&o.totaux.total_ttc)+"</div><div class='sof-mini'>CHF TTC</div><span class='sof-badge' style='background:"+st[1]+"'>"+esc(st[0])+"</span></div></div>"; }).join('');
+  m.innerHTML=h+"</div>";
+}
+async function sofOuvrir(id){ var o=(SOF.liste||[]).filter(function(x){ return x.id===id; })[0]; if(!o) return; SOF.o=JSON.parse(JSON.stringify(o));
+  if(['brouillon','a_valider','valide'].indexOf(o.statut)>=0) await sofEditeur(); else sofDetail(); }
+async function sofNouvelle(src){
+  SOF.o={client:{},projet:'pv',lignes:[],remise_ttc:0,complexite:'standard',paiement:{code:'40_40_20'},validite_jours:30,introduction:SOF_INTRO,exclusions:SOF_EXCL,fiches:[],tarif:null,statut:'brouillon',validation:{}};
+  if(src){ var r=await db.rpc('sss_offre_client',src.prospect?{p_prospect:src.prospect}:{p_contact:src.contact}); if(r.error){ alert(r.error.message); return; }
+    var c=r.data||{}; SOF.o.prospect_id=c.prospect_id||null; SOF.o.contact_id=c.contact_id||null; delete c.prospect_id; delete c.contact_id; SOF.o.client=c; }
+  if(VIEW!=='offres'){ window.__SOF_OUVRIR=true; go('offres'); return; }
+  await sofEditeur();
+}
+
+/* =============================== ÉDITEUR =============================== */
+async function sofEditeur(){
+  var m=document.getElementById('main'); if(!m) return; sofCss();
+  if(!SOF.ctx){ m.innerHTML="<div class='sof'><div class='loading'>Chargement des tarifs…</div></div>"; var r=await db.rpc('sss_offre_contexte'); if(r.error){ m.innerHTML="<div class='sof'><div class='empty'>"+esc(r.error.message)+"</div></div>"; return; } SOF.ctx=r.data||{}; }
+  var o=SOF.o; if(o.tarif&&!o._sel){ o._sel={tech:o.tarif.technologie,cap:o.tarif.capacite_kwh!=null?''+Number(o.tarif.capacite_kwh):'',n:o.tarif.nb_panneaux||10}; }
+  if(!o._sel) o._sel={tech:null,cap:'',n:10};
+  sofPeindre();
+}
+function sofLignesTarif(){ return ((SOF.ctx||{}).tarifs||{}).lignes||[]; }
+function sofCfg(){ var p=SOF.o.projet; return p==='pv'?'pv':p==='pv_batterie'?'pv_bat':p==='batterie'?'bat':null; }
+function sofTechs(){ var c=sofCfg(); var vu={}, out=[]; sofLignesTarif().forEach(function(l){ if(l.config===c&&!vu[l.technologie]){ vu[l.technologie]=1; out.push([l.technologie,l.technologie_lib]); } }); return out; }
+function sofCaps(){ var c=sofCfg(), t=SOF.o._sel.tech, vu={}, out=[]; sofLignesTarif().forEach(function(l){ if(l.config===c&&l.technologie===t){ var k=l.capacite_kwh==null?'?':''+Number(l.capacite_kwh); if(!vu[k]){ vu[k]=1; out.push(k); } } }); return out.sort(function(a,b){ return (Number(a)||99)-(Number(b)||99); }); }
+function sofNs(){ var c=sofCfg(), t=SOF.o._sel.tech, vu={}, out=[]; sofLignesTarif().forEach(function(l){ if(l.config===c&&l.technologie===t&&!vu[l.nb_panneaux]){ vu[l.nb_panneaux]=1; out.push(l.nb_panneaux); } }); return out.sort(function(a,b){ return a-b; }); }
+function sofLigneSel(){ var c=sofCfg(), s=SOF.o._sel; if(!c||!s.tech) return null;
+  return sofLignesTarif().filter(function(l){ return l.config===c&&l.technologie===s.tech&&(c==='pv'||(''+(l.capacite_kwh==null?'?':Number(l.capacite_kwh)))===s.cap)&&(c==='bat'||l.nb_panneaux===s.n); })[0]||null; }
+function sofNormSel(){ var o=SOF.o, s=o._sel, T=sofTechs(); if(!sofCfg()){ o.tarif=null; return; }
+  if(!T.some(function(t){ return t[0]===s.tech; })) s.tech=T.length?T[0][0]:null;
+  if(sofCfg()!=='pv'){ var C=sofCaps(); if(C.indexOf(s.cap)<0) s.cap=C[0]||''; }
+  if(sofCfg()!=='bat'){ var N=sofNs(); if(N.indexOf(s.n)<0) s.n=N.indexOf(10)>=0?10:(N[0]||10); }
+  var l=sofLigneSel(); if(!l){ o.tarif=null; return; }
+  if(!o.tarif||o.tarif.ligne_id!==l.id) o.tarif={ligne_id:l.id,prix_ttc:l.valide?Number(l.prix_conseille_bas_ttc):null,echafaudage:(o.tarif&&o.tarif.echafaudage&&o.tarif.echafaudage.choix)||((o.tarif&&typeof o.tarif.echafaudage==='string')?o.tarif.echafaudage:'0')};
+}
+function sofSet(k,v){ var o=SOF.o; if(k==='projet'){ o.projet=v; } else if(k==='tech'||k==='cap'||k==='n'){ o._sel[k]=v; } sofNormSel(); sofPeindre(); }
+function sofEchChoix(o){ var e=o.tarif&&o.tarif.echafaudage; return typeof e==='string'?e:(e&&e.choix)||'0'; }
+function sofPeindre(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='offres') return; var o=SOF.o, c=o.client||{}; if(sofCfg()&&!o.tarif) sofNormSel();
+  var ro=['brouillon','a_valider','valide'].indexOf(o.statut)<0;
+  var h="<div class='sof'><div class='page-head'><button class='iconbtn' onclick='renderOffres()' style='margin-right:8px'>←</button><h2 style='display:inline'>"+(o.id?'Offre':'Nouvelle offre')+"</h2><div class='spacer'></div>"+(o.statut?"<span class='sof-badge' style='background:"+(SOF_STATUT[o.statut]||['', '#6b7280'])[1]+"'>"+esc((SOF_STATUT[o.statut]||[o.statut])[0])+"</span>":'')+"</div>";
+  if(o.validation&&o.validation.decision==='refusee'&&o.statut==='brouillon') h+="<div class='sof-alerte' style='border-color:#dc2626;background:#dc262614'><b>Refusée par la direction</b> — "+esc(o.validation.note||'')+"</div>";
+  if(o.statut==='a_valider') h+="<div class='sof-alerte'><b>⏳ En attente de la direction.</b> Toute modification retire la demande.</div>";
+  if(o.statut==='valide') h+="<div class='sof-alerte' style='border-color:#2563eb;background:#2563eb14'><b>✅ Validée par la direction</b>"+(o.validation&&o.validation.note?' — '+esc(o.validation.note):'')+". Tu peux finaliser ; toute modification annule la validation.</div>";
+  // client
+  h+="<div class='sof-card'><h3>👤 Client</h3>";
+  if(!c.nom&&!c.prenom&&!c.societe) h+="<input class='sof-in' id='sof-q' placeholder='Rechercher un prospect ou un client (nom, localité)…' oninput='sofChercherClient(this.value)'><div id='sof-qr'></div><div class='sof-mini' style='margin:8px 0 4px'>ou saisis les coordonnées :</div>";
+  h+="<div class='sof-g2'>"+[['civilite','Civilité'],['prenom','Prénom'],['nom','Nom'],['societe','Société'],['adresse','Adresse'],['npa','NPA'],['localite','Localité'],['telephone','Téléphone'],['email','E-mail']].map(function(f){ return "<input class='sof-in' placeholder='"+f[1]+"' value=\""+esc(c[f[0]]||'')+"\" oninput=\"SOF.o.client['"+f[0]+"']=this.value\""+(f[0]==='email'?" type='email' inputmode='email'":f[0]==='telephone'?" inputmode='tel'":'')+">"; }).join('')+"</div>"
+    +(o.prospect_id||o.contact_id?"<div class='sof-mini' style='margin-top:6px'>✓ Coordonnées reprises de la fiche "+(o.prospect_id?'prospect':'client')+" (corrigeables ici pour l'offre).</div>":'')+"</div>";
+  // projet
+  h+="<div class='sof-card'><h3>🧩 Projet</h3><div class='sof-chips'>"+SOF_PROJETS.map(function(p){ return "<button class='sof-chip"+(o.projet===p[0]?' on':'')+"' onclick=\"sofSet('projet','"+p[0]+"')\">"+p[1]+"</button>"; }).join('')+"</div>"
+    +"<div class='sof-lbl'>Titre de l'offre</div><input class='sof-in' value=\""+esc(o.titre||'')+"\" placeholder='Ex. Installation photovoltaïque 4.90 kWc avec stockage' oninput='SOF.o.titre=this.value'></div>";
+  // configuration Tarifs SSS
+  if(sofCfg()){ var T=sofTechs(), l=sofLigneSel(), s=o._sel;
+    h+="<div class='sof-card'><h3>🏷 Solution Tarifs SSS</h3><div class='sof-lbl'>Marque</div><div class='sof-chips'>"+T.map(function(t){ return "<button class='sof-chip"+(s.tech===t[0]?' on':'')+"' onclick=\"sofSet('tech','"+t[0]+"')\">"+esc(t[1])+"</button>"; }).join('')+"</div>";
+    if(sofCfg()!=='pv') h+="<div class='sof-lbl'>Capacité</div><div class='sof-chips'>"+sofCaps().map(function(k){ return "<button class='sof-chip"+(s.cap===k?' on':'')+"' onclick=\"sofSet('cap','"+k+"')\">🔋 "+(k==='?'?'à confirmer':k+' kWh')+"</button>"; }).join('')+"</div>";
+    if(sofCfg()!=='bat') h+="<div class='sof-lbl'>Panneaux MaviWatt PULSE 490 W</div><div class='sof-chips'>"+sofNs().map(function(n){ return "<button class='sof-chip"+(s.n===n?' on':'')+"' onclick='sofSet(\"n\","+n+")'>"+n+"<small>"+(n*0.49).toFixed(2)+" kWc</small></button>"; }).join('')+"</div>";
+    if(l){ h+="<div class='sof-ligne' style='margin-top:12px'><div class='t'>"+esc(l.technologie_lib+' · '+l.libelle)+"</div><div class='d'>"+esc((l.produits||[]).map(function(p){ return (p.quantite?p.quantite+' × ':'')+p.marque+' '+p.reference; }).join(' · '))+"</div>";
+      if(!l.valide) h+="<div class='sof-feu' style='background:#6b7280'>"+esc(l.message||'Tarif à confirmer par la direction')+"</div>";
+      else { var pr=o.tarif&&o.tarif.prix_ttc, f=SOF_FEU[sofFeu(pr,Number(l.prix_min_ttc),Number(l.prix_conseille_bas_ttc))];
+        h+="<div class='sof-g2' style='margin-top:10px'><div><div class='sof-mini'>MINIMUM SSS</div><b style='font-size:19px'>"+sofChf(l.prix_min_ttc)+"</b></div><div><div class='sof-mini'>CONSEILLÉ</div><b style='font-size:19px'>"+sofChf(l.prix_conseille_bas_ttc)+(l.prix_conseille_haut_ttc&&l.prix_conseille_haut_ttc!==l.prix_conseille_bas_ttc?' – '+sofChf(l.prix_conseille_haut_ttc):'')+"</b></div></div>"
+          +"<div class='sof-lbl'>Prix client TTC</div><input class='sof-in' inputmode='decimal' value='"+esc(pr==null?'':pr)+"' oninput='SOF.o.tarif.prix_ttc=sofNum(this.value);sofMajTot()' onchange='sofPeindre()'>"
+          +"<div class='sof-feu' id='sof-feu' style='background:"+f[2]+"'>"+f[0]+" "+esc(f[1])+"</div>"; }
+      if(sofCfg()!=='bat'){ var ec=sofEchChoix(o); h+="<div class='sof-lbl'>Échafaudage</div><div class='sof-chips'>"+[['0','Aucun'],['1','1 pan'],['2','2 pans'],['a_chiffrer','À chiffrer']].map(function(e){ return "<button class='sof-chip"+(ec===e[0]?' on':'')+"' onclick=\"SOF.o.tarif.echafaudage='"+e[0]+"';sofPeindre()\">"+e[1]+"</button>"; }).join('')+"</div><div class='sof-mini' style='margin-top:6px'>Le supplément éventuel est calculé par la base à l'enregistrement.</div>"; }
+      h+="<div class='sof-lbl'>📄 Fiches techniques à joindre</div><div id='sof-fiches' class='sof-mini'>Chargement…</div></div>"; }
+    else h+="<div class='sof-alerte'>🔴 Tarif Direction à définir pour cette combinaison.</div>";
+    h+="</div>"; }
+  // lignes complémentaires
+  h+="<div class='sof-card'><h3>➕ Prestations</h3>"+(o.lignes||[]).map(function(x,i){ return sofLigneHtml(x,i); }).join('')
+    +"<div class='sof-g2' style='margin-top:6px'><button class='sof-btn' onclick='sofAjoutCatalogue()'>🔎 Catalogue / suppléments</button><button class='sof-btn' onclick='sofAjoutLibre()'>✏️ Prestation personnalisée</button></div></div>";
+  // conditions
+  var P=(SOF.ctx||{}).paiements||[];
+  h+="<div class='sof-card'><h3>📑 Conditions</h3><div class='sof-g2'><div><div class='sof-lbl' style='margin-top:0'>Remise TTC (CHF)</div><input class='sof-in' inputmode='decimal' value='"+esc(o.remise_ttc||'')+"' oninput='SOF.o.remise_ttc=sofNum(this.value)||0;sofMajTot()'></div>"
+    +"<div><div class='sof-lbl' style='margin-top:0'>Validité (jours)</div><input class='sof-in' inputmode='numeric' value='"+esc(o.validite_jours||30)+"' oninput='SOF.o.validite_jours=parseInt(this.value,10)||30'></div></div>"
+    +"<div class='sof-lbl'>Conditions de paiement</div><select onchange=\"SOF.o.paiement={code:this.value}\">"+P.map(function(p){ return "<option value='"+esc(p.code)+"'"+(((o.paiement||{}).code||'40_40_20')===p.code?' selected':'')+">"+esc(p.libelle)+"</option>"; }).join('')+"</select>"
+    +"<div class='sof-lbl'>Complexité du chantier</div><div class='sof-chips'>"+[['standard','Standard'],['complexe','Complexe'],['a_chiffrer','À faire chiffrer']].map(function(k){ return "<button class='sof-chip"+(o.complexite===k[0]?' on':'')+"' onclick=\"SOF.o.complexite='"+k[0]+"';sofPeindre()\">"+k[1]+"</button>"; }).join('')+"</div>"
+    +"<div class='sof-lbl'>Introduction (personnalisable)</div><textarea oninput='SOF.o.introduction=this.value'>"+esc(o.introduction||'')+"</textarea>"
+    +"<div class='sof-lbl'>Exclusions / remarques</div><textarea oninput='SOF.o.exclusions=this.value'>"+esc(o.exclusions||'')+"</textarea></div>";
+  // validation (retour de la base)
+  var V=o.validation||{};
+  if(V.requise&&o.statut==='brouillon') h+="<div class='sof-alerte'><b>Validation direction requise avant de finaliser :</b><ul style='margin:6px 0 0 18px;padding:0'>"+(V.raisons||[]).map(function(x){ return "<li>"+esc(x)+"</li>"; }).join('')+"</ul></div>";
+  // totaux + actions
+  h+="<div class='sof-tot' id='sof-tot'></div>";
+  h+="<button class='sof-btn' onclick='sofApercu(this)'>👁 Aperçu PDF</button><button class='sof-btn' onclick='sofSauver(this)'>💾 Enregistrer le brouillon</button>";
+  if(V.requise&&o.statut==='brouillon') h+="<button class='sof-btn o' onclick='sofDemander()'>Demander la validation direction</button>";
+  if(o.statut==='a_valider'&&SOF.dir) h+="<div class='sof-g2'><button class='sof-btn p' onclick=\"sofDecider(this,'valider')\">✅ Valider (direction)</button><button class='sof-btn' style='color:#dc2626' onclick=\"sofDecider(this,'refuser')\">❌ Refuser</button></div>";
+  h+="<button class='sof-btn p' onclick='sofFinaliser(this)'"+(V.requise&&o.statut!=='valide'?' disabled title="Validation direction requise"':'')+">✅ Finaliser l'offre</button><div class='sof-mini' style='margin:8px 0 30px;text-align:center'>L'aperçu ne consomme aucun numéro. Le numéro est attribué à la finalisation ; l'offre est alors figée.</div></div>";
+  m.innerHTML=h; sofMajTot(); var l2=sofLigneSel(); if(l2) sofFichesCharger(l2);
+}
+function sofLigneHtml(x,i){
+  var lib={supplement:'Supplément Tarifs SSS',catalogue:'Catalogue SSS',libre:'Prestation personnalisée'}[x.source]||'';
+  var sans=x.source!=='libre'&&x.prix_conseille_ttc==null&&x.prix_min_ttc==null;
+  return "<div class='sof-ligne'><div style='display:flex;gap:8px;align-items:flex-start'><div style='flex:1'><div class='sof-mini'>"+esc(lib)+"</div>"
+    +(x.source==='libre'?"<input class='sof-in' value=\""+esc(x.designation||'')+"\" placeholder='Désignation' oninput='SOF.o.lignes["+i+"].designation=this.value'>":"<div class='t'>"+esc(x.designation||'')+"</div>")
+    +(x.description_modele?"<div class='d'>"+esc(x.description_modele)+"</div>":'')+"</div><button class='iconbtn' title='Retirer' onclick='SOF.o.lignes.splice("+i+",1);sofPeindre()'>✕</button></div>"
+    +"<textarea style='margin-top:8px;min-height:52px' placeholder='Précision pour ce client (facultatif)' oninput='SOF.o.lignes["+i+"].complement=this.value'>"+esc(x.complement||'')+"</textarea>"
+    +"<div class='sof-row'><input class='sof-in' inputmode='decimal' value='"+esc(x.quantite==null?1:x.quantite)+"' title='Quantité' oninput='SOF.o.lignes["+i+"].quantite=sofNum(this.value)||1;sofMajTot()'>"
+    +"<input class='sof-in' value=\""+esc(x.unite||'pce')+"\" title='Unité' oninput='SOF.o.lignes["+i+"].unite=this.value'"+(x.source==='libre'?'':' readonly')+">"
+    +"<input class='sof-in' inputmode='decimal' placeholder='Prix unitaire TTC' value='"+esc(x.prix_unitaire_ttc==null?'':x.prix_unitaire_ttc)+"' oninput='SOF.o.lignes["+i+"].prix_unitaire_ttc=sofNum(this.value);sofMajTot()'>"
+    +"<select onchange='SOF.o.lignes["+i+"].tva_pct=Number(this.value);sofMajTot()'"+(x.source==='catalogue'?' disabled':'')+">"+[8.1,2.6,3.8,0].map(function(t){ return "<option value='"+t+"'"+(Number(x.tva_pct==null?8.1:x.tva_pct)===t?' selected':'')+">TVA "+t+" %</option>"; }).join('')+"</select></div>"
+    +(sans?"<div class='sof-mini' style='color:#d97706;margin-top:6px'>🔴 Tarif Direction à définir — validation direction</div>":(x.prix_min_ttc!=null?"<div class='sof-mini' style='margin-top:6px'>Minimum "+sofChf(x.prix_min_ttc)+(x.prix_conseille_ttc!=null?' · conseillé '+sofChf(x.prix_conseille_ttc):'')+" CHF TTC</div>":''))+"</div>";
+}
+function sofTotaux(){ var o=SOF.o, t=0, ht=0; var cfg=o.tarif&&o.tarif.prix_ttc; if(cfg){ t+=Number(cfg); ht+=Number(cfg)/1.081; }
+  var e=o.tarif&&o.tarif.echafaudage; if(e&&typeof e==='object'&&e.supplement_ttc){ t+=Number(e.supplement_ttc); ht+=Number(e.supplement_ttc)/1.081; }
+  (o.lignes||[]).forEach(function(x){ var v=(Number(x.prix_unitaire_ttc)||0)*(Number(x.quantite)||1); t+=v; ht+=v/(1+(Number(x.tva_pct==null?8.1:x.tva_pct))/100); });
+  var r=Math.min(Number(o.remise_ttc)||0,t); var htn=t>0?ht*(t-r)/t:0; return {sous:t,remise:r,total:t-r,ht:htn,tva:t-r-htn}; }
+function sofMajTot(){ var z=document.getElementById('sof-tot'); if(!z) return; var T=sofTotaux(), o=SOF.o;
+  z.innerHTML="<div class='l'><span>Sous-total</span><span>"+sofChf(T.sous)+"</span></div>"+(T.remise?"<div class='l'><span>Remise</span><span>− "+sofChf(T.remise)+"</span></div>":'')
+    +"<div class='l'><span>dont TVA</span><span>"+sofChf(T.tva)+"</span></div><div class='l g'><span>TOTAL TTC</span><span>"+sofChf(T.total)+" CHF</span></div>";
+  var l=sofLigneSel(), fz=document.getElementById('sof-feu'); if(fz&&l&&l.valide){ var f=SOF_FEU[sofFeu(o.tarif&&o.tarif.prix_ttc,Number(l.prix_min_ttc),Number(l.prix_conseille_bas_ttc))]; fz.style.background=f[2]; fz.textContent=f[0]+' '+f[1]; } }
+async function sofFichesCharger(l){ var z=document.getElementById('sof-fiches'); if(!z) return; var P=SOF.fiches[l.id];
+  if(!P){ var r=await db.rpc('sss_fiches_com',{p_ligne:l.id}); P=SOF.fiches[l.id]=(r&&r.data)||[]; }
+  z=document.getElementById('sof-fiches'); if(!z) return; var F=[]; P.forEach(function(p){ (p.fiches||[]).forEach(function(f){ F.push({id:f.id,nom:p.marque+' '+p.reference+' — '+({fiche_technique:'fiche technique',manuel:'manuel',garantie:'garantie',certificat:'certificat'}[f.type]||'document')+' '+(f.langue||'').toUpperCase(),chemin:f.chemin}); }); });
+  if(!F.length){ z.innerHTML="Aucune fiche technique disponible pour ces produits."; return; }
+  var sel=(SOF.o.fiches||[]).map(function(f){ return f.id; });
+  z.innerHTML=F.map(function(f,i){ return "<label style='display:flex;gap:10px;align-items:center;padding:6px 0;font-size:14px;color:var(--text)'><input type='checkbox' style='width:22px;height:22px' "+(sel.indexOf(f.id)>=0?'checked':'')+" onchange='sofFiche("+JSON.stringify(f).replace(/'/g,"&#39;")+",this.checked)'> "+esc(f.nom)+"</label>"; }).join(''); }
+function sofFiche(f,on){ var L=(SOF.o.fiches||[]).filter(function(x){ return x.id!==f.id; }); if(on) L.push(f); SOF.o.fiches=L; }
+var __sofCT=null;
+function sofChercherClient(q){ clearTimeout(__sofCT); __sofCT=setTimeout(async function(){ var z=document.getElementById('sof-qr'); if(!z) return; q=(q||'').replace(/[,()%*]/g,' ').trim(); if(q.length<2){ z.innerHTML=''; return; }
+  var f='nom.ilike.%'+q+'%,prenom.ilike.%'+q+'%,localite.ilike.%'+q+'%';
+  var R=await Promise.all([db.from('prospects').select('id,prenom,nom,societe,localite').or(f+',societe.ilike.%'+q+'%').is('fusionne_dans',null).limit(6),db.from('contacts').select('id,prenom,nom,localite').or(f).limit(6)]);
+  var L=((R[0].data||[]).map(function(p){ return ["{prospect:'"+p.id+"'}",'Prospect',[p.prenom,p.nom].filter(Boolean).join(' ')||p.societe,p.localite]; })).concat((R[1].data||[]).map(function(c){ return ["{contact:'"+c.id+"'}",'Client',[c.prenom,c.nom].filter(Boolean).join(' '),c.localite]; }));
+  z.innerHTML=L.length?"<div class='sof-res'>"+L.map(function(x){ return "<div onclick=\"sofPrendreClient("+x[0]+")\"><b>"+esc(x[2]||'—')+"</b> <span class='sof-mini'>"+esc(x[1])+(x[3]?' · '+esc(x[3]):'')+"</span></div>"; }).join('')+"</div>":"<div class='sof-mini' style='margin-top:6px'>Aucun résultat.</div>"; },300); }
+async function sofPrendreClient(src){ var r=await db.rpc('sss_offre_client',src.prospect?{p_prospect:src.prospect}:{p_contact:src.contact}); if(r.error){ alert(r.error.message); return; }
+  var c=r.data||{}; SOF.o.prospect_id=c.prospect_id||null; SOF.o.contact_id=c.contact_id||null; delete c.prospect_id; delete c.contact_id; SOF.o.client=c; sofPeindre(); }
+function sofAjoutCatalogue(){ var X=SOF.ctx||{}, S=((X.tarifs||{}).supplements||[]).filter(function(s){ return s.code!=='echafaudage'; }), C=X.catalogue||[];
+  var item=function(js,t,sub,prix){ return "<div class='sof-item' onclick='sofPrendreItem("+js+")'><div><b>"+esc(t)+"</b><div class='sof-mini'>"+esc(sub)+"</div></div><div style='text-align:right;font-weight:800'>"+prix+"</div></div>"; };
+  var cats={}; C.forEach(function(c){ (cats[c.categorie]=cats[c.categorie]||[]).push(c); });
+  var h="<h3 style='margin:0 0 6px'>🔎 Catalogue SSS</h3><input class='sof-in' placeholder='Rechercher (SolaX, PAC, borne…)' oninput='sofFiltrerCat(this.value)'><div id='sof-cat'>";
+  h+="<div class='sof-lbl'>Suppléments Tarifs SSS</div>"+S.map(function(s){ return item(JSON.stringify({source:'supplement',ref:s.code,designation:s.libelle,unite:s.unite,prix_unitaire_ttc:s.prix_conseille_ttc!=null?s.prix_conseille_ttc:s.prix_min_ttc,prix_min_ttc:s.prix_min_ttc,prix_conseille_ttc:s.prix_conseille_ttc,quantite:1}).replace(/'/g,'&#39;'),s.libelle,'/'+s.unite+(s.note?' · '+s.note:''),s.prix_min_ttc!=null?'dès '+sofChf(s.prix_min_ttc):'<span style="color:#d97706">Tarif Direction à définir</span>'); }).join('');
+  Object.keys(cats).forEach(function(k){ h+="<div class='sof-lbl'>"+esc(SOF_CAT[k]||k)+"</div>"+cats[k].map(function(c){ return item(JSON.stringify({source:'catalogue',ref:c.id,designation:c.designation,description_modele:c.description,unite:c.unite,prix_unitaire_ttc:c.prix_ttc,prix_min_ttc:c.prix_min_ttc,prix_conseille_ttc:c.prix_ttc,tva_pct:c.tva_pct,quantite:1}).replace(/'/g,'&#39;'),c.designation,(c.modele?c.modele+' · ':'')+(c.description||''),c.prix_ttc!=null?sofChf(c.prix_ttc):'<span style="color:#d97706">Tarif Direction à définir</span>'); }).join(''); });
+  sstSheet(h+"</div><button class='sof-btn' onclick='sstFermer()'>Fermer</button>"); }
+function sofFiltrerCat(q){ q=(q||'').toLowerCase(); Array.prototype.forEach.call(document.querySelectorAll('#sof-cat .sof-item'),function(e){ e.style.display=e.textContent.toLowerCase().indexOf(q)>=0?'':'none'; }); }
+function sofPrendreItem(x){ SOF.o.lignes=(SOF.o.lignes||[]).concat([x]); sstFermer(); sofPeindre(); }
+function sofAjoutLibre(){ SOF.o.lignes=(SOF.o.lignes||[]).concat([{source:'libre',designation:'',quantite:1,unite:'forfait',prix_unitaire_ttc:null,tva_pct:8.1}]); sofPeindre(); }
+
+/* ============================ ENREGISTREMENT ============================ */
+function sofCharge(){ var o=SOF.o; var t=null; if(o.tarif&&o.tarif.ligne_id) t={ligne_id:o.tarif.ligne_id,prix_ttc:o.tarif.prix_ttc,echafaudage:sofEchChoix(o)};
+  return {id:o.id||null,prospect_id:o.prospect_id||null,contact_id:o.contact_id||null,client:o.client||{},projet:o.projet,titre:o.titre||'',introduction:o.introduction||'',exclusions:o.exclusions||'',
+    tarif:t,lignes:(o.lignes||[]).map(function(x){ return {source:x.source,ref:x.ref||null,designation:x.designation,complement:x.complement||'',quantite:x.quantite,unite:x.unite,prix_unitaire_ttc:x.prix_unitaire_ttc,tva_pct:x.tva_pct}; }),
+    remise_ttc:o.remise_ttc||0,complexite:o.complexite||'standard',paiement:(o.paiement||{}).code||'40_40_20',validite_jours:o.validite_jours||30,fiches:o.fiches||[]}; }
+async function sofSauver(btn,silence){ var d=await sssAgir(btn,function(){ return db.rpc('sss_offre_enregistrer',{p:sofCharge()}); },{succes:function(){ return silence?'Brouillon à jour':'Brouillon enregistré ✓'; }});
+  if(!d) return null; var sel=SOF.o._sel; SOF.o=d; SOF.o._sel=sel; sofPeindre(); return d; }
+async function sofApercu(btn){ var d=['brouillon','a_valider','valide'].indexOf(SOF.o.statut)>=0?await sofSauver(btn,true):SOF.o; if(!d) return; sofPdf(d,true); }
+function sofDemander(){ sstSheet("<h3 style='margin:0 0 6px'>Demander la validation direction</h3><div class='sof-mini'>La direction autorise ou refuse cette offre telle quelle. Toute modification ensuite retire la demande.</div>"
+  +"<div class='sof-lbl'>Motif</div><div class='sof-chips' id='sof-mot'>"+['Client stratégique','Concurrence','Chantier très simple','Référence commerciale','Vente groupée','Prestation sur mesure','Autre'].map(function(m){ return "<button class='sof-chip' onclick=\"Array.prototype.forEach.call(document.querySelectorAll('#sof-mot .sof-chip'),function(x){x.classList.remove('on')});this.classList.add('on')\">"+m+"</button>"; }).join('')+"</div>"
+  +"<div class='sof-lbl'>Commentaire</div><textarea id='sof-com' class='sof-in' style='min-height:80px'></textarea><button class='sof-btn o' onclick='sofDemanderOk(this)'>Envoyer à la direction</button><button class='sof-btn' onclick='sstFermer()'>Annuler</button>"); }
+async function sofDemanderOk(btn){ var on=document.querySelector('#sof-mot .sof-chip.on'); if(!on){ alert('Choisis un motif.'); return; }
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_offre_demander_validation',{p_id:SOF.o.id,p_motif:on.textContent,p_commentaire:(document.getElementById('sof-com').value||'').trim()||null}); },{succes:function(){ return 'Demande envoyée à la direction ✓'; }});
+  if(d){ sstFermer(); var sel=SOF.o._sel; SOF.o=d; SOF.o._sel=sel; sofPeindre(); } }
+async function sofDecider(btn,a){ var note=prompt(a==='refuser'?'Motif du refus (obligatoire) :':'Commentaire (facultatif) :'); if(note===null) return;
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_offre_decider',{p_id:SOF.o.id,p_action:a,p_note:note||null}); }); if(d) renderOffres(); }
+async function sofFinaliser(btn){ var d=await sofSauver(btn,true); if(!d) return;
+  if(d.validation&&d.validation.requise&&d.statut!=='valide'){ alert('Validation direction requise avant de finaliser.'); return; }
+  if(!confirm('Finaliser l\'offre ?\n\nUn numéro définitif lui est attribué et elle ne pourra plus être modifiée.')) return;
+  var f=await sssAgir(null,function(){ return db.rpc('sss_offre_finaliser',{p_id:d.id}); },{succes:function(x){ return 'Offre '+x.numero+' finalisée ✓'; }});
+  if(f){ SOF.o=f; sofDetail(); sofPdf(f,false); } }
+
+/* ======================= OFFRE FINALISÉE (détail) ======================= */
+function sofDetail(){ var m=document.getElementById('main'); if(!m) return; sofCss(); var o=SOF.o, st=o.expiree?['Expirée','#9ca3af']:(SOF_STATUT[o.statut]||[o.statut,'#6b7280']);
+  var h="<div class='sof'><div class='page-head'><button class='iconbtn' onclick='renderOffres()' style='margin-right:8px'>←</button><h2 style='display:inline'>Offre "+esc(o.numero||'')+"</h2><div class='spacer'></div><span class='sof-badge' style='background:"+st[1]+"'>"+esc(st[0])+"</span></div>"
+    +"<div class='sof-card'><b style='font-size:17px'>"+esc(sofNomCli(o.client))+"</b><div class='sof-mini'>"+esc(o.titre||'')+"</div><div style='font-size:24px;font-weight:900;margin-top:8px'>"+sofChf(o.totaux&&o.totaux.total_ttc)+" CHF TTC</div>"
+    +"<div class='sof-mini'>Offre du "+sofD(o.date_offre)+" · valable jusqu'au "+sofD(o.valable_jusqu)+"</div></div>"
+    +"<button class='sof-btn n' onclick='sofPdf(SOF.o,false)'>📄 Télécharger le PDF</button>";
+  (o.fiches||[]).forEach(function(f){ h+="<button class='sof-btn' onclick=\"sstOuvrirFiche('"+esc(f.chemin||'').replace(/'/g,"\\'")+"')\">📎 "+esc(f.nom)+"</button>"; });
+  if(o.statut==='finalise') h+="<button class='sof-btn p' onclick=\"sofStatut(this,'envoye')\">📨 Marquer comme envoyée au client</button>";
+  if(o.statut==='finalise'||o.statut==='envoye') h+="<div class='sof-g2'><button class='sof-btn p' onclick=\"sofStatut(this,'accepte')\">✅ Acceptée</button><button class='sof-btn' style='color:#dc2626' onclick=\"sofStatut(this,'refuse')\">❌ Refusée</button></div>";
+  m.innerHTML=h+"<div class='sof-mini' style='text-align:center;margin:14px 0 30px'>Offre figée : prix et descriptions conservés tels qu'au jour de la finalisation.</div></div>"; }
+async function sofStatut(btn,s){ var note=s==='refuse'?prompt('Raison du refus (facultatif) :'):null; if(s==='refuse'&&note===null) return;
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_offre_statut',{p_id:SOF.o.id,p_statut:s,p_note:note||null}); }); if(d){ SOF.o=d; sofDetail(); } }
+
+/* ================================ PDF ================================ */
+function sofPdfLignes(o){ var L=[], t=o.tarif;
+  if(t&&t.prix_ttc!=null){ var desc=(t.produits||[]).map(function(p){ var D=((SOF.ctx||{}).descriptions||[]).filter(function(d){ return (d.marque||'').toLowerCase()===(p.marque||'').toLowerCase()&&(d.reference||'').toLowerCase()===(p.reference||'').toLowerCase(); })[0];
+      return '• '+(p.quantite?p.quantite+' × ':'')+p.marque+' '+p.reference+(p.role?' ('+p.role+')':'')+(D?'\n   '+(D.titre?D.titre+' — ':'')+D.description:''); }).join('\n');
+    var tit=t.config==='bat'?('Système de stockage '+t.technologie_lib+' — '+t.libelle):((t.config==='pv_bat'?'Installation photovoltaïque avec stockage ':'Installation photovoltaïque ')+t.technologie_lib+' — '+t.nb_panneaux+' panneaux, '+Number(t.kwc).toFixed(2)+' kWc');
+    L.push({t:tit,d:desc+'\nFourniture, pose, raccordement et mise en service.',q:1,u:'forfait',pu:Number(t.prix_ttc),tva:8.1});
+    var e=t.echafaudage; if(e&&typeof e==='object'&&Number(e.supplement_ttc)>0) L.push({t:'Échafaudage ('+(e.choix==='1'?'1 pan':'2 pans')+')',d:'Montage, location et démontage.',q:1,u:'forfait',pu:Number(e.supplement_ttc),tva:8.1}); }
+  (o.lignes||[]).forEach(function(x){ L.push({t:x.designation,d:[x.description_modele,x.complement].filter(Boolean).join('\n'),q:Number(x.quantite)||1,u:x.unite||'',pu:Number(x.prix_unitaire_ttc)||0,tva:Number(x.tva_pct==null?8.1:x.tva_pct)}); });
+  return L; }
+function sofPdf(o,apercu){
+  if(!window.jspdf){ alert('Générateur PDF indisponible.'); return; }
+  var doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'}), W=210, H=297, M=16, y=0, ACC=[227,6,19], INK=[17,24,39], GR=[107,114,128], LN=[229,231,235];
+  var CO=(typeof REC_CO!=='undefined'&&REC_CO)||{nom:'Swiss Solar System Sàrl',rue:'Rue Antoinette Quinche 4',npa:'1022 Chavannes-près-Renens',email:'contact@swisssolarsystem.com',tel:'021 552 04 40'};
+  var c=o.client||{}, T=o.totaux||{}, L=sofPdfLignes(o);
+  var txt=function(s,x,yy,opt){ doc.text(Array.isArray(s)?s:''+(s==null?'':s),x,yy,opt||{}); };
+  var col=function(a){ doc.setTextColor(a[0],a[1],a[2]); };
+  var pied=function(){ doc.setDrawColor(LN[0],LN[1],LN[2]); doc.line(M,H-16,W-M,H-16); doc.setFontSize(7.5); col(GR);
+    txt(CO.nom+' · '+CO.rue+', '+CO.npa,W/2,H-11.5,{align:'center'}); txt('Tél. '+CO.tel+' · '+CO.email+' · www.swisssolarsystem.com · IDE CHE-243.775.671 TVA',W/2,H-8,{align:'center'}); };
+  var filigrane=function(){ if(!apercu) return; doc.saveGraphicsState&&doc.saveGraphicsState(); try{ doc.setGState(new doc.GState({opacity:0.08})); }catch(e){} doc.setFontSize(64); doc.setFont('helvetica','bold'); col(ACC); txt('APERÇU',W/2,H/2,{align:'center',angle:30}); doc.restoreGraphicsState&&doc.restoreGraphicsState(); doc.setFont('helvetica','normal'); };
+  var entete=function(prem){ doc.setFillColor(INK[0],INK[1],INK[2]); doc.rect(0,0,W,prem?4:3,'F'); doc.setFillColor(ACC[0],ACC[1],ACC[2]); doc.rect(0,prem?4:3,W*0.32,1.2,'F');
+    try{ if(typeof SSS_LOGO_PDF!=='undefined') doc.addImage(SSS_LOGO_PDF,'PNG',M,prem?11:8,prem?46:30,(prem?46:30)*328/900,'ssslogo','FAST'); }catch(e){}
+    if(!prem){ doc.setFontSize(8); col(GR); txt('Offre '+(o.numero||'— aperçu')+' · '+sofNomCli(c),W-M,14,{align:'right'}); } filigrane(); };
+  var saut=function(h){ if(y+h>H-24){ pied(); doc.addPage(); entete(false); y=26; return true; } return false; };
+  // page 1
+  entete(true);
+  doc.setFont('helvetica','bold'); doc.setFontSize(24); col(INK); txt('Offre',W-M,22,{align:'right'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); col(GR);
+  txt(apercu?'APERÇU — document non contractuel':'N° '+o.numero,W-M,29,{align:'right'});
+  txt('Date : '+(apercu?sofD(new Date().toISOString()):sofD(o.date_offre))+'   ·   Valable jusqu\'au : '+(apercu?'à la finalisation (+'+(o.validite_jours||30)+' j)':sofD(o.valable_jusqu)),W-M,34.5,{align:'right'});
+  y=50; doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('ÉMETTEUR',M,y); txt('DESTINATAIRE',W/2+4,y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); col(INK); y+=5.5;
+  var em=[CO.nom,CO.rue,CO.npa,'Tél. '+CO.tel,CO.email], de=[c.societe,[c.civilite,c.prenom,c.nom].filter(Boolean).join(' '),c.adresse,[c.npa,c.localite].filter(Boolean).join(' '),c.telephone?'Tél. '+c.telephone:'',c.email].filter(Boolean);
+  for(var i=0;i<Math.max(em.length,de.length);i++){ if(em[i]) txt(em[i],M,y+i*5); if(de[i]) txt(de[i],W/2+4,y+i*5); }
+  y+=Math.max(em.length,de.length)*5+6;
+  doc.setDrawColor(LN[0],LN[1],LN[2]); doc.line(M,y,W-M,y); y+=9;
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); col(INK); var tl=doc.splitTextToSize(o.titre||'Votre projet énergétique',W-2*M); txt(tl,M,y); y+=tl.length*6.5;
+  var ch=o.chantier||{}; if(ch.adresse){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); col(GR); txt('Lieu des travaux : '+[ch.adresse,ch.npa,ch.localite].filter(Boolean).join(' '),M,y); y+=5; }
+  y+=2; doc.setFont('helvetica','normal'); doc.setFontSize(10); col(INK);
+  var sal=(c.civilite?(c.civilite+' '+(c.nom||'')).trim():(c.prenom||c.nom?[c.prenom,c.nom].filter(Boolean).join(' '):'Madame, Monsieur'));
+  txt(sal+',',M,y); y+=6; var it=doc.splitTextToSize(o.introduction||SOF_INTRO,W-2*M); txt(it,M,y); y+=it.length*4.8+6;
+  // tableau
+  var X={pos:M,des:M+10,q:W-M-74,u:W-M-71,pu:W-M-30,tot:W-M};
+  var thead=function(){ doc.setFillColor(INK[0],INK[1],INK[2]); doc.roundedRect(M,y-5,W-2*M,8,1.5,1.5,'F'); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
+    txt('Pos.',X.pos+1.5,y); txt('Désignation',X.des,y); txt('Qté',X.q,y,{align:'right'}); txt('Unité',X.u,y); txt('Prix unit. HT',X.pu,y,{align:'right'}); txt('Total HT',X.tot-1.5,y,{align:'right'}); y+=7; };
+  thead();
+  L.forEach(function(l,k){ var tva=1+(l.tva||0)/100, puht=l.pu/tva, totht=puht*l.q;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); var t1=doc.splitTextToSize(l.t||'',X.q-X.des-8); doc.setFont('helvetica','normal'); doc.setFontSize(8.3); var t2=l.d?doc.splitTextToSize(l.d,X.q-X.des-8):[];
+    var hh=t1.length*4.6+t2.length*3.8+4; if(saut(hh)) thead();
+    if(k%2===1){ doc.setFillColor(249,250,251); doc.rect(M,y-4.2,W-2*M,hh,'F'); }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); col(INK); txt(''+(k+1),X.pos+1.5,y); txt(t1,X.des,y);
+    doc.setFont('helvetica','normal'); txt(''+(Number(l.q)%1?Number(l.q).toFixed(2):l.q),X.q,y,{align:'right'}); txt(l.u||'',X.u,y); txt(sofChf(puht),X.pu,y,{align:'right'}); doc.setFont('helvetica','bold'); txt(sofChf(totht),X.tot-1.5,y,{align:'right'});
+    if(t2.length){ doc.setFont('helvetica','normal'); doc.setFontSize(8.3); col(GR); txt(t2,X.des,y+t1.length*4.6); }
+    y+=hh; });
+  // totaux
+  saut(46); y+=3; var bx=W-M-78; doc.setDrawColor(LN[0],LN[1],LN[2]); doc.line(bx,y,W-M,y); y+=6; doc.setFontSize(9.5); col(INK); doc.setFont('helvetica','normal');
+  var ligT=function(a,b,fort){ doc.setFont('helvetica',fort?'bold':'normal'); txt(a,bx,y); txt(b,W-M,y,{align:'right'}); y+=5.5; };
+  var sousHT=(T.total_ht||0)+((T.remise_ttc||0)>0?(T.remise_ttc/1.081):0);
+  if((T.remise_ttc||0)>0){ ligT('Sous-total HT',sofChf(sousHT)+' CHF'); ligT('Remise',' − '+sofChf(T.remise_ttc/1.081)+' CHF'); }
+  ligT('Total HT',sofChf(T.total_ht)+' CHF'); ligT('TVA',sofChf(T.tva)+' CHF');
+  doc.setFillColor(ACC[0],ACC[1],ACC[2]); doc.roundedRect(bx-3,y-4.5,W-M-bx+3,10,1.8,1.8,'F'); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11.5); txt('TOTAL TTC',bx,y+2.2); txt(sofChf(T.total_ttc)+' CHF',W-M-2,y+2.2,{align:'right'}); y+=15;
+  // conditions de paiement
+  var P=o.paiement||{}; if((P.tranches||[]).length){ saut(10+P.tranches.length*5.5); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('CONDITIONS DE PAIEMENT',M,y); y+=5.5; doc.setFontSize(9.5); col(INK); doc.setFont('helvetica','normal');
+    var reste=Number(T.total_ttc)||0; P.tranches.forEach(function(tr,j){ var mt=j===P.tranches.length-1?reste:Math.round((Number(T.total_ttc)||0)*tr.pct)/100; reste-=mt; txt((j+1)+'. '+tr.libelle+' — '+tr.pct+' %',M,y); txt(sofChf(mt)+' CHF TTC',W-M,y,{align:'right'}); y+=5.5; }); y+=3; }
+  if(o.exclusions){ var ex=doc.splitTextToSize(o.exclusions,W-2*M); saut(8+ex.length*4.4); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('EXCLUSIONS ET REMARQUES',M,y); y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(8.8); col(GR); txt(ex,M,y); y+=ex.length*4.4+4; }
+  if((o.fiches||[]).length){ saut(8+o.fiches.length*4.6); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('DOCUMENTS JOINTS',M,y); y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(9); col(INK); o.fiches.forEach(function(f){ txt('• '+f.nom,M,y); y+=4.6; }); y+=3; }
+  // acceptation
+  saut(42); y+=2; doc.setFontSize(9.5); col(INK); doc.setFont('helvetica','normal');
+  txt('Cette offre est valable '+(o.validite_jours||30)+' jours'+(o.valable_jusqu&&!apercu?' (jusqu\'au '+sofD(o.valable_jusqu)+')':'')+'. Nous nous réjouissons de concrétiser votre projet.',M,y); y+=8;
+  doc.setDrawColor(LN[0],LN[1],LN[2]); doc.roundedRect(M,y,(W-2*M)/2-4,28,2,2); doc.roundedRect(W/2+4,y,(W-2*M)/2-4,28,2,2);
+  doc.setFontSize(8); col(GR); txt('Pour Swiss Solar System Sàrl',M+4,y+6); txt('Bon pour accord — date et signature du client',W/2+8,y+6);
+  doc.setFontSize(10); col(INK); doc.setFont('helvetica','bold'); txt(o.auteur_nom||'Swiss Solar System',M+4,y+20); doc.setFont('helvetica','normal');
+  pied();
+  var n=doc.getNumberOfPages(); for(var p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7.5); col(GR); txt('Page '+p+' / '+n,W-M,H-4,{align:'right'}); }
+  var nom=(apercu?'APERCU_':'')+'Offre_'+(o.numero||'brouillon')+'_'+sofNomCli(c).replace(/[^a-z0-9]+/gi,'_')+'.pdf';
+  try{ var url=doc.output('bloburl'); var w=window.open(url,'_blank'); if(!w) doc.save(nom); }catch(e){ doc.save(nom); }
+}
+
+/* ========================== DIRECTION : paramètres ========================== */
+async function sofDirParam(){ var m=document.getElementById('main'); if(!m) return; sofCss(); if(!(await sssMfaAssurer())) return;
+  var r=await db.rpc('sss_offre_contexte'); if(r.error){ alert(r.error.message); return; } SOF.ctx=r.data||{};
+  var X=SOF.ctx, h="<div class='sof'><div class='page-head'><h2>Offres / devis</h2></div><div class='sof-chips' style='margin-bottom:6px'>"+[['offres','Toutes les offres'],['catalogue','Catalogue de vente'],['paiements','Conditions de paiement'],['descriptions','Descriptions produits']].map(function(t){ return "<button class='sof-chip"+(SOF.onglet===t[0]?' on':'')+"' onclick=\"SOF.onglet='"+t[0]+"';"+(t[0]==='offres'?'renderOffres()':'sofDirParam()')+"\">"+t[1]+"</button>"; }).join('')+"</div>";
+  if(SOF.onglet==='catalogue'){ h+="<button class='sof-btn' onclick='sofDirCat(null)'>＋ Nouvelle prestation</button>"+(X.catalogue||[]).map(function(c,i){ return "<div class='sof-item' onclick='sofDirCat("+i+")'><div><b>"+esc(c.designation)+"</b><div class='sof-mini'>"+esc((SOF_CAT[c.categorie]||c.categorie)+(c.modele?' · '+c.modele:'')+' · /'+c.unite)+"</div></div><div style='text-align:right;font-weight:800'>"+(c.prix_ttc!=null?sofChf(c.prix_ttc)+'<div class=sof-mini>min '+sofChf(c.prix_min_ttc)+'</div>':'<span style="color:#d97706">à définir</span>')+"</div></div>"; }).join(''); }
+  if(SOF.onglet==='paiements'){ h+="<button class='sof-btn' onclick='sofDirPay(null)'>＋ Nouveau modèle</button>"+(X.paiements||[]).map(function(p,i){ return "<div class='sof-item' onclick='sofDirPay("+i+")'><div><b>"+esc(p.libelle)+"</b><div class='sof-mini'>"+esc((p.tranches||[]).map(function(t){ return t.pct+' % '+t.libelle; }).join(' · '))+"</div></div></div>"; }).join(''); }
+  if(SOF.onglet==='descriptions'){ h+="<button class='sof-btn' onclick='sofDirDesc(null)'>＋ Nouvelle description</button><div class='sof-mini'>Une description est reprise dans le PDF chaque fois que le produit (marque + référence identiques à Tarifs SSS) figure dans une offre.</div>"+(X.descriptions||[]).map(function(d,i){ return "<div class='sof-item' onclick='sofDirDesc("+i+")'><div><b>"+esc(d.marque+' '+d.reference)+"</b><div class='sof-mini'>"+esc((d.titre?d.titre+' — ':'')+d.description)+"</div></div></div>"; }).join(''); }
+  m.innerHTML=h+"</div>"; }
+function sofDirCat(i){ var c=i==null?{categorie:'pac',unite:'forfait',tva_pct:8.1}:SOF.ctx.catalogue[i];
+  sstSheet("<h3 style='margin:0 0 8px'>"+(i==null?'Nouvelle prestation':'Prestation')+"</h3><div class='sof'>"
+    +"<div class='sof-lbl'>Catégorie</div><select id='dc-cat'>"+Object.keys(SOF_CAT).map(function(k){ return "<option value='"+k+"'"+(c.categorie===k?' selected':'')+">"+SOF_CAT[k]+"</option>"; }).join('')+"</select>"
+    +"<div class='sof-lbl'>Désignation</div><input class='sof-in' id='dc-d' value=\""+esc(c.designation||'')+"\"><div class='sof-lbl'>Description modèle</div><textarea id='dc-t'>"+esc(c.description||'')+"</textarea>"
+    +"<div class='sof-g2'><div><div class='sof-lbl'>Unité</div><input class='sof-in' id='dc-u' value=\""+esc(c.unite||'')+"\"></div><div><div class='sof-lbl'>Modèle (ex. PAC 12 kW)</div><input class='sof-in' id='dc-m' value=\""+esc(c.modele||'')+"\"></div>"
+    +"<div><div class='sof-lbl'>Prix conseillé TTC</div><input class='sof-in' id='dc-p' inputmode='decimal' value='"+esc(c.prix_ttc==null?'':c.prix_ttc)+"' placeholder='vide = à définir'></div><div><div class='sof-lbl'>Prix minimum TTC</div><input class='sof-in' id='dc-n' inputmode='decimal' value='"+esc(c.prix_min_ttc==null?'':c.prix_min_ttc)+"'></div></div>"
+    +"<button class='sof-btn p' onclick=\"sofDirCatOk(this,'"+(c.id||'')+"')\">Enregistrer</button>"+(c.id?"<button class='sof-btn' onclick=\"sofDirCatOk(this,'"+c.id+"',true)\">Retirer du catalogue</button>":'')+"<button class='sof-btn' onclick='sstFermer()'>Annuler</button></div>"); }
+async function sofDirCatOk(btn,id,retirer){ var v=function(k){ return (document.getElementById(k).value||'').trim(); };
+  var p={id:id||null,categorie:v('dc-cat'),designation:v('dc-d'),description:v('dc-t'),unite:v('dc-u'),modele:v('dc-m'),prix_ttc:v('dc-p'),prix_min_ttc:v('dc-n')}; if(retirer) p.actif=false;
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_offres_param',{p_quoi:'catalogue',p:p}); }); if(d){ sstFermer(); SOF.ctx=null; sofDirParam(); } }
+function sofDirPay(i){ var p=i==null?{tranches:[{libelle:'À la commande',pct:40},{libelle:'Au début de l\'intervention',pct:40},{libelle:'À la mise en service',pct:20}]}:SOF.ctx.paiements[i];
+  sstSheet("<h3 style='margin:0 0 8px'>Modèle de paiement</h3><div class='sof'><div class='sof-lbl'>Libellé</div><input class='sof-in' id='dp-l' value=\""+esc(p.libelle||'')+"\"><div class='sof-lbl'>Tranches (une par ligne : pourcentage ; libellé)</div><textarea id='dp-t' style='min-height:110px'>"+esc((p.tranches||[]).map(function(t){ return t.pct+' ; '+t.libelle; }).join('\n'))+"</textarea>"
+    +"<button class='sof-btn p' onclick=\"sofDirPayOk(this,'"+esc(p.code||'')+"')\">Enregistrer</button><button class='sof-btn' onclick='sstFermer()'>Annuler</button></div>"); }
+async function sofDirPayOk(btn,code){ var tr=(document.getElementById('dp-t').value||'').split('\n').map(function(l){ var a=l.split(';'); return {pct:sofNum(a[0]),libelle:(a.slice(1).join(';')||'').trim()}; }).filter(function(t){ return t.pct&&t.libelle; });
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_offres_param',{p_quoi:'paiement',p:{code:code||null,libelle:(document.getElementById('dp-l').value||'').trim(),tranches:tr}}); }); if(d){ sstFermer(); SOF.ctx=null; sofDirParam(); } }
+function sofDirDesc(i){ var d=i==null?{}:SOF.ctx.descriptions[i];
+  sstSheet("<h3 style='margin:0 0 8px'>Description commerciale</h3><div class='sof'><div class='sof-g2'><div><div class='sof-lbl'>Marque</div><input class='sof-in' id='dd-m' value=\""+esc(d.marque||'')+"\" placeholder='ex. MaviWatt'></div><div><div class='sof-lbl'>Référence</div><input class='sof-in' id='dd-r' value=\""+esc(d.reference||'')+"\" placeholder='ex. PULSE 490'></div></div>"
+    +"<div class='sof-lbl'>Titre</div><input class='sof-in' id='dd-t' value=\""+esc(d.titre||'')+"\"><div class='sof-lbl'>Description (caractéristiques, garanties…)</div><textarea id='dd-d' style='min-height:120px'>"+esc(d.description||'')+"</textarea>"
+    +"<button class='sof-btn p' onclick='sofDirDescOk(this)'>Enregistrer</button><button class='sof-btn' onclick='sstFermer()'>Annuler</button></div>"); }
+async function sofDirDescOk(btn){ var v=function(k){ return (document.getElementById(k).value||'').trim(); };
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_offres_param',{p_quoi:'description',p:{marque:v('dd-m'),reference:v('dd-r'),titre:v('dd-t'),description:v('dd-d')}}); }); if(d){ sstFermer(); SOF.ctx=null; sofDirParam(); } }
+
+/* =============================== branchement =============================== */
+(function(){
+  try{ VUE_ROLES.offres=['superadmin','direction','commercial']; VUE_SERVICES.offres=['commercial']; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='offres'){ if(window.__SOF_OUVRIR){ window.__SOF_OUVRIR=false; sofEditeur(); } else { SOF.onglet='offres'; renderOffres(); } } }catch(e){ console.error(e); } return r; }; }catch(e){}
+  /* « 📝 Créer une offre » sur les fiches prospect et client (coordonnées reprises automatiquement) */
+  var bouton=function(js){ var hd=document.querySelector('#main .page-head'); if(!hd) return; var ex=hd.querySelector('.sof-cree'); if(ex){ ex.setAttribute('onclick',js); return; } var b=document.createElement('button'); b.className='btn sof-cree'; b.style.cssText='width:auto;padding:9px 14px;margin-left:8px'; b.textContent='📝 Créer une offre'; b.setAttribute('onclick',js); hd.appendChild(b); };
+  try{ var _pf=sssPrFiche; sssPrFiche=async function(id){ var r=await _pf.apply(this,arguments); try{ bouton("sofNouvelle({prospect:'"+id+"'})"); }catch(e){} return r; }; }catch(e){}
+  try{ var _bf=sssBcFiche; sssBcFiche=async function(id){ var r=await _bf.apply(this,arguments); try{ bouton("sofNouvelle({contact:'"+id+"'})"); }catch(e){} return r; }; }catch(e){}
+})();
+
+/* SSS-OFFRES-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
