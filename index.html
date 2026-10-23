@@ -6386,7 +6386,10 @@ function sssPrListe(){
     if(F.rapide==='rdv' && p.statut!=='rdv_fixe') return false; if(F.rapide==='vendu' && p.statut!=='vendu') return false; if(F.rapide==='perdu' && p.statut!=='perdu') return false;
     if(F.localite && (p.localite||'').toLowerCase().indexOf(F.localite.toLowerCase())<0) return false;
     if(F.periode && (now-new Date(p.recu_at).getTime())>Number(F.periode)*864e5) return false;
-    if(F.q){ var q=F.q.toLowerCase(); if(((p.nom||'')+' '+(p.prenom||'')+' '+(p.localite||'')+' '+(p.npa||'')+' '+(p.telephone||'')+' '+(p.email||'')+' '+(p.source_ref||'')+' '+p.numero).toLowerCase().indexOf(q)<0) return false; }
+    if(F.q){ /* chaque mot tapé doit se trouver quelque part, dans n'importe quel ordre (« Martin Dupont » = « Dupont Martin »), sans tenir compte des accents ni des majuscules */
+      var nz=function(s){ return (''+(s==null?'':s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); };
+      var hay=nz((p.nom||'')+' '+(p.prenom||'')+' '+(p.localite||'')+' '+(p.npa||'')+' '+(p.telephone||'')+' '+(p.email||'')+' '+(p.source_ref||'')+' '+p.numero);
+      if(!nz(F.q).split(/\s+/).filter(Boolean).every(function(m){ return hay.indexOf(m)>=0; })) return false; }
     return true; });
   if(typeof sssMobile==='function' && sssMobile()){ sssPrCartes(box,L); return; }
   var chip=function(k,t){ return "<button class='relbtn"+(F.rapide===k?' win':'')+"' onclick=\"SSSPR.f.rapide=(SSSPR.f.rapide==='"+k+"'?'':'"+k+"');sssPrListe()\">"+t+"</button>"; };
