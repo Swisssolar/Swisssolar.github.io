@@ -1135,7 +1135,7 @@ async function boot(){
   if(!data.actif){
     showLogin(); msg($('#li-msg'),"Ton compte est en attente d'activation par l'administrateur.",'err'); await db.auth.signOut(); return;
   }
-  ME = data;
+  ME = data; try{ if(typeof sssRolesSup==='function') sssRolesSup(); }catch(_e){}
   showApp();
   try{ initPush(); }catch(e){}
 }
@@ -9015,6 +9015,29 @@ async function sofDirDescOk(btn){ var v=function(k){ return (document.getElement
 })();
 
 /* SSS-OFFRES-FIN */
+
+/* SSS-ROLES-DEBUT */
+/* ==========================================================================
+   SSS OS — rôles additionnels (0058). Un compte garde son rôle principal (ex. supply_chain) et reçoit en plus
+   des rôles listés dans utilisateurs.roles_sup (seule valeur possible : 'commercial').
+   Écran : l'espace « Commercial » s'ajoute aux espaces du compte ; quand la personne est DANS cet espace, l'application
+   la traite exactement comme une commerciale (menus, Prospects, Base clients, agenda, Tarifs SSS, Offres) ; dans ses
+   autres espaces, rien ne change. La sécurité reste dans la base (sss_a_role tient compte des rôles additionnels ;
+   aucun droit direction / admin ne peut en venir).
+   ========================================================================== */
+function sssRolesSup(){
+  if(!ME||!Array.isArray(ME.roles_sup)||ME.roles_sup.indexOf('commercial')<0) return;
+  var base=ME.role; ME.role_principal=base;
+  Object.defineProperty(ME,'role',{configurable:true,enumerable:true,
+    get:function(){ return (typeof SERVICE!=='undefined'&&SERVICE==='commercial')?'commercial':base; },
+    set:function(v){ base=v; ME.role_principal=v; }});
+}
+(function(){
+  try{ var _sa=servicesAvail; servicesAvail=function(){ var l=_sa.apply(this,arguments)||[];
+    if(ME&&Array.isArray(ME.roles_sup)&&ME.roles_sup.indexOf('commercial')>=0&&l.indexOf('commercial')<0) l=l.concat(['commercial']); return l; }; }catch(e){}
+})();
+
+/* SSS-ROLES-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
