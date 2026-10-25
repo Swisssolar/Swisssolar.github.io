@@ -8911,45 +8911,59 @@ function sofPdf(o,apercu){
   var doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'}), W=210, H=297, M=16, y=0, ACC=[227,6,19], INK=[17,24,39], GR=[107,114,128], LN=[229,231,235];
   var CO=(typeof REC_CO!=='undefined'&&REC_CO)||{nom:'Swiss Solar System Sàrl',rue:'Rue Antoinette Quinche 4',npa:'1022 Chavannes-près-Renens',email:'contact@swisssolarsystem.com',tel:'021 552 04 40'};
   var c=o.client||{}, T=o.totaux||{}, L=sofPdfLignes(o);
-  var txt=function(s,x,yy,opt){ doc.text(Array.isArray(s)?s:''+(s==null?'':s),x,yy,opt||{}); };
+  // Lisibilité : aucun texte ne peut en chevaucher un autre. Tout texte variable est coupé à la largeur de sa colonne, chaque ligne
+  // est posée à un interligne fixe, les longs textes passent à la page suivante ligne par ligne, et les caractères absents de la
+  // police du PDF (mal mesurés, ils décalent le texte) sont remplacés. L'aperçu est signalé en pied de page, plus en filigrane.
+  var WIN='€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+  var net=function(s){ return (''+(s==null?'':s)).replace(/\r/g,'').replace(/\t/g,'   ').replace(/[→⇒➡]/g,'->').replace(/[←⇐]/g,'<-').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/[‐-‒−]/g,'-').replace(/[   ]/g,' ')
+    .replace(/[₀-₉]/g,function(ch){ return String.fromCharCode(ch.charCodeAt(0)-0x2080+48); }).replace(/⁴/g,'4').replace(/[✓✔✅]/g,'-').replace(/′/g,"'").replace(/″/g,'"').replace(/ *≈ */g,' env. ').replace(/…/g,'...')
+    .replace(/[^\n -~ -ÿ]/g,function(ch){ return WIN.indexOf(ch)>=0?ch:''; }); };
+  var txt=function(s,x,yy,opt){ doc.text(Array.isArray(s)?s.map(net):net(s),x,yy,opt||{}); };
+  var sp=function(s,w){ var t=net(s); return t.trim()?doc.splitTextToSize(t,w):[]; };
+  var bloc=function(l,x,yy,lh,opt){ for(var i=0;i<l.length;i++) txt(l[i],x,yy+i*lh,opt); };
   var col=function(a){ doc.setTextColor(a[0],a[1],a[2]); };
-  var pied=function(){ doc.setDrawColor(LN[0],LN[1],LN[2]); doc.line(M,H-16,W-M,H-16); doc.setFontSize(7.5); col(GR);
+  var pied=function(){ doc.setDrawColor(LN[0],LN[1],LN[2]); doc.line(M,H-16,W-M,H-16); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); col(GR);
     txt(CO.nom+' · '+CO.rue+', '+CO.npa,W/2,H-11.5,{align:'center'}); txt('Tél. '+CO.tel+' · '+CO.email+' · www.swisssolarsystem.com · IDE CHE-243.775.671 TVA',W/2,H-8,{align:'center'}); };
-  var filigrane=function(){ if(!apercu) return; doc.saveGraphicsState&&doc.saveGraphicsState(); try{ doc.setGState(new doc.GState({opacity:0.08})); }catch(e){} doc.setFontSize(64); doc.setFont('helvetica','bold'); col(ACC); txt('APERÇU',W/2,H/2,{align:'center',angle:30}); doc.restoreGraphicsState&&doc.restoreGraphicsState(); doc.setFont('helvetica','normal'); };
   var entete=function(prem){ doc.setFillColor(INK[0],INK[1],INK[2]); doc.rect(0,0,W,prem?4:3,'F'); doc.setFillColor(ACC[0],ACC[1],ACC[2]); doc.rect(0,prem?4:3,W*0.32,1.2,'F');
     try{ if(typeof SSS_LOGO_PDF!=='undefined') doc.addImage(SSS_LOGO_PDF,'PNG',M,prem?11:8,prem?46:30,(prem?46:30)*328/900,'ssslogo','FAST'); }catch(e){}
-    if(!prem){ doc.setFontSize(8); col(GR); txt('Offre '+(o.numero||'— aperçu')+' · '+sofNomCli(c),W-M,14,{align:'right'}); } filigrane(); };
+    if(!prem){ doc.setFont('helvetica','normal'); doc.setFontSize(8); col(GR); txt((sp('Offre '+(o.numero||'— aperçu')+' · '+sofNomCli(c),W-2*M-36)[0]||''),W-M,14,{align:'right'}); } };
   var saut=function(h){ if(y+h>H-24){ pied(); doc.addPage(); entete(false); y=26; return true; } return false; };
+  // paragraphe : une ligne à la fois, passage à la page suivante si besoin (apres = à refaire en haut de la nouvelle page)
+  var para=function(l,x,lh,apres){ for(var i=0;i<l.length;i++){ if(y+lh>H-24){ var f=doc.getFont(), fs=doc.getFontSize(), tc=doc.getTextColor(); saut(H); if(apres) apres(); doc.setFont(f.fontName,f.fontStyle); doc.setFontSize(fs); doc.setTextColor(tc); } txt(l[i],x,y); y+=lh; } };
   // page 1
   entete(true);
   doc.setFont('helvetica','bold'); doc.setFontSize(24); col(INK); txt('Offre',W-M,22,{align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); col(GR);
   txt(apercu?'APERÇU — document non contractuel':'N° '+o.numero,W-M,29,{align:'right'});
-  txt('Date : '+(apercu?sofD(new Date().toISOString()):sofD(o.date_offre))+'   ·   Valable jusqu\'au : '+(apercu?'à la finalisation (+'+(o.validite_jours||30)+' j)':sofD(o.valable_jusqu)),W-M,34.5,{align:'right'});
+  var dl=['Date : '+(apercu?sofD(new Date().toISOString()):sofD(o.date_offre)),'Valable jusqu\'au : '+(apercu?'à la finalisation (+'+(o.validite_jours||30)+' j)':sofD(o.valable_jusqu))];
+  if(doc.getTextWidth(net(dl.join('   ·   ')))<=W-2*M-56) txt(dl.join('   ·   '),W-M,34.5,{align:'right'}); else bloc(dl,W-M,34.5,4.6,{align:'right'});
   y=50; doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('ÉMETTEUR',M,y); txt('DESTINATAIRE',W/2+4,y);
   doc.setFont('helvetica','normal'); doc.setFontSize(10); col(INK); y+=5.5;
-  var em=[CO.nom,CO.rue,CO.npa,'Tél. '+CO.tel,CO.email], de=[c.societe,[c.civilite,c.prenom,c.nom].filter(Boolean).join(' '),c.adresse,[c.npa,c.localite].filter(Boolean).join(' '),c.telephone?'Tél. '+c.telephone:'',c.email].filter(Boolean);
-  for(var i=0;i<Math.max(em.length,de.length);i++){ if(em[i]) txt(em[i],M,y+i*5); if(de[i]) txt(de[i],W/2+4,y+i*5); }
+  var cw=(W-2*M)/2-6, coupe=function(a){ var r=[]; a.forEach(function(s){ r=r.concat(sp(s,cw)); }); return r; };
+  var em=coupe([CO.nom,CO.rue,CO.npa,'Tél. '+CO.tel,CO.email]), de=coupe([c.societe,[c.civilite,c.prenom,c.nom].filter(Boolean).join(' '),c.adresse,[c.npa,c.localite].filter(Boolean).join(' '),c.telephone?'Tél. '+c.telephone:'',c.email].filter(Boolean));
+  bloc(em,M,y,5); bloc(de,W/2+4,y,5);
   y+=Math.max(em.length,de.length)*5+6;
   doc.setDrawColor(LN[0],LN[1],LN[2]); doc.line(M,y,W-M,y); y+=9;
-  doc.setFont('helvetica','bold'); doc.setFontSize(15); col(INK); var tl=doc.splitTextToSize(o.titre||'Votre projet énergétique',W-2*M); txt(tl,M,y); y+=tl.length*6.5;
-  var ch=o.chantier||{}; if(ch.adresse){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); col(GR); txt('Lieu des travaux : '+[ch.adresse,ch.npa,ch.localite].filter(Boolean).join(' '),M,y); y+=5; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); col(INK); para(sp(o.titre||'Votre projet énergétique',W-2*M),M,6.5);
+  var ch=o.chantier||{}; if(ch.adresse){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); col(GR); para(sp('Lieu des travaux : '+[ch.adresse,ch.npa,ch.localite].filter(Boolean).join(' '),W-2*M),M,5); }
   y+=2; doc.setFont('helvetica','normal'); doc.setFontSize(10); col(INK);
   var sal=(c.civilite?(c.civilite+' '+(c.nom||'')).trim():(c.prenom||c.nom?[c.prenom,c.nom].filter(Boolean).join(' '):'Madame, Monsieur'));
-  txt(sal+',',M,y); y+=6; var it=doc.splitTextToSize(o.introduction||SOF_INTRO,W-2*M); txt(it,M,y); y+=it.length*4.8+6;
-  // tableau
-  var X={pos:M,des:M+10,q:W-M-74,u:W-M-71,pu:W-M-30,tot:W-M};
+  para(sp(sal+',',W-2*M),M,6); para(sp(o.introduction||SOF_INTRO,W-2*M),M,4.8); y+=6;
+  // tableau : désignation et description dans leur colonne, unité coupée avant le prix unitaire
+  var X={pos:M,des:M+10,q:W-M-74,u:W-M-71,pu:W-M-30,tot:W-M}, LD=X.q-X.des-12;
   var thead=function(){ doc.setFillColor(INK[0],INK[1],INK[2]); doc.roundedRect(M,y-5,W-2*M,8,1.5,1.5,'F'); doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
     txt('Pos.',X.pos+1.5,y); txt('Désignation',X.des,y); txt('Qté',X.q,y,{align:'right'}); txt('Unité',X.u,y); txt('Prix unit. HT',X.pu,y,{align:'right'}); txt('Total HT',X.tot-1.5,y,{align:'right'}); y+=7; };
   thead();
   L.forEach(function(l,k){ var tva=1+(l.tva||0)/100, puht=l.pu/tva, totht=puht*l.q;
-    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); var t1=doc.splitTextToSize(l.t||'',X.q-X.des-8); doc.setFont('helvetica','normal'); doc.setFontSize(8.3); var t2=l.d?doc.splitTextToSize(l.d,X.q-X.des-8):[];
-    var hh=t1.length*4.6+t2.length*3.8+4; if(saut(hh)) thead();
-    if(k%2===1){ doc.setFillColor(249,250,251); doc.rect(M,y-4.2,W-2*M,hh,'F'); }
-    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); col(INK); txt(''+(k+1),X.pos+1.5,y); txt(t1,X.des,y);
-    doc.setFont('helvetica','normal'); txt(''+(Number(l.q)%1?Number(l.q).toFixed(2):l.q),X.q,y,{align:'right'}); txt(l.u||'',X.u,y); txt(sofChf(puht),X.pu,y,{align:'right'}); doc.setFont('helvetica','bold'); txt(sofChf(totht),X.tot-1.5,y,{align:'right'});
-    if(t2.length){ doc.setFont('helvetica','normal'); doc.setFontSize(8.3); col(GR); txt(t2,X.des,y+t1.length*4.6); }
-    y+=hh; });
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); var ul=sp(l.u||'',Math.max(12,X.pu-doc.getTextWidth(sofChf(puht))-3-X.u));
+    doc.setFont('helvetica','bold'); var t1=sp(l.t||'',LD); doc.setFont('helvetica','normal'); doc.setFontSize(8.3); var t2=l.d?sp(l.d,LD):[];
+    var h1=Math.max(t1.length,ul.length,1)*4.6, hh=Math.max(t1.length*4.6+t2.length*3.8,h1)+4, entier=hh<=H-24-26-8;
+    if(saut(entier?hh:h1+3.8*Math.min(t2.length,2)+4)) thead();
+    if(k%2===1&&entier){ doc.setFillColor(249,250,251); doc.rect(M,y-4.2,W-2*M,hh,'F'); }
+    var y0=y, p0=doc.getNumberOfPages(); doc.setFont('helvetica','bold'); doc.setFontSize(9.5); col(INK); txt(''+(k+1),X.pos+1.5,y); bloc(t1,X.des,y,4.6);
+    doc.setFont('helvetica','normal'); txt(''+(Number(l.q)%1?Number(l.q).toFixed(2):l.q),X.q,y,{align:'right'}); bloc(ul,X.u,y,4.6); txt(sofChf(puht),X.pu,y,{align:'right'}); doc.setFont('helvetica','bold'); txt(sofChf(totht),X.tot-1.5,y,{align:'right'});
+    y+=t1.length*4.6; if(t2.length){ doc.setFont('helvetica','normal'); doc.setFontSize(8.3); col(GR); para(t2,X.des,3.8,thead); }
+    y=(doc.getNumberOfPages()===p0?Math.max(y,y0+h1):y)+4; });
   // totaux
   saut(46); y+=3; var bx=W-M-78; doc.setDrawColor(LN[0],LN[1],LN[2]); doc.line(bx,y,W-M,y); y+=6; doc.setFontSize(9.5); col(INK); doc.setFont('helvetica','normal');
   var ligT=function(a,b,fort){ doc.setFont('helvetica',fort?'bold':'normal'); txt(a,bx,y); txt(b,W-M,y,{align:'right'}); y+=5.5; };
@@ -8958,18 +8972,20 @@ function sofPdf(o,apercu){
   ligT('Total HT',sofChf(T.total_ht)+' CHF'); ligT('TVA',sofChf(T.tva)+' CHF');
   doc.setFillColor(ACC[0],ACC[1],ACC[2]); doc.roundedRect(bx-3,y-4.5,W-M-bx+3,10,1.8,1.8,'F'); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(11.5); txt('TOTAL TTC',bx,y+2.2); txt(sofChf(T.total_ttc)+' CHF',W-M-2,y+2.2,{align:'right'}); y+=15;
   // conditions de paiement
-  var P=o.paiement||{}; if((P.tranches||[]).length){ saut(10+P.tranches.length*5.5); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('CONDITIONS DE PAIEMENT',M,y); y+=5.5; doc.setFontSize(9.5); col(INK); doc.setFont('helvetica','normal');
-    var reste=Number(T.total_ttc)||0; P.tranches.forEach(function(tr,j){ var mt=j===P.tranches.length-1?reste:Math.round((Number(T.total_ttc)||0)*tr.pct)/100; reste-=mt; txt((j+1)+'. '+tr.libelle+' — '+tr.pct+' %',M,y); txt(sofChf(mt)+' CHF TTC',W-M,y,{align:'right'}); y+=5.5; }); y+=3; }
-  if(o.exclusions){ var ex=doc.splitTextToSize(o.exclusions,W-2*M); saut(8+ex.length*4.4); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('EXCLUSIONS ET REMARQUES',M,y); y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(8.8); col(GR); txt(ex,M,y); y+=ex.length*4.4+4; }
-  if((o.fiches||[]).length){ saut(8+o.fiches.length*4.6); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('DOCUMENTS JOINTS',M,y); y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(9); col(INK); o.fiches.forEach(function(f){ txt('• '+f.nom,M,y); y+=4.6; }); y+=3; }
+  var P=o.paiement||{}; if((P.tranches||[]).length){ saut(16); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('CONDITIONS DE PAIEMENT',M,y); y+=5.5; doc.setFontSize(9.5); col(INK); doc.setFont('helvetica','normal');
+    var reste=Number(T.total_ttc)||0; P.tranches.forEach(function(tr,j){ var mt=j===P.tranches.length-1?reste:Math.round((Number(T.total_ttc)||0)*tr.pct)/100; reste-=mt;
+      var mtt=sofChf(mt)+' CHF TTC', lt=sp((j+1)+'. '+tr.libelle+' — '+tr.pct+' %',W-2*M-doc.getTextWidth(mtt)-6); saut(lt.length*5.5); txt(mtt,W-M,y,{align:'right'}); para(lt,M,5.5); }); y+=3; }
+  if(o.exclusions){ doc.setFont('helvetica','normal'); doc.setFontSize(8.8); var ex=sp(o.exclusions,W-2*M); saut(5+Math.min(ex.length,3)*4.4); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('EXCLUSIONS ET REMARQUES',M,y); y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(8.8); col(GR); para(ex,M,4.4); y+=4; }
+  if((o.fiches||[]).length){ saut(10); doc.setFontSize(8); col(ACC); doc.setFont('helvetica','bold'); txt('DOCUMENTS JOINTS',M,y); y+=5; doc.setFont('helvetica','normal'); doc.setFontSize(9); col(INK); o.fiches.forEach(function(f){ para(sp('• '+f.nom,W-2*M),M,4.6); }); y+=3; }
   // acceptation
-  saut(42); y+=2; doc.setFontSize(9.5); col(INK); doc.setFont('helvetica','normal');
-  txt('Cette offre est valable '+(o.validite_jours||30)+' jours'+(o.valable_jusqu&&!apercu?' (jusqu\'au '+sofD(o.valable_jusqu)+')':'')+'. Nous nous réjouissons de concrétiser votre projet.',M,y); y+=8;
+  doc.setFontSize(9.5); doc.setFont('helvetica','normal'); var va=sp('Cette offre est valable '+(o.validite_jours||30)+' jours'+(o.valable_jusqu&&!apercu?' (jusqu\'au '+sofD(o.valable_jusqu)+')':'')+'. Nous nous réjouissons de concrétiser votre projet.',W-2*M);
+  saut(38+va.length*5); y+=2; col(INK); bloc(va,M,y,5); y+=va.length*5+3;
   doc.setDrawColor(LN[0],LN[1],LN[2]); doc.roundedRect(M,y,(W-2*M)/2-4,28,2,2); doc.roundedRect(W/2+4,y,(W-2*M)/2-4,28,2,2);
   doc.setFontSize(8); col(GR); txt('Pour Swiss Solar System Sàrl',M+4,y+6); txt('Bon pour accord — date et signature du client',W/2+8,y+6);
-  doc.setFontSize(10); col(INK); doc.setFont('helvetica','bold'); txt(o.auteur_nom||'Swiss Solar System',M+4,y+20); doc.setFont('helvetica','normal');
+  doc.setFontSize(10); col(INK); doc.setFont('helvetica','bold'); bloc(sp(o.auteur_nom||'Swiss Solar System',(W-2*M)/2-12).slice(0,2),M+4,y+18,4.6); doc.setFont('helvetica','normal');
   pied();
-  var n=doc.getNumberOfPages(); for(var p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7.5); col(GR); txt('Page '+p+' / '+n,W-M,H-4,{align:'right'}); }
+  var n=doc.getNumberOfPages(); for(var p=1;p<=n;p++){ doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); col(GR); txt('Page '+p+' / '+n,W-M,H-4,{align:'right'});
+    if(apercu){ doc.setFont('helvetica','bold'); col(ACC); txt('APERÇU — document non contractuel',M,H-4); } }
   var nom=(apercu?'APERCU_':'')+'Offre_'+(o.numero||'brouillon')+'_'+sofNomCli(c).replace(/[^a-z0-9]+/gi,'_')+'.pdf';
   try{ var url=doc.output('bloburl'); var w=window.open(url,'_blank'); if(!w) doc.save(nom); }catch(e){ doc.save(nom); }
 }
