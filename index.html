@@ -5343,7 +5343,7 @@ function sssIaPeindre(){
   SSSIA.lignes.forEach(function(l){
     if(l.role==='user') h+="<div class='sssia-m sssia-u'>"+sssIaEsc(l.texte).replace(/\n/g,'<br>')+"</div>";
     else h+="<div class='sssia-m sssia-a'>"+sssIaMd(l.texte||'')+((l.outils&&l.outils.length)?"<div class='sssia-meta'>Sources consultées : "+sssIaEsc(l.outils.filter(function(x,i,a){ return a.indexOf(x)===i; }).join(', ').replace(/_/g,' '))+"</div>":"")+"</div>"; });
-  if(SSSIA.attente) h+="<div class='sssia-m sssia-a' id='sssia-attente'>Je cherche… <span id='sssia-sec'></span></div>";
+  if(SSSIA.attente) h+="<div class='sssia-m sssia-a' id='sssia-attente'>"+(SSSIA.recup?'Connexion interrompue : je récupère la réponse… ':'Je cherche… ')+"<span id='sssia-sec'></span></div>";
   f.innerHTML=h; f.scrollTop=f.scrollHeight;
 }
 async function sssIaEnvoyer(texte){
@@ -5357,9 +5357,28 @@ async function sssIaEnvoyer(texte){
     if(d.ok===false) throw new Error(d.error||'erreur');
     if(d.conv_id){ SSSIA.conv=d.conv_id; try{ localStorage.setItem(sssIaCle(),d.conv_id); }catch(e){} }
     SSSIA.lignes.push({role:'assistant',texte:d.texte||'(pas de réponse)',outils:(d.outils||[]).map(function(o){ return o.nom; })});
-  }catch(e){ var m=(e&&e.message)||String(e); if(/Failed to send|Failed to fetch|NetworkError|Load failed/i.test(m)) m="Assistant injoignable pour le moment (connexion, ou service pas encore mis en ligne). Réessaie dans un instant.";
-    SSSIA.lignes.push({role:'assistant',texte:'⚠️ '+m}); }
+  }catch(e){ var m=(e&&e.message)||String(e), rec=null;
+    if(/Failed to send|Failed to fetch|NetworkError|network error|Load failed|aborted|terminated/i.test(m)){
+      // une longue recherche continue côté serveur même si la connexion de l'appareil tombe (veille, changement d'appli,
+      // réseau mobile) : la réponse est enregistrée dans la conversation, on va la relire (lecture de SES conversations seulement)
+      SSSIA.recup=true; sssIaPeindre(); rec=await sssIaRecuperer(t,t0); SSSIA.recup=false;
+      if(!rec) m="Assistant injoignable pour le moment (connexion, ou service pas encore mis en ligne). Réessaie dans un instant."; }
+    if(rec){ SSSIA.conv=rec.conv_id; try{ localStorage.setItem(sssIaCle(),rec.conv_id); }catch(e2){} SSSIA.lignes.push({role:'assistant',texte:rec.ligne.texte||'(pas de réponse)',outils:rec.ligne.outils||[]}); }
+    else SSSIA.lignes.push({role:'assistant',texte:'⚠️ '+m}); }
   clearInterval(tick); SSSIA.attente=false; sssIaPeindre();
+}
+/* réponse enregistrée après la question posée à t0 : dernière conversation de la personne mise à jour depuis, dont la dernière
+   question est celle-ci, suivie de la réponse. Relecture toutes les 5 s pendant 8 min (une recherche dure au plus ~6 min). */
+async function sssIaRecuperer(question,t0){
+  var depuis=new Date(t0-60000).toISOString();
+  for(var k=0;k<96;k++){
+    try{ var r=await db.from('agent_conv').select('id, affichage, maj_at').eq('user_id',ME.id).gte('maj_at',depuis).order('maj_at',{ascending:false}).limit(3);
+      var cs=(r&&r.data)||[];
+      for(var i=0;i<cs.length;i++){ var L=(cs[i].affichage&&cs[i].affichage.lignes)||[], n=L.length;
+        if(n>=2 && L[n-1].role==='assistant' && L[n-2].role==='user' && String(L[n-2].texte||'').trim()===question && Date.parse(L[n-1].at||0)>=t0-60000) return {conv_id:cs[i].id, ligne:L[n-1]}; } }catch(e){}
+    await new Promise(function(ok){ setTimeout(ok,5000); });
+  }
+  return null;
 }
 (function(){
   try{ var _sa=showApp; showApp=function(){ var r=_sa.apply(this,arguments); try{ sssIaBouton(); }catch(e){} return r; }; }catch(e){}
