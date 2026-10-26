@@ -9314,6 +9314,13 @@ async function spmDocs(affaireId){
   try{ sssDocCss(); }catch(e){} var h="<h3 style='margin:0 0 8px'>📎 Documents et photos du chantier</h3><div style='font-size:12px;color:var(--text-3);margin-bottom:8px'>Tout document « visible équipe terrain » est vu aussitôt par les techniciens.</div><div id='spm-docs'></div><button class='relbtn' style='margin-top:12px;min-height:44px' onclick='sssSheetFermer()'>Fermer</button>";
   try{ sssCss(); }catch(e){} sssSheet(h); try{ await sssDocsBloc(document.getElementById('spm-docs'),affaireId,'Documents'); }catch(e){ document.getElementById('spm-docs').innerHTML='Documents indisponibles : '+esc(e.message||e); }
 }
+/* Règle terrain 0063 côté ÉCRAN : un technicien salarié voit TOUTES les interventions techniques dans Mon planning, l'Agenda, le
+   tableau de bord et le chantier du jour — la base les lui donne déjà, mais ces écrans filtraient encore sur la liste des invités
+   (une intervention adressée à technique@ seulement n'apparaissait nulle part : « rien de prévu »). Sous-traitants : inchangés. */
+(function(){
+  try{ var _pm=sssPourMoi; sssPourMoi=function(liste){ if(typeof ME!=='undefined'&&ME&&ME.role==='technicien') return true; return _pm.apply(this,arguments); }; }catch(e){}
+  try{ var _ai=affInvite; affInvite=function(sv){ if(typeof ME!=='undefined'&&ME&&ME.role==='technicien') return true; return _ai.apply(this,arguments); }; }catch(e){}
+})();
 (function(){
   /* formulaire de planification : libellés « Modifier » quand l'intervention existe déjà */
   try{ var _ip=installPlan; installPlan=async function(id){ SPM.deja=false; try{ var r=await db.from('affaires').select('suivi').eq('id',id).maybeSingle(); SPM.deja=!!(r&&r.data&&r.data.suivi&&r.data.suivi.install_rdv); }catch(e){} var out=await _ip.apply(this,arguments); spmRelabel(); setTimeout(spmRelabel,150); return out; }; }catch(e){}
