@@ -9293,6 +9293,48 @@ async function stfPage(){
 
 /* SSS-FICHES-TERRAIN-FIN */
 
+/* SSS-PLANNING-MODIF-DEBUT */
+/* ==========================================================================
+   SSS OS — Modifier une intervention planifiée (0064).
+   • Direction (planning jour / semaine / mois, fiche de l'intervention, dossier) : bouton « ✏️ Modifier l'intervention »
+     → même formulaire que la planification (date, début, fin, titre, consignes, invités, sous-traitant, pièces), MÊME dossier
+     mis à jour ; bouton « Enregistrer les modifications ». Documents / photos du chantier depuis la fiche.
+     Historique et notification des techniciens : dans la base (déclencheur 0064), quelle que soit la porte d'entrée.
+   • Techniciens : leurs écrans (Mon planning, Mes chantiers, Agenda, Calendrier des chantiers) se rafraîchissent aussitôt
+     (notification « intervention » reçue en direct), au retour sur l'application et toutes les 90 s.
+   ========================================================================== */
+var SPM={deja:false,canal:null,poll:null};
+function spmTechVues(){ return {tech_today:'renderTechToday',calendrier_equipe:'renderCalendrierEquipe',mes_chantiers:'renderMesChantiers',mon_planning:'renderMonPlanning',techdash:'renderTechDash'}; }
+function spmRafraichir(){ try{ var f=spmTechVues()[VIEW]; if(f&&typeof window[f]==='function') window[f](); }catch(e){} }
+function spmEstTerrain(){ return typeof ME!=='undefined'&&ME&&(ME.role==='technicien'||ME.role==='soustraitant'); }
+function spmRelabel(){
+  try{ var ip=document.getElementById('ip-go'); if(ip&&SPM.deja){ ip.textContent='Enregistrer les modifications'; var h=ip.closest('.modal')||document; var h3=h.querySelector('h3'); if(h3&&/Planifier l.installation/.test(h3.textContent)) h3.textContent='✏️ Modifier l’intervention'; if(typeof INSTPLAN!=='undefined'&&INSTPLAN) INSTPLAN.already=true; } }catch(e){}
+}
+async function spmDocs(affaireId){
+  try{ sssDocCss(); }catch(e){} var h="<h3 style='margin:0 0 8px'>📎 Documents et photos du chantier</h3><div style='font-size:12px;color:var(--text-3);margin-bottom:8px'>Tout document « visible équipe terrain » est vu aussitôt par les techniciens.</div><div id='spm-docs'></div><button class='relbtn' style='margin-top:12px;min-height:44px' onclick='sssSheetFermer()'>Fermer</button>";
+  try{ sssCss(); }catch(e){} sssSheet(h); try{ await sssDocsBloc(document.getElementById('spm-docs'),affaireId,'Documents'); }catch(e){ document.getElementById('spm-docs').innerHTML='Documents indisponibles : '+esc(e.message||e); }
+}
+(function(){
+  /* formulaire de planification : libellés « Modifier » quand l'intervention existe déjà */
+  try{ var _ip=installPlan; installPlan=async function(id){ SPM.deja=false; try{ var r=await db.from('affaires').select('suivi').eq('id',id).maybeSingle(); SPM.deja=!!(r&&r.data&&r.data.suivi&&r.data.suivi.install_rdv); }catch(e){} var out=await _ip.apply(this,arguments); spmRelabel(); setTimeout(spmRelabel,150); return out; }; }catch(e){}
+  /* fiche d'une intervention dans le planning : « Modifier l'intervention » + « Documents / photos » */
+  try{ var _pf=plnFiche; plnFiche=function(kind,id){ var out=_pf.apply(this,arguments);
+      try{ if(kind==='install'||kind==='valid'){ var acts=document.querySelector('#modal-root .modal-actions'); if(acts){ acts.querySelectorAll('button').forEach(function(b){ if(/^Replanifier$/.test(b.textContent.trim())) b.textContent='✏️ Modifier l’intervention'; });
+          if(!acts.querySelector('.spm-docs')){ var d=document.createElement('button'); d.className='btn-out spm-docs'; d.style.cssText='width:auto;padding:9px 16px'; d.textContent='📎 Documents / photos'; d.onclick=function(){ closeModal(); spmDocs(id); }; var sp=acts.querySelector("div[style*='flex:1']"); if(sp&&sp.nextSibling) acts.insertBefore(d,sp.nextSibling); else acts.appendChild(d); } } } }catch(e){}
+      return out; }; }catch(e){}
+  /* techniciens : mise à jour en direct */
+  function brancher(){
+    if(!spmEstTerrain()||SPM.canal||!ME||!ME.id) return;
+    try{ SPM.canal=db.channel('interv-'+ME.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+ME.id},function(p){ var n=(p&&p.new)||{}; if(n.type==='intervention'){ try{ sssToast(n.titre+' — '+(n.corps||''),true); }catch(e){} setTimeout(spmRafraichir,300); } }).subscribe(); }catch(e){}
+    try{ document.addEventListener('visibilitychange',function(){ if(!document.hidden) spmRafraichir(); }); window.addEventListener('focus',spmRafraichir); }catch(e){}
+    if(!SPM.poll) SPM.poll=setInterval(function(){ if(!document.hidden) spmRafraichir(); },90000);
+  }
+  try{ var _sa=showApp; showApp=function(){ var r=_sa.apply(this,arguments); setTimeout(brancher,1500); return r; }; }catch(e){}
+  setTimeout(brancher,3000);
+})();
+
+/* SSS-PLANNING-MODIF-FIN */
+
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
 function go(v){ try{ if(typeof gwClean==='function') gwClean(); }catch(_e){}
