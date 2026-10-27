@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261026181715-8dfdf84 -->
+<!-- deploy-marker: pub-20261027084610-4609049 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -9320,6 +9320,16 @@ async function spmDocs(affaireId){
 (function(){
   try{ var _pm=sssPourMoi; sssPourMoi=function(liste){ if(typeof ME!=='undefined'&&ME&&ME.role==='technicien') return true; return _pm.apply(this,arguments); }; }catch(e){}
   try{ var _ai=affInvite; affInvite=function(sv){ if(typeof ME!=='undefined'&&ME&&ME.role==='technicien') return true; return _ai.apply(this,arguments); }; }catch(e){}
+})();
+/* Agenda technique (jour / semaine / mois) côté techniciens : un clic sur une intervention ouvre DIRECTEMENT sa fiche
+   (contact, matériel, plans, documents), sans passer par la fenêtre intermédiaire « Ouvrir la fiche → ». */
+(function(){
+  try{ var _teo=techEvtOpen; techEvtOpen=function(i){ var x=(window.TECH_FLAT||[])[i];
+    if(x&&x.open&&spmEstTerrain()){ try{ closeModal(); }catch(e){} try{ (new Function(x.open))();
+        /* le bouton « ← » de la fiche ramène à l'agenda d'où l'on vient */
+        var n=0, it=setInterval(function(){ n++; var b=document.querySelector('#main .page-head .iconbtn'); if(b&&/←/.test(b.textContent)){ b.setAttribute('onclick',"go('tech_today')"); clearInterval(it); } else if(n>30) clearInterval(it); },100);
+        return; }catch(e){ console.error(e); } }
+    return _teo.apply(this,arguments); }; }catch(e){}
 })();
 (function(){
   /* formulaire de planification : libellés « Modifier » quand l'intervention existe déjà */
