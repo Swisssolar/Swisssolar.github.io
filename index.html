@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261027084610-4609049 -->
+<!-- deploy-marker: pub-20261101221333-113437e -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -9320,6 +9320,19 @@ async function spmDocs(affaireId){
 (function(){
   try{ var _pm=sssPourMoi; sssPourMoi=function(liste){ if(typeof ME!=='undefined'&&ME&&ME.role==='technicien') return true; return _pm.apply(this,arguments); }; }catch(e){}
   try{ var _ai=affInvite; affInvite=function(sv){ if(typeof ME!=='undefined'&&ME&&ME.role==='technicien') return true; return _ai.apply(this,arguments); }; }catch(e){}
+})();
+/* Adresse du CHANTIER propre à un dossier (suivi.chantier_adresse {adresse, npa, localite}) — quand le client est une régie /
+   société dont l'adresse (bureau, facturation, Bexio) n'est pas celle du chantier. Côté terrain, partout où l'application lit le
+   dossier avec son client (fiche chantier, agenda, Mon planning, Waze / Maps), l'adresse affichée devient celle du chantier.
+   La fiche client elle-même (table contacts) n'est jamais modifiée. */
+function spmAdrChantier(d){ (Array.isArray(d)?d:(d?[d]:[])).forEach(function(a){ var ca=a&&a.suivi&&a.suivi.chantier_adresse;
+  if(ca&&ca.adresse&&a.contact&&typeof a.contact==='object'){ a.contact=Object.assign({},a.contact,{adresse:ca.adresse,npa:ca.npa||'',localite:ca.localite||''}); } }); }
+(function(){
+  try{ var _from=db.from.bind(db); db.from=function(t){ var b=_from(t);
+      try{ if((t==='affaires'||t==='chantiers_terrain')&&spmEstTerrain()&&b&&typeof b.select==='function'){ var _sel=b.select.bind(b);
+        b.select=function(){ var q=_sel.apply(this,arguments); if(q&&typeof q.then==='function'){ var _then=q.then.bind(q);
+          q.then=function(ok,ko){ return _then(function(r){ try{ spmAdrChantier(r&&r.data); }catch(e){} return ok?ok(r):r; },ko); }; } return q; }; } }catch(e){}
+      return b; }; }catch(e){}
 })();
 /* Agenda technique (jour / semaine / mois) côté techniciens : un clic sur une intervention ouvre DIRECTEMENT sa fiche
    (contact, matériel, plans, documents), sans passer par la fenêtre intermédiaire « Ouvrir la fiche → ». */
