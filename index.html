@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261101221333-113437e -->
+<!-- deploy-marker: pub-20261105122916-8f1b1e7 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -6694,23 +6694,51 @@ async function sssBcFiche(id){
   var m=document.getElementById('main'); if(!m) return; sssCss(); await sssBcUsers();
   m.innerHTML="<div class='page-head'><button class='iconbtn' onclick=\"SSSBC.sel=null;renderBaseClients()\" title='Retour'>←</button><h2 id='ssbc-t'>Client</h2></div><div id='ssbc-f' class='loading'>Chargement…</div>";
   var R=await Promise.all([db.from('contacts').select('*').eq('id',id).maybeSingle(), db.from('contact_evenements').select('*').eq('contact_id',id).order('at',{ascending:false}).limit(200),
-    db.from('affaires_vue_commerciale').select('*').eq('contact_id',id)]);
+    db.from('affaires_vue_commerciale').select('*').eq('contact_id',id), db.from('contacts_infos').select('texte,maj_at,maj_par').eq('contact_id',id).maybeSingle()]);
   var box=document.getElementById('ssbc-f'); if(!box||VIEW!=='base_clients') return; box.className='';
-  var c=R[0].data; if(!c){ box.innerHTML="<div class='empty'>Client introuvable ou non accessible.</div>"; return; } SSSBC.c=c;
+  var c=R[0].data; if(!c){ box.innerHTML="<div class='empty'>Client introuvable ou non accessible.</div>"; return; } SSSBC.c=c; SSSBC.infos=(R[3]&&R[3].data)||null;
   var nom=((c.prenom||'')+' '+(c.nom||'')).trim()||'—'; document.getElementById('ssbc-t').textContent=nom;
   var kv=function(k,v){ return "<div style='display:flex;gap:10px;padding:4px 0;font-size:15px;flex-wrap:wrap'><div style='min-width:120px;color:var(--text-3)'>"+k+"</div><div style='flex:1;min-width:0;word-break:break-word'>"+v+"</div></div>"; };
   var sec=function(t,x){ return "<div class='card' style='padding:12px 15px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>"+t+"</div>"+x+"</div>"; };
   var h="<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px'>"+"<span style='font-size:13px;color:var(--text-3)'>🏷 "+esc(c.source||'client SSS')+" · entré le "+sssPrDate(c.created_at,false)+"</span> "+sssApportBadge(c.apport_commercial_id,c.origine_commerciale,SSSBC.users)+"</div>"
     +"<div class='ssc-fiche-act' style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px'>"+(c.telephone?"<a class='btn' style='text-decoration:none;min-height:44px;display:inline-flex;align-items:center;background:#16a34a;color:#fff;width:auto;padding:0 14px' href='"+telHref(c.telephone)+"' onclick=\"setTimeout(function(){sssBcAppel('"+c.id+"')},1200)\">📞 Appeler</a>":'')
-    +"<button class='relbtn' onclick=\"sssBcAppel('"+c.id+"')\">✍️ Résultat d’appel</button><button class='relbtn' onclick=\"sssBcNote('"+c.id+"')\">📝 Note</button><button class='relbtn' onclick=\"sssBcRappel('"+c.id+"')\">⏰ Rappel</button><button class='relbtn' onclick=\"sssBcRdv('"+c.id+"')\">📅 RDV</button></div>";
+    +"<button class='relbtn' onclick=\"sssBcModifier('"+c.id+"')\">✏️ Modifier la fiche</button><button class='relbtn' onclick=\"sssBcAppel('"+c.id+"')\">✍️ Résultat d’appel</button><button class='relbtn' onclick=\"sssBcNote('"+c.id+"')\">📝 Note</button><button class='relbtn' onclick=\"sssBcRappel('"+c.id+"')\">⏰ Rappel</button><button class='relbtn' onclick=\"sssBcRdv('"+c.id+"')\">📅 RDV</button></div>";
   h+=sec('Coordonnées',kv('Nom',esc(nom))+kv('Téléphone',c.telephone?"<a href='"+telHref(c.telephone)+"'>"+esc(c.telephone)+"</a>":'inconnu')+(c.telephone2?kv('Téléphone 2',"<a href='"+telHref(c.telephone2)+"'>"+esc(c.telephone2)+"</a>"):'')
       +kv('E-mail',c.email?"<a href='mailto:"+esc(c.email)+"'>"+esc(c.email)+"</a>":'inconnu')+kv('Adresse',esc([c.adresse,[c.npa,c.localite].filter(Boolean).join(' '),c.canton].filter(Boolean).join(', ')||'inconnue'))
       +kv('Dernière interaction',sssPrDate(c.dernier_contact_at))+kv('Prochaine action',esc(c.prochaine_action||'—')+(c.prochain_rappel?' · '+sssPrDate(c.prochain_rappel):'')));
+  var IF=SSSBC.infos; h+=sec('Informations complémentaires',(IF&&IF.texte?"<div style='white-space:pre-wrap;font-size:14.5px'>"+esc(IF.texte)+"</div><div style='font-size:12px;color:var(--text-3);margin-top:6px'>Modifié le "+sssPrDate(IF.maj_at)+(IF.maj_par?' par '+esc(sssPrUser2(IF.maj_par)):'')+"</div>":"<div style='font-size:14px;color:var(--text-3)'>Aucune. Ajoute-les avec « ✏️ Modifier la fiche ».</div>"));
   var A=R[2].data||[]; h+=sec('Projets',A.length?A.map(function(a){ return "<div style='font-size:14px;padding:3px 0'>• "+esc(a.type||'projet')+" — "+esc(a.etape||'')+(a.date_signature?' · signé le '+sssPrDate(a.date_signature,false):'')+(a.installe?' · installé':'')+(a.nb_panneaux?' · '+a.nb_panneaux+' panneaux':'')+(a.capacite_kwh?' · batterie '+a.capacite_kwh+' kWh':'')+"</div>"; }).join(''):"<div style='font-size:14px;color:var(--text-3)'>Aucun projet.</div>");
   var TY={creation:'🆕 Création',appel:'📞 Appel',note:'📝 Note',rappel:'⏰ Rappel',rdv:'📅 Rendez-vous',prochaine_action:'➡️ Prochaine action',provenance:'★ Provenance'};
   var E=R[1].data||[]; h+=sec('Historique ('+E.length+')',E.length?E.map(function(e){ return "<div style='border-left:3px solid var(--line,#8886);padding:5px 10px;margin:6px 0;font-size:14px'><b>"+(TY[e.type]||e.type)+"</b> <span style='color:var(--text-3)'>"+sssPrDate(e.at)+" · "+esc(e.auteur_id?sssPrUser2(e.auteur_id):'système')+"</span>"
       +(e.resultat?"<div>"+esc(sssPrLib(SSSBC_APPEL,e.resultat))+"</div>":'')+(e.echeance?"<div>échéance : "+sssPrDate(e.echeance)+"</div>":'')+(e.contenu?"<div style='white-space:pre-wrap'>"+esc(e.contenu)+"</div>":'')+"</div>"; }).join(''):"<div style='font-size:14px;color:var(--text-3)'>Aucun événement.</div>");
   box.innerHTML=h;
+}
+/* « ✏️ Modifier la fiche » : coordonnées (table contacts, même fiche, règle contacts_maj, journal d'audit ; les techniciens
+   affectés sont prévenus d'un changement d'adresse par la base) + informations complémentaires (contacts_infos, non visibles
+   par le terrain). Bexio n'est pas modifié. */
+function sssBcModifier(id){
+  var c=SSSBC.c||{}; if(c.id!==id) return; var IF=SSSBC.infos||{};
+  var i=function(k,lab,t,ph){ return sssPrChamp(lab,"<input id='ssbm-"+k+"' type='"+(t||'text')+"' value=\""+esc(c[k]||'')+"\""+(ph?" placeholder='"+ph+"'":'')+">"); };
+  sssPrModal('✏️ Modifier la fiche client',
+    "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 10px'>"
+    +sssPrChamp('Civilité',"<select id='ssbm-civilite'>"+['','Monsieur','Madame','Madame et Monsieur','Famille','Société'].map(function(x){ return "<option"+((c.civilite||'')===x?' selected':'')+">"+x+"</option>"; }).join('')+"</select>")
+    +i('prenom','Prénom')+i('nom','Nom / société')+i('telephone','Téléphone','tel')+i('telephone2','Téléphone 2','tel')+i('email','E-mail','email')
+    +i('adresse','Adresse (rue, n°)')+i('npa','NPA')+i('localite','Localité')+i('canton','Canton','text','VD, GE, VS…')+"</div>"
+    +sssPrChamp('Informations complémentaires',"<textarea id='ssbm-infos' rows='5' maxlength='8000' placeholder='Accès, interlocuteur, code portail, particularités…'>"+esc(IF.texte||'')+"</textarea>")
+    +"<div style='font-size:12px;color:var(--text-3)'>Les informations complémentaires ne sont pas visibles par les techniciens. Bexio n'est pas modifié.</div>",
+    "sssBcModifierOk('"+id+"')");
+}
+async function sssBcModifierOk(id){
+  var v=function(k){ var e=document.getElementById('ssbm-'+k); return e?String(e.value||'').trim():''; };
+  if(!v('nom')&&!v('prenom')){ alert('Indique au moins un nom.'); return; }
+  var c=SSSBC.c||{}, d={}; ['civilite','prenom','nom','telephone','telephone2','email','adresse','npa','localite','canton'].forEach(function(k){ var x=v(k)||null; if(x!==(c[k]||null)) d[k]=x; });
+  if(d.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)){ alert('Adresse e-mail invalide.'); return; }
+  if(Object.keys(d).length){ var r=await db.from('contacts').update(d).eq('id',id).select('id');
+    if(r.error||!(r.data||[]).length){ alert('Modification impossible'+(r.error?' : '+r.error.message:' : ce client ne vous est pas attribué.')); return; } }
+  var t=v('infos'), t0=(SSSBC.infos&&SSSBC.infos.texte)||'';
+  if(t!==t0){ var q=await db.from('contacts_infos').upsert({contact_id:id,texte:t},{onConflict:'contact_id'}).select('contact_id');
+    if(q.error||!(q.data||[]).length){ alert('Informations complémentaires non enregistrées'+(q.error?' : '+q.error.message:'.')); return; } }
+  closeModal(); try{ sssToast((Object.keys(d).length||t!==t0)?'Fiche client enregistrée ✓':'Aucune modification',true); }catch(e){} sssBcFiche(id);
 }
 function sssPrUser2(id){ var u=(SSSBC.users||[]).filter(function(x){ return x.id===id; })[0]; return u?((u.prenom||'')+' '+(u.nom||'')).trim():'…'; }
 async function sssBcAct(id,action,d){ var r=await db.rpc('sss_contact_action',{p_id:id,p_action:action,d:d||{}}); if(r.error){ alert('Impossible : '+r.error.message); return null; } closeModal(); if(VIEW==='base_clients'){ if(SSSBC.sel===id) sssBcFiche(id); else renderBaseClients(); } return r.data; }
