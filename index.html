@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261114205042-4f3fa25 -->
+<!-- deploy-marker: pub-20261114212105-1c2e025 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -9235,6 +9235,7 @@ function sresPeindre(){
           :"<div style='font-size:12.5px;margin:-2px 0 10px'>📅 Date de signature : <b>"+(dv?esc(sresDate(dv)):"aujourd'hui")+"</b> <span style='color:var(--text-3)'>(automatique)</span></div>";
     if((X.autres_ventes||[]).length) h+="<div style='font-size:12.5px;background:#e0a52b22;border:1px solid #e0a52b;border-radius:10px;padding:8px 10px;margin-bottom:8px'>⚠️ Déjà une vente pour ce client : "+X.autres_ventes.map(function(a){ return sresDate(a.vente_date)+' · '+sresChf2(a.montant_ttc)+' CHF ('+esc(a.type)+')'; }).join(' ; ')+". Ne l'enregistre ici que si c'est une vente différente.</div>";
   }
+  if(dir&&ch&&z) h+="<div class='field'><label>Date du résultat (correction historique — laisser vide pour garder "+esc(sresDate(z.statut_at||z.maj_at))+")</label><input id='sres-sd' type='date' max='"+auj+"' value='"+esc(g.sd||'')+"'></div>";
   if(ch==='a_rappeler') h+="<div class='field'><label>Rappeler le</label><input id='sres-rp' type='date' min='"+auj+"' value='"+esc(g.rp!=null?g.rp:(z&&z.rappel_le)||'')+"'></div>";
   h+="<div class='field'><label>Notes (facultatif)</label><textarea id='sres-n' rows='2' placeholder='La note complète le résultat, elle ne le remplace pas.'>"+esc(g.n!=null?g.n:(z&&z.notes)||'')+"</textarea></div>";
   h+="<div style='display:flex;gap:8px;margin-top:6px'><button class='btn' style='min-height:46px' "+(ch?'':'disabled')+" onclick='sresEnregistrer(this)'>Enregistrer</button><button class='relbtn' style='min-height:46px' onclick='sresFermer()'>Fermer</button></div>";
@@ -9245,7 +9246,7 @@ function sresPeindre(){
 function sresFermer(){ SRES.saisie=null; sssSheetFermer(); }
 /* garde la saisie en cours quand on change de statut (rien n'est perdu en passant d'« Offre envoyée » à « Signé ») */
 function sresGarder(){ var v=function(i){ var e=document.getElementById(i); return e?e.value:null; }; var g=SRES.saisie||{};
-  [['d','sres-d'],['m','sres-m'],['o','sres-o'],['c','sres-c'],['t','sres-t'],['r','sres-r'],['n','sres-n'],['om','sres-om'],['od','sres-od'],['rp','sres-rp']].forEach(function(k){ var x=v(k[1]); if(x!=null) g[k[0]]=x; });
+  [['d','sres-d'],['m','sres-m'],['o','sres-o'],['c','sres-c'],['t','sres-t'],['r','sres-r'],['n','sres-n'],['om','sres-om'],['od','sres-od'],['rp','sres-rp'],['sd','sres-sd']].forEach(function(k){ var x=v(k[1]); if(x!=null) g[k[0]]=x; });
   if(SRES.choix==='devis_envoye'&&g.om&&g.m==null) g.m=g.om;   // offre → signé : le montant de l'offre préremplit le signé (modifiable)
   SRES.saisie=g; }
 function sresOffre(){ var id=(document.getElementById('sres-o')||{}).value; var o=(SRES.ctx.offres||[]).filter(function(x){ return x.id===id; })[0];
@@ -9261,6 +9262,7 @@ async function sresEnregistrer(btn,autre){
   if(ch==='vendu'){ p.montant_ttc=sresNum(v('sres-m')); p.type_vente=v('sres-t'); p.devis_ref=v('sres-r')||''; if(v('sres-d')) p.vente_date=v('sres-d'); if(v('sres-om')) p.offre_montant_ttc=sresNum(v('sres-om'));
     if(!(Number(p.montant_ttc)>0)){ alert('Indique le montant TTC signé.'); return; } if(!p.type_vente){ alert('Choisis le type de vente.'); return; } }
   if(ch==='a_rappeler'&&v('sres-rp')) p.rappel_le=v('sres-rp');
+  if(v('sres-sd')) p.statut_date=v('sres-sd');
   if(autre) p.autre_vente=true;
   if(btn){ btn.disabled=true; btn.textContent='⏳ Enregistrement…'; }
   var r=await db.rpc('sss_rdv_resultat_enregistrer',{p_source:SRES.src,p_rdv:SRES.rdv,p:p});
@@ -9636,7 +9638,7 @@ function scomTuileHtml(C){
     +sresTuile('Commission acquise du mois',acq,C.statut==='aucun_encaissement'?'Encaissement non confirmé — commission non calculée':(C.message?esc(C.message):'sur le CA HT réellement encaissé'),'#22a06b')
     +sresTuile('CA HT encaissé commissionnable',scomChf(Number(C.ca_ht_commissionnable||0)+Number(C.base_forfait_ht||0)),C.base_forfait_ht>0?'dont '+scomChf(C.base_forfait_ht)+' à 2 % forfaitaire':'')
     +sresTuile('CA signé en attente d’encaissement',sresChf(C.ca_signe_en_attente_ttc)+' CHF TTC','aucune commission tant que rien n’est encaissé')
-    +(C.total_ajustements?sresTuile('Régularisations',scomChf(C.total_ajustements),'avoirs / corrections'):'')+"</div>";
+    +((C.total_ajustements||C.total_regularisations)?sresTuile('Régularisations',scomChf(Number(C.total_ajustements||0)+Number(C.total_regularisations||0)),'avoirs, corrections, mois précédents'):'')+"</div>";
   var L=C.lignes||[];
   if(L.length) h+="<div style='font-size:12.5px;font-weight:700;margin-bottom:4px'>Détail par encaissement</div>"+L.map(function(l){ return "<div style='display:flex;gap:8px;font-size:13px;padding:4px 0;border-top:1px solid var(--line);flex-wrap:wrap'><span style='flex:1;min-width:160px'><b>"+esc(l.client)+"</b> <span style='color:var(--text-3);font-size:12px'>· "+esc(sresDate(l.date))+" · "+scomProv(l)+(l.regime==='forfait_2'?' · 2 % forfaitaire':'')+(l.annulee?' · affaire annulée':'')+"</span></span><span>encaissé HT "+sresChf(l.encaisse_ht)+(Number(l.exclusions_ht)>0?' (exclus '+sresChf(l.exclusions_ht)+')':'')+" → <b>"+(l.commission!=null?scomChf(l.commission):'à valider')+"</b></span></div>"; }).join('');
   if(typeof C.non_rattaches==='number'&&C.non_rattaches) h+="<div style='font-size:12px;color:#e0a52b;margin-top:6px'>"+C.non_rattaches+" encaissement(s) en cours de rattachement par la direction — non compté(s) pour l’instant.</div>";
@@ -9663,7 +9665,8 @@ async function scomPage(){
   h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left;border-color:"+col+"'><div style='font-weight:800;color:"+col+"'>"+esc(C.message||'Calcul conforme au contrat')+"</div>"
     +((C.a_valider||[]).length?"<div style='margin-top:6px'>"+C.a_valider.map(function(x){ return "<div style='font-size:13px'>• <b>"+esc(x.client)+"</b> — "+esc(x.raison)+"</div>"; }).join('')+"</div>":'')
     +"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px'>"+sresTuile('CA HT commissionnable (tranches)',scomChf(C.ca_ht_commissionnable))+sresTuile('Base 2 % forfaitaire',scomChf(C.base_forfait_ht),'commission '+scomChf(C.commission_forfait))
-    +sresTuile('Commission tranches',scomChf(C.commission_tranches),C.mixte?'mois mixte : proportionnelle':'')+sresTuile('Ajustements',scomChf(C.total_ajustements))+sresTuile('Total du mois',C.commission_acquise!=null?scomChf(C.commission_acquise):'à valider','','#22a06b')+"</div></div>";
+    +sresTuile('Commission tranches',scomChf(C.commission_tranches),C.mixte?'mois mixte : proportionnelle':'')+sresTuile('Ajustements',scomChf(C.total_ajustements),(C.regularisations_a_reporter||[]).length?'+ '+scomChf(C.total_regularisations)+' à reporter':'')+sresTuile('Total du mois',C.commission_acquise!=null?scomChf(C.commission_acquise):'à valider','','#22a06b')+"</div></div>";
+  if((C.regularisations_a_reporter||[]).length) h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left;border-color:#e0a52b'><div style='font-weight:800;margin-bottom:6px;color:#e0a52b'>Régularisations des mois déjà arrêtés</div>"+C.regularisations_a_reporter.map(function(g){ return "<div style='font-size:13px;border-top:1px solid var(--line);padding:4px 0'>Décompte de "+esc(scomLibMois(String(g.mois).slice(0,10)))+" : arrêté "+scomChf(g.arrete)+(g.recalcule!=null?", recalculé aujourd’hui "+scomChf(g.recalcule)+" → <b>"+scomChf(g.ecart)+"</b> reporté sur ce mois":" — "+esc(g.message||''))+"</div>"; }).join('')+"<div style='font-size:11.5px;color:var(--text-3);margin-top:4px'>Le décompte arrêté ne change jamais : l’écart est inscrit comme ajustement de ce mois à sa clôture.</div></div>";
   var L=C.lignes||[];
   h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left;overflow-x:auto'><div style='font-weight:800;margin-bottom:6px'>Encaissements du mois ("+L.length+")</div>"+(L.length?"<table style='width:100%;font-size:12px;border-collapse:collapse'><tr style='color:var(--text-3);text-align:left'><th>Date</th><th>Client</th><th>Facture</th><th>Provenance</th><th>Signé TTC</th><th>Encaissé TTC</th><th>HT</th><th>Exclus</th><th>Base</th><th>Régime</th><th>Rabais</th><th>Tranche · taux</th><th style='text-align:right'>Commission</th></tr>"
     +L.map(function(l){ var tr=(l.tranches||[]).map(function(t){ return 'T'+t.tranche+' '+t.taux+' %'; }).join(', ')||(l.regime==='forfait_2'?'2 % forfait':'');
