@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261114184449-56f3b22 -->
+<!-- deploy-marker: pub-20261114194948-e45ac22 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -2449,6 +2449,7 @@ function renderNav(){
     ['tarifs_sss','Tarifs SSS','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1 1-1.8 2.5-1.8s2.5.8 2.5 1.8-1 1.6-2.5 2-2.5 1-2.5 2 1 1.8 2.5 1.8 2.5-.8 2.5-1.8"/></svg>',['superadmin','direction','commercial']],
     ['offres','Offres / devis','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',['superadmin','direction','commercial']],
     ['resultats_com','Résultats commerciaux','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>',['superadmin','direction','commercial']],
+    ['a_traiter_com','À traiter','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',['superadmin','direction','commercial']],
     ['fin_tarifs','Paramètres commerciaux / Tarifs','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',['superadmin']],
     ['fin_fisc','Fiscalité & Charges sociales','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9m4 12V9m6 12V9m4 12V9M2 9l10-6 10 6"/></svg>',['superadmin']],
     ['fin_clients','Facturation clients','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',['superadmin']],
@@ -2538,7 +2539,7 @@ function renderNav(){
   const itemMap={}; items.forEach(function(it){ if(it&&it[0]) itemMap[it[0]]=it; });
   const isDir=['superadmin','direction'].includes(ME.role);
   const GROUPS_COM=[
-    {id:'g1',title:'Activité',keys:['prospects','base_clients','planning_com','agenda','resultats_com','contacts']},
+    {id:'g1',title:'Activité',keys:['prospects','base_clients','planning_com','agenda','resultats_com','a_traiter_com','contacts']},
     {id:'g2',title:'Ventes & dossiers',keys:['offres','devis','tarifs_sss','relances','vivier','retours','avalider','generateur']},
     {id:'g4',title:'Ressources',keys:['temoins','support','tarifs']}
   ];
@@ -9147,110 +9148,257 @@ function sssRolesSup(){
 
 /* SSS-RESULTATS-DEBUT */
 /* ==========================================================================
-   SSS OS — Résultat des rendez-vous commerciaux, ventes conclues, synthèse et objectifs (0062).
-   • « 📊 Résultat du RDV » : depuis l'agenda (RDV prospect), le panneau d'un RDV client, ou la fiche prospect.
-     À suivre · Devis à faire · Devis envoyé · Vendu · Perdu · Annulé. « Vendu » : date, montant TTC, commercial, type,
-     offre SSS finalisée (montant prérempli — jamais un brouillon), référence, notes. Le RDV n'est jamais supprimé.
-   • « Résultats commerciaux » (espace Commercial) : jour / semaine / mois / année, par commercial ; RDV, réalisés, ventes,
-     perdus, taux RDV → vente, CA vendu TTC, panier moyen, devis envoyés, taux devis → vente, ventes par type et par commercial,
-     objectifs (réalisé / objectif / % / reste). CA VENDU ≠ CA facturé / encaissé : aucune comptabilité, Bexio inchangé.
-   • Droits dans la base : une commerciale = ses RDV et ses chiffres ; la direction = tout + objectifs + corrections.
+   SSS OS — Suivi commercial obligatoire : RDV → OFFRE → SIGNATURE (0062 + 0069).
+   • « 📝 Compte rendu / Résultat » d'un RDV (agenda, RDV client, fiche prospect) : statut OBLIGATOIRE
+     À rappeler · À suivre · Offre à préparer · Offre envoyée · Signé / Vendu · Perdu · Sans suite (+ RDV annulé).
+     Offre envoyée : montant TTC de l'offre (repris d'une offre SSS liée), date d'envoi automatique (serveur).
+     Signé / Vendu : montant TTC signé, type, date de signature automatique (serveur). Offre et vente gardées séparément.
+     Commercial responsable automatique (celui du RDV) ; la direction peut le changer et corriger les dates.
+     La note reste possible mais ne remplace jamais le résultat.
+   • Agenda : « ⚠️ Compte rendu à compléter » sur chaque RDV passé sans résultat.
+   • « Résultats commerciaux » : RDV réalisés, offres envoyées (nombre + CHF), ventes signées (nombre + CA), RDV → offre,
+     offre → vente, panier moyen, remise ; aujourd'hui / semaine / mois / année / période ; par commercial ; objectifs.
+   • « À traiter » : RDV sans compte rendu, offre sans suivi, rappel dépassé, offre sans résultat, donnée à compléter.
+   • Fiche prospect / client : « Parcours commercial » (RDV → offre → signature).
+   • Tableau de bord : bloc « Suivi des ventes » (vrais chiffres) à la place des anciens compteurs de l'ancien agenda.
+   • CA signé ≠ CA facturé / encaissé : aucune comptabilité, Bexio inchangé. Aucun coût, aucune marge.
    ========================================================================== */
-var SRES={ctx:null,src:null,rdv:null,choix:null,apres:null,grain:'mois',ref:null,com:'',data:null};
-var SRES_RES=[['a_suivre','À suivre','#3b82f6'],['devis_a_faire','Devis à faire','#e0a52b'],['devis_envoye','Devis envoyé','#8a5cf6'],['vendu','Vendu','#22a06b'],['perdu','Perdu','#e5484d'],['annule','Annulé','#6b7280']];
-var SRES_TYPES=[['photovoltaique','Photovoltaïque'],['batterie','Batterie'],['pv_batterie','PV + batterie'],['borne','Borne'],['pac','Pompe à chaleur'],['electricite','Travaux électriques'],['autre','Autre']];
+var SRES={ctx:null,src:null,rdv:null,choix:null,apres:null,grain:'mois',ref:null,com:'',data:null,du:null,au:null,traiter:null,dashRendu:false};
+var SRES_RES=[['a_rappeler','À rappeler','#0ea5e9'],['a_suivre','À suivre','#3b82f6'],['devis_a_faire','Offre à préparer','#e0a52b'],['devis_envoye','Offre envoyée','#8a5cf6'],
+  ['vendu','Signé / Vendu','#22a06b'],['perdu','Perdu','#e5484d'],['sans_suite','Sans suite','#6b7280'],['annule','RDV annulé','#9ca3af']];
+var SRES_TYPES=[['photovoltaique','Photovoltaïque'],['batterie','Batterie'],['pv_batterie','PV + batterie'],['pac','Pompe à chaleur'],['borne','Borne de recharge'],['electricite','Travaux électriques'],['autre','Autre']];
+var SRES_TRAITER={sans_cr:['⚠️','Compte rendu à compléter','#e5484d'],a_completer:['🧩','Donnée commerciale à compléter','#e0a52b'],offre_sans_suivi:['📨','Offre envoyée sans suivi','#8a5cf6'],
+  rappel:['📞','Rappel dépassé','#0ea5e9'],offre_sans_resultat:['📄','Offre sans résultat','#6b7280']};
 function sresChf(n){ var v=Number(n||0); return v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,"'"); }
 function sresChf2(n){ var v=Number(n||0); return v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,"'"); }
 function sresYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function sresDate(s){ if(!s) return ''; var d=new Date(s); return isNaN(d)?String(s):d.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function sresDate(s){ if(!s) return ''; var d=/^\d{4}-\d{2}-\d{2}$/.test(String(s))?new Date(s+'T12:00:00'):new Date(s); return isNaN(d)?String(s):d.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }
 function sresLib(k){ var r=SRES_RES.filter(function(x){ return x[0]===k; })[0]; return r?r[1]:k; }
 function sresCoul(k){ var r=SRES_RES.filter(function(x){ return x[0]===k; })[0]; return r?r[2]:'#6b7280'; }
-function sresBadge(z){ if(!z) return "<span style='font-size:12px;color:var(--text-3)'>Résultat non saisi</span>";
-  return "<span style='display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:700;color:#fff;background:"+sresCoul(z.resultat)+"'>"+esc(z.libelle||sresLib(z.resultat))+"</span>"
-    +(z.resultat==='vendu'?" <b style='font-size:13px'>"+sresChf2(z.montant_ttc)+" CHF TTC</b><span style='font-size:12px;color:var(--text-3)'> · "+esc(z.type||'')+(z.vente_date?' · vente du '+sresDate(z.vente_date):'')+(z.devis_ref?' · '+esc(z.devis_ref):'')+(z.commercial?' · '+esc(z.commercial):'')+"</span>":'')
+function sresNum(s){ return String(s==null?'':s).replace(/['’\s]/g,'').replace(',','.'); }
+function sresBadge(z){ if(!z) return "<span style='font-size:12.5px;font-weight:700;color:#e5484d'>⚠️ Compte rendu à compléter</span>";
+  return "<span style='display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:700;color:#fff;background:"+sresCoul(z.resultat)+"'>"+esc(sresLib(z.resultat))+"</span>"
+    +(z.offre_montant_ttc!=null?" <span style='font-size:12.5px'>Offre : <b>"+sresChf(z.offre_montant_ttc)+" CHF</b>"+(z.devis_envoye_at?" <span style='color:var(--text-3)'>du "+sresDate(z.devis_envoye_at)+"</span>":'')+"</span>":'')
+    +(z.resultat==='vendu'?" <span style='font-size:12.5px'>· Signé : <b>"+sresChf(z.montant_ttc)+" CHF</b></span><span style='font-size:12px;color:var(--text-3)'> · "+esc(z.type||'')+(z.vente_date?' · le '+sresDate(z.vente_date):'')+"</span>":'')
+    +(z.resultat==='a_rappeler'&&z.rappel_le?" <span style='font-size:12px;color:var(--text-3)'>· rappel le "+sresDate(z.rappel_le)+"</span>":'')
+    +(z.devis_ref?"<span style='font-size:12px;color:var(--text-3)'> · "+esc(z.devis_ref)+"</span>":'')+(z.commercial?"<span style='font-size:12px;color:var(--text-3)'> · "+esc(z.commercial)+"</span>":'')
     +(z.notes?"<div style='font-size:12px;color:var(--text-3);margin-top:3px;white-space:pre-wrap'>"+esc(z.notes)+"</div>":''); }
-function sresBouton(src,rdv){ return "<button class='btn' style='width:auto;padding:10px 14px;min-height:44px' onclick=\"sresOuvrir('"+src+"','"+rdv+"')\">📊 Résultat du RDV</button>"; }
-/* badges : lit les résultats d'une liste de RDV (droits de la base) */
+function sresBouton(src,rdv){ return "<button class='btn' style='width:auto;padding:10px 14px;min-height:44px' onclick=\"sresOuvrir('"+src+"','"+rdv+"')\">📝 Compte rendu / Résultat</button>"; }
 async function sresCharger(src,ids){ if(!ids.length) return {}; var r=await db.rpc('sss_rdv_resultats_de',{p_source:src,p_ids:ids}); return (r&&r.data)||{}; }
 
-/* ============================ fenêtre « Résultat du RDV » ============================ */
+/* ============================ fenêtre « Compte rendu / Résultat » ============================ */
 async function sresOuvrir(src,rdv,apres){
-  SRES.src=src; SRES.rdv=rdv; SRES.apres=apres||SRES.apres;
+  SRES.src=src; SRES.rdv=rdv; SRES.apres=apres||SRES.apres; SRES.saisie=null;
   var r=await db.rpc('sss_rdv_resultat_contexte',{p_source:src,p_rdv:rdv});
-  if(r.error){ alert('Résultat du RDV : '+r.error.message); return; }
+  if(r.error){ alert('Compte rendu : '+r.error.message); return; }
   SRES.ctx=r.data; var z=SRES.ctx.resultat; SRES.choix=z?z.resultat:null; sresPeindre();
 }
 function sresDefType(){ var z=SRES.ctx.resultat; if(z&&z.type_vente) return z.type_vente; var c=SRES.ctx.categorie;
   return {photovoltaique:'photovoltaique',batterie:'batterie',borne:'borne',pac:'pac',renovation_electricite:'electricite'}[c]||''; }
+function sresComNom(){ var X=SRES.ctx, z=X.resultat, id=(z&&z.commercial_id)||X.commercial_id, l=X.commerciaux||[]; var c=l.filter(function(x){ return x.id===id; })[0]||l[0]; return c?c.nom:''; }
 function sresPeindre(){
-  var X=SRES.ctx, z=X.resultat, ch=SRES.choix, v=ch==='vendu';
-  var h="<h3 style='margin:0 0 2px'>📊 Résultat du RDV</h3><div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>"+esc(X.client||'')+" · RDV du "+esc(sresDate(X.rdv_at))+" à "+esc(new Date(X.rdv_at).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}))+"</div>";
+  var X=SRES.ctx, z=X.resultat, ch=SRES.choix, g=SRES.saisie||{}, dir=!!X.direction, o=X.offres||[], com=X.commerciaux||[];
+  var auj=sresYmd(new Date());
+  var h="<h3 style='margin:0 0 2px'>📝 Compte rendu / Résultat</h3><div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>"+esc(X.client||'')+" · RDV du "+esc(sresDate(X.rdv_at))+" à "+esc(new Date(X.rdv_at).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}))+"</div>";
   if(z) h+="<div style='font-size:12.5px;color:var(--text-3);margin-bottom:8px'>Actuel : <b>"+esc(sresLib(z.resultat))+"</b> · modifié le "+esc(sresDate(z.maj_at))+((z.historique||[]).length?' · '+z.historique.length+' version(s) précédente(s) gardée(s)':'')+"</div>";
-  h+="<div class='ssc-chips'>"+SRES_RES.map(function(x){ var on=ch===x[0]; return "<button onclick=\"SRES.choix='"+x[0]+"';sresGarder();sresPeindre()\" style='border:2px solid "+x[2]+";background:"+(on?x[2]:'transparent')+";color:"+(on?'#fff':'inherit')+";font-weight:700'>"+x[1]+"</button>"; }).join('')+"</div>";
-  if(v){
-    var o=X.offres||[], com=X.commerciaux||[], vd=z&&z.vente_date?z.vente_date:sresYmd(new Date()), mt=z&&z.montant_ttc!=null?z.montant_ttc:'', of=z&&z.offre_id?z.offre_id:'';
-    var g=SRES.saisie||{}; if(g.d!=null) vd=g.d; if(g.m!=null) mt=g.m; if(g.o!=null) of=g.o;
-    h+="<div class='field'><label>Date de vente *</label><input id='sres-d' type='date' value='"+esc(vd)+"' max='"+sresYmd(new Date())+"'></div>";
-    if(o.length) h+="<div class='field'><label>Offre SSS finalisée (préremplit le montant)</label><select id='sres-o' onchange='sresOffre()'><option value=''>— aucune / devis hors SSS OS —</option>"+o.map(function(x){ return "<option value='"+x.id+"'"+(x.id===of?' selected':'')+(x.deja_vendue?' disabled':'')+">"+esc(x.numero)+" · "+sresChf2(x.total_ttc)+" CHF · "+esc(sresDate(x.date))+(x.deja_vendue?' (déjà vendue)':'')+"</option>"; }).join('')+"</select></div>";
-    else h+="<div style='font-size:12px;color:var(--text-3);margin:-4px 0 8px'>Aucune offre SSS finalisée pour ce client : saisis le montant (les brouillons ne sont jamais repris).</div>";
-    h+="<div class='field'><label>Montant TTC vendu (CHF) *</label><input id='sres-m' type='number' inputmode='decimal' step='0.05' min='0' value='"+esc(mt)+"' placeholder='ex. 14200'></div>";
-    h+="<div class='field'><label>Commercial concerné *</label>"+(X.direction&&com.length>1?"<select id='sres-c'>"+com.map(function(c){ var sel=(g.c||(z&&z.commercial_id)||X.commercial_id)===c.id; return "<option value='"+c.id+"'"+(sel?' selected':'')+">"+esc(c.nom)+"</option>"; }).join('')+"</select>":"<input disabled value='"+esc((com[0]||{}).nom||'')+"'>")+"</div>";
+  h+="<div style='font-size:12.5px;font-weight:700;margin-bottom:4px'>Résultat du rendez-vous *</div>";
+  h+="<div class='ssc-chips'>"+SRES_RES.map(function(x){ var on=ch===x[0]; return "<button onclick=\"sresGarder();SRES.choix='"+x[0]+"';sresPeindre()\" style='border:2px solid "+x[2]+";background:"+(on?x[2]:'transparent')+";color:"+(on?'#fff':'inherit')+";font-weight:700'>"+x[1]+"</button>"; }).join('')+"</div>";
+  // commercial responsable : automatique ; la direction peut le changer
+  var cSel=g.c||(z&&z.commercial_id)||X.commercial_id||'';
+  h+="<div class='field'><label>Commercial responsable *</label>"+(dir&&com.length>1?"<select id='sres-c'>"+(cSel?'':"<option value=''>— choisir —</option>")+com.map(function(c){ return "<option value='"+c.id+"'"+(cSel===c.id?' selected':'')+">"+esc(c.nom)+"</option>"; }).join('')+"</select>":"<input disabled value='"+esc(sresComNom())+"'>")+"</div>";
+  var offreSel=function(cur){ if(!o.length) return "<div style='font-size:12px;color:var(--text-3);margin:-4px 0 8px'>Aucune offre SSS finalisée pour ce client : saisis le montant (offre faite ailleurs ou ancienne).</div>";
+    return "<div class='field'><label>Offre SSS liée (montant et numéro repris)</label><select id='sres-o' onchange='sresOffre()'><option value=''>— aucune / offre faite ailleurs —</option>"+o.map(function(x){ return "<option value='"+x.id+"'"+(x.id===cur?' selected':'')+(x.deja_vendue&&ch==='vendu'?' disabled':'')+">"+esc(x.numero)+" · "+sresChf2(x.total_ttc)+" CHF · "+esc(sresDate(x.date))+(x.deja_vendue?' (déjà vendue)':'')+"</option>"; }).join('')+"</select></div>"; };
+  var curOffre=g.o!=null?g.o:((z&&z.offre_id)||'');
+  if(ch==='devis_envoye'){
+    if(g.o==null&&!curOffre&&o.length===1&&!(z&&z.offre_montant_ttc)) curOffre=o[0].id;
+    var om=g.om!=null?g.om:(z&&z.offre_montant_ttc!=null?z.offre_montant_ttc:'');
+    if(om===''&&curOffre){ var oo=o.filter(function(x){ return x.id===curOffre; })[0]; if(oo) om=Number(oo.total_ttc||0).toFixed(2); }
+    h+=offreSel(curOffre);
+    h+="<div class='field'><label>Montant TTC de l'offre envoyée (CHF) *</label><input id='sres-om' type='text' inputmode='decimal' value='"+esc(om)+"' placeholder='ex. 24900'></div>";
+    h+="<div class='field'><label>Référence de l'offre</label><input id='sres-r' value='"+esc(g.r!=null?g.r:(z&&z.devis_ref)||'')+"' placeholder='ex. OF-2026-0012 (facultatif)'></div>";
+    var dEnv=z&&z.devis_envoye_at;
+    h+=dir?"<div class='field'><label>Date d'envoi</label><input id='sres-od' type='date' max='"+auj+"' value='"+esc(g.od!=null?g.od:(dEnv?sresYmd(new Date(dEnv)):auj))+"'></div>"
+          :"<div style='font-size:12.5px;margin:-2px 0 10px'>📅 Date d'envoi : <b>"+(dEnv?esc(sresDate(dEnv)):"aujourd'hui")+"</b> <span style='color:var(--text-3)'>(automatique)</span></div>";
+  }
+  if(ch==='vendu'){
+    if(z&&z.offre_montant_ttc!=null) h+="<div style='font-size:12.5px;background:#8a5cf61a;border:1px solid #8a5cf6;border-radius:10px;padding:7px 10px;margin-bottom:8px'>Offre envoyée : <b>"+sresChf2(z.offre_montant_ttc)+" CHF TTC</b>"+(z.devis_envoye_at?' le '+esc(sresDate(z.devis_envoye_at)):'')+" — conservée telle quelle. Indique ci-dessous le montant <b>réellement signé</b>.</div>";
+    h+=offreSel(curOffre);
+    var mt=g.m!=null?g.m:(z&&z.resultat==='vendu'&&z.montant_ttc!=null?z.montant_ttc:(z&&z.offre_montant_ttc!=null?z.offre_montant_ttc:''));
+    if(mt===''&&curOffre){ var ov=o.filter(function(x){ return x.id===curOffre; })[0]; if(ov) mt=Number(ov.total_ttc||0).toFixed(2); }
+    h+="<div class='field'><label>Montant TTC signé (CHF) *</label><input id='sres-m' type='text' inputmode='decimal' value='"+esc(mt)+"' placeholder='ex. 23500'></div>";
+    if(!(z&&z.offre_montant_ttc!=null)) h+="<div class='field'><label>Montant de l'offre initiale (CHF, si différent)</label><input id='sres-om' type='text' inputmode='decimal' value='"+esc(g.om||'')+"' placeholder='facultatif — sinon montant de l’offre SSS liée'></div>";
     var tv=g.t!=null?g.t:sresDefType();
     h+="<div class='field'><label>Type de vente *</label><select id='sres-t'><option value=''>— choisir —</option>"+SRES_TYPES.map(function(t){ return "<option value='"+t[0]+"'"+(t[0]===tv?' selected':'')+">"+t[1]+"</option>"; }).join('')+"</select></div>";
-    h+="<div class='field'><label>Référence du devis</label><input id='sres-r' value='"+esc(g.r!=null?g.r:(z&&z.devis_ref)||'')+"' placeholder='ex. AN-00354 ou OF-2026-0001'></div>";
+    h+="<div class='field'><label>Référence de l'offre / du contrat</label><input id='sres-r' value='"+esc(g.r!=null?g.r:(z&&z.devis_ref)||'')+"' placeholder='facultatif'></div>";
+    var dv=z&&z.resultat==='vendu'?z.vente_date:null;
+    h+=dir?"<div class='field'><label>Date de signature</label><input id='sres-d' type='date' max='"+auj+"' value='"+esc(g.d!=null?g.d:(dv||auj))+"'></div>"
+          :"<div style='font-size:12.5px;margin:-2px 0 10px'>📅 Date de signature : <b>"+(dv?esc(sresDate(dv)):"aujourd'hui")+"</b> <span style='color:var(--text-3)'>(automatique)</span></div>";
     if((X.autres_ventes||[]).length) h+="<div style='font-size:12.5px;background:#e0a52b22;border:1px solid #e0a52b;border-radius:10px;padding:8px 10px;margin-bottom:8px'>⚠️ Déjà une vente pour ce client : "+X.autres_ventes.map(function(a){ return sresDate(a.vente_date)+' · '+sresChf2(a.montant_ttc)+' CHF ('+esc(a.type)+')'; }).join(' ; ')+". Ne l'enregistre ici que si c'est une vente différente.</div>";
   }
-  h+="<div class='field'><label>Notes"+(v?' (facultatif)':'')+"</label><textarea id='sres-n' rows='2'>"+esc((SRES.saisie||{}).n!=null?SRES.saisie.n:(z&&z.notes)||'')+"</textarea></div>";
+  if(ch==='a_rappeler') h+="<div class='field'><label>Rappeler le</label><input id='sres-rp' type='date' min='"+auj+"' value='"+esc(g.rp!=null?g.rp:(z&&z.rappel_le)||'')+"'></div>";
+  h+="<div class='field'><label>Notes (facultatif)</label><textarea id='sres-n' rows='2' placeholder='La note complète le résultat, elle ne le remplace pas.'>"+esc(g.n!=null?g.n:(z&&z.notes)||'')+"</textarea></div>";
   h+="<div style='display:flex;gap:8px;margin-top:6px'><button class='btn' style='min-height:46px' "+(ch?'':'disabled')+" onclick='sresEnregistrer(this)'>Enregistrer</button><button class='relbtn' style='min-height:46px' onclick='sresFermer()'>Fermer</button></div>";
-  if(v) h+="<div style='font-size:11.5px;color:var(--text-3);margin-top:8px'>Vente commerciale conclue : comptée dans les ventes et le CA vendu du mois. Ce n'est ni une facture ni un encaissement (Bexio inchangé).</div>";
+  if(!ch) h+="<div style='font-size:12px;color:#e5484d;margin-top:6px'>Choisis d'abord le résultat du rendez-vous.</div>";
+  if(ch==='vendu') h+="<div style='font-size:11.5px;color:var(--text-3);margin-top:8px'>Vente commerciale signée : comptée dans les ventes et le CA signé du mois de signature. Ce n'est ni une facture ni un encaissement (Bexio inchangé).</div>";
   try{ sssCss(); }catch(e){} sssSheet(h);
 }
 function sresFermer(){ SRES.saisie=null; sssSheetFermer(); }
-/* garde la saisie en cours quand on change de statut (rien n'est perdu en passant de « Devis envoyé » à « Vendu ») */
+/* garde la saisie en cours quand on change de statut (rien n'est perdu en passant d'« Offre envoyée » à « Signé ») */
 function sresGarder(){ var v=function(i){ var e=document.getElementById(i); return e?e.value:null; }; var g=SRES.saisie||{};
-  [['d','sres-d'],['m','sres-m'],['o','sres-o'],['c','sres-c'],['t','sres-t'],['r','sres-r'],['n','sres-n']].forEach(function(k){ var x=v(k[1]); if(x!=null) g[k[0]]=x; }); SRES.saisie=g; }
+  [['d','sres-d'],['m','sres-m'],['o','sres-o'],['c','sres-c'],['t','sres-t'],['r','sres-r'],['n','sres-n'],['om','sres-om'],['od','sres-od'],['rp','sres-rp']].forEach(function(k){ var x=v(k[1]); if(x!=null) g[k[0]]=x; });
+  if(SRES.choix==='devis_envoye'&&g.om&&g.m==null) g.m=g.om;   // offre → signé : le montant de l'offre préremplit le signé (modifiable)
+  SRES.saisie=g; }
 function sresOffre(){ var id=(document.getElementById('sres-o')||{}).value; var o=(SRES.ctx.offres||[]).filter(function(x){ return x.id===id; })[0];
-  if(o){ var m=document.getElementById('sres-m'); if(m) m.value=Number(o.total_ttc||0).toFixed(2); var r=document.getElementById('sres-r'); if(r&&!r.value) r.value=o.numero||''; } }
+  if(o){ var t=Number(o.total_ttc||0).toFixed(2); var a=document.getElementById(SRES.choix==='vendu'?'sres-m':'sres-om'); if(a) a.value=t; var r=document.getElementById('sres-r'); if(r&&!r.value) r.value=o.numero||''; } }
 async function sresEnregistrer(btn,autre){
-  var v=function(i){ var e=document.getElementById(i); return e?String(e.value||'').trim():''; };
-  var p={resultat:SRES.choix,notes:v('sres-n')};
-  if(SRES.choix==='vendu'){ p.vente_date=v('sres-d'); p.montant_ttc=v('sres-m').replace(/['\s]/g,'').replace(',','.'); p.type_vente=v('sres-t'); p.devis_ref=v('sres-r'); p.offre_id=v('sres-o')||null; if(document.getElementById('sres-c')) p.commercial_id=v('sres-c');
-    if(!p.vente_date){ alert('Indique la date de vente.'); return; } if(!(Number(p.montant_ttc)>0)){ alert('Indique le montant TTC vendu.'); return; } if(!p.type_vente){ alert('Choisis le type de vente.'); return; } }
+  var v=function(i){ var e=document.getElementById(i); return e?String(e.value||'').trim():null; };
+  var ch=SRES.choix; if(!ch){ alert('Choisis le résultat du rendez-vous.'); return; }
+  var p={resultat:ch,notes:v('sres-n')||''};
+  if(document.getElementById('sres-c')){ p.commercial_id=v('sres-c'); if(!p.commercial_id){ alert('Choisis le commercial responsable.'); return; } }
+  if(document.getElementById('sres-o')) p.offre_id=v('sres-o')||'';
+  if(ch==='devis_envoye'){ p.offre_montant_ttc=sresNum(v('sres-om')); p.devis_ref=v('sres-r')||''; if(v('sres-od')) p.offre_date=v('sres-od');
+    if(!(Number(p.offre_montant_ttc)>0)){ alert('Indique le montant TTC de l’offre envoyée.'); return; } }
+  if(ch==='vendu'){ p.montant_ttc=sresNum(v('sres-m')); p.type_vente=v('sres-t'); p.devis_ref=v('sres-r')||''; if(v('sres-d')) p.vente_date=v('sres-d'); if(v('sres-om')) p.offre_montant_ttc=sresNum(v('sres-om'));
+    if(!(Number(p.montant_ttc)>0)){ alert('Indique le montant TTC signé.'); return; } if(!p.type_vente){ alert('Choisis le type de vente.'); return; } }
+  if(ch==='a_rappeler'&&v('sres-rp')) p.rappel_le=v('sres-rp');
   if(autre) p.autre_vente=true;
   if(btn){ btn.disabled=true; btn.textContent='⏳ Enregistrement…'; }
   var r=await db.rpc('sss_rdv_resultat_enregistrer',{p_source:SRES.src,p_rdv:SRES.rdv,p:p});
   if(btn){ btn.disabled=false; btn.textContent='Enregistrer'; }
   if(r.error){ var m=r.error.message||''; if(/DEJA_VENDU/.test(m)){ if(confirm('Une vente est déjà enregistrée pour ce client sur un autre rendez-vous.\n\nEst-ce une vente DIFFÉRENTE (autre produit / autre projet) ?')) return sresEnregistrer(btn,true); return; }
-    alert('Enregistrement impossible : '+m); return; }
+    alert('Enregistrement impossible : '+m.replace(/^COMMERCIAL_REQUIS : /,'')); return; }
   SRES.saisie=null; sssSheetFermer(); try{ sssToast((r.data&&r.data.message)||'Enregistré ✓',true); }catch(e){}
   var f=SRES.apres; SRES.apres=null; try{ if(typeof f==='function') f(); }catch(e){}
-  try{ if(typeof VIEW!=='undefined'&&VIEW==='resultats_com') sresPage(); }catch(e){}
+  try{ if(typeof VIEW!=='undefined'){ if(VIEW==='resultats_com') sresPage(); else if(VIEW==='a_traiter_com') sresTraiterPage(); } }catch(e){}
 }
 
-/* ============================ branchements (agenda, RDV client, fiche prospect) ============================ */
+/* ============================ agenda : « ⚠️ Compte rendu à compléter » ============================ */
+async function sresAgendaBadges(){
+  try{
+    if(typeof VIEW==='undefined'||VIEW!=='agenda') return; var L=document.getElementById('agenda-list'); if(!L) return;
+    var maint=Date.now(), auj=sresYmd(new Date()), P=[], C=[], items={};
+    (window.__AGALL||[]).forEach(function(it){ var id=''+it.id; if(id.indexOf('lrv:')===0) return; if(typeof sssAgPasAMoi==='function'&&sssAgPasAMoi(id)) return;
+      if(it._prdv){ var x=it._prdv; if(new Date(x.debut).getTime()<maint&&['annule','reporte','absent','sans_suite'].indexOf(x.statut)<0){ P.push(x.id); items[id]=it; } }
+      else if(it.date_rdv&&it.date_rdv<auj&&(!it.debouche||['Signé','Devis délivré','Devis à envoyer','Devis refusé'].indexOf(it.debouche)>=0)){ C.push(id); items[id]=it; } });
+    if(!P.length&&!C.length) return;
+    var mp=await sresCharger('prospect',P), mc=await sresCharger('client',C);
+    if(VIEW!=='agenda') return;
+    [].slice.call(L.querySelectorAll('[onclick*="openRdv("]')).forEach(function(el){
+      var m=(el.getAttribute('onclick')||'').match(/openRdv\('([^']+)'\)/); if(!m) return; var id=m[1], it=items[id]; if(!it) return;
+      var z=it._prdv?mp[it._prdv.id]:mc[id]; if(z||el.getAttribute('data-sres')) return; el.setAttribute('data-sres','1');
+      var lib=(!it._prdv&&it.debouche)?'🧩 Donnée commerciale à compléter':'⚠️ Compte rendu à compléter';
+      if(el.classList.contains('ccard')) el.insertAdjacentHTML('beforeend',"<div class='row' style='color:#e5484d;font-weight:700;font-size:12.5px'>"+lib+"</div>");
+      else { el.style.outline='2px solid #e5484d'; el.title=lib+' — '+(el.title||''); el.insertAdjacentHTML('afterbegin','⚠️ '); }
+    });
+  }catch(e){}
+}
+
+/* ============================ « Parcours commercial » (fiche prospect / client) ============================ */
+async function sresParcours(boxId,prospect,contact){
+  var box=document.getElementById(boxId); if(!box) return;
+  var r=await db.rpc('sss_com_parcours',{p_prospect:prospect||null,p_contact:contact||null}); if(r.error) return;
+  var L=r.data||[]; box=document.getElementById(boxId); if(!box||box.querySelector('.sres-parcours')) return;
+  var ic={rdv:'🗓',offre:'📨',vente:'✅',statut:'•',offre_sss:'📄'};
+  var h="<div class='card sres-parcours' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>🧭 Parcours commercial</div>"
+    +(L.length?L.map(function(e){ var d=new Date(e.date); var col=e.type==='vente'?'#22a06b':e.type==='offre'?'#8a5cf6':/compléter/.test(e.libelle)?'#e5484d':'inherit';
+      return "<div style='display:flex;gap:8px;font-size:13.5px;padding:3px 0;border-top:1px solid var(--line)'><span style='width:52px;flex:none;color:var(--text-3)'>"+d.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit'})+"</span><span style='flex:1;color:"+col+"'>"+(ic[e.type]||'•')+" "+esc(e.libelle)
+        +(e.montant!=null?" — <b>"+sresChf(e.montant)+" CHF</b>":'')+(e.commercial?" <span style='color:var(--text-3)'>— "+esc(e.commercial)+"</span>":'')+"</span></div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucun rendez-vous ni offre enregistré.</div>")+"</div>";
+  box.insertAdjacentHTML('afterbegin',h);
+}
+
+/* ============================ branchements (agenda, RDV client, fiches, tableaux de bord) ============================ */
 (function(){
   try{ var _c=sssAgCarte; sssAgCarte=function(it){ var h=_c.apply(this,arguments); var x=it&&it._prdv; if(!x||!x.id) return h; if(typeof sssAgPasAMoi==='function'&&sssAgPasAMoi(it.id)) return h;   /* 0066 : lecture seule */
     var bloc="<div id='sres-ag' data-rdv='"+x.id+"' style='margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px'><div id='sres-ag-b' style='margin-bottom:8px'>…</div>"
-      +"<button class='btn' style='width:auto;padding:10px 14px;min-height:44px' onclick=\"closeModal();sresOuvrir('prospect','"+x.id+"',function(){ try{ renderAgenda(); }catch(e){} })\">📊 Résultat du RDV</button></div>";
-    setTimeout(function(){ sresCharger('prospect',[x.id]).then(function(m){ var b=document.getElementById('sres-ag-b'); if(b) b.innerHTML=sresBadge(m[x.id]); }); },30);
+      +"<button class='btn' style='width:auto;padding:10px 14px;min-height:44px' onclick=\"closeModal();sresOuvrir('prospect','"+x.id+"',function(){ try{ renderAgenda(); }catch(e){} })\">📝 Compte rendu / Résultat</button></div>";
+    setTimeout(function(){ sresCharger('prospect',[x.id]).then(function(m){ var b=document.getElementById('sres-ag-b'); if(b) b.innerHTML=(m[x.id]||new Date(x.debut).getTime()<Date.now())?sresBadge(m[x.id]):"<span style='font-size:12px;color:var(--text-3)'>RDV à venir</span>"; }); },30);
     var i=h.indexOf("<div class='modal-actions'"); return i<0?h+bloc:h.slice(0,i)+bloc+h.slice(i); }; }catch(e){}
   try{ var _o=openRdv; openRdv=async function(id){ var r=await _o.apply(this,arguments);
-      try{ if((''+id).indexOf('prdv:')===0||typeof CUR_RDV==='undefined'||!CUR_RDV||CUR_RDV.id!==id||CUR_RDV.type!=='rdv_commercial') return r;
+      try{ if((''+id).indexOf('prdv:')===0||(''+id).indexOf('lrv:')===0||typeof CUR_RDV==='undefined'||!CUR_RDV||CUR_RDV.id!==id||CUR_RDV.type!=='rdv_commercial') return r;
         var d=document.querySelector('#drawer-root .drawer'); if(!d||d.querySelector('#sres-cl')) return r;
         var h3=d.querySelector('h3'), ref=h3&&h3.nextElementSibling; var bloc="<div id='sres-cl' style='margin:6px 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px'><div id='sres-cl-b' style='margin-bottom:8px'>…</div>"
-          +"<button class='btn' style='width:auto;padding:10px 14px;min-height:44px' onclick=\"sresOuvrir('client','"+id+"',function(){ try{ var b=document.getElementById('sres-cl-b'); if(b) sresCharger('client',['"+id+"']).then(function(m){ b.innerHTML=sresBadge(m['"+id+"']); }); }catch(e){} })\">📊 Résultat du RDV</button></div>";
+          +"<button class='btn' style='width:auto;padding:10px 14px;min-height:44px' onclick=\"sresOuvrir('client','"+id+"',function(){ try{ var b=document.getElementById('sres-cl-b'); if(b) sresCharger('client',['"+id+"']).then(function(m){ b.innerHTML=sresBadge(m['"+id+"']); }); }catch(e){} })\">📝 Compte rendu / Résultat</button></div>";
         if(ref) ref.insertAdjacentHTML('afterend',bloc); else d.insertAdjacentHTML('afterbegin',bloc);
         sresCharger('client',[id]).then(function(m){ var b=document.getElementById('sres-cl-b'); if(b) b.innerHTML=sresBadge(m[id]); });
       }catch(e){} return r; }; }catch(e){}
   try{ var _pf=sssPrFiche; sssPrFiche=async function(pid){ var r=await _pf.apply(this,arguments);
       try{ var el=[].slice.call(document.querySelectorAll(".sres-rdv[data-src='prospect']")), ids=el.map(function(e){ return e.getAttribute('data-rdv'); });
         if(ids.length){ var m=await sresCharger('prospect',ids); el.forEach(function(e){ var id=e.getAttribute('data-rdv');
-          e.innerHTML="<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px'>"+sresBadge(m[id])+"<button class='relbtn' style='padding:4px 10px;min-height:36px' onclick=\"sresOuvrir('prospect','"+id+"',function(){ sssPrFiche('"+pid+"'); })\">📊 Résultat</button></div>"; }); }
-      }catch(e){} return r; }; }catch(e){}
+          e.innerHTML="<div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px'>"+(m[id]?sresBadge(m[id]):'')+"<button class='relbtn' style='padding:4px 10px;min-height:36px' onclick=\"sresOuvrir('prospect','"+id+"',function(){ sssPrFiche('"+pid+"'); })\">📝 Compte rendu / Résultat</button></div>"; }); }
+      }catch(e){}
+      try{ await sresParcours('sspr-f',pid,null); }catch(e){}
+      return r; }; }catch(e){}
+  try{ var _bf=sssBcFiche; sssBcFiche=async function(cid){ var r=await _bf.apply(this,arguments); try{ await sresParcours('ssbc-f',null,cid); }catch(e){} return r; }; }catch(e){}
+  try{ var _ra=renderAgenda; renderAgenda=async function(){ var r=await _ra.apply(this,arguments); try{ await sresAgendaBadges(); }catch(e){} return r; }; }catch(e){}
+  try{ var _ar=agRepaint; agRepaint=function(){ var r=_ar.apply(this,arguments); try{ sresAgendaBadges(); }catch(e){} return r; }; }catch(e){}
+  // tableaux de bord : les anciens compteurs de ventes (ancien agenda Google, « débouché Signé ») sont remplacés par le bloc « Suivi des ventes »
+  var DIR_ANCIENS={camois:1,objectif:1,ventes:1,panier:1,transfo:1,rdvmois:1,devis:1,cacom:1,evo:1}, COM_ANCIENS={ca:1,ventes:1,panier:1,classement:1,pobj:1,objventes:1,rdvmois:1,evo:1};
+  try{ var _ds=dashShown; dashShown=function(k){ if(SRES.dashRendu&&DIR_ANCIENS[k]) return false; return _ds.apply(this,arguments); }; }catch(e){}
+  try{ var _dcs=dashcShown; dashcShown=function(k){ if(SRES.dashRendu&&COM_ANCIENS[k]) return false; return _dcs.apply(this,arguments); }; }catch(e){}
+  // « Mes clients signés / Ventes signées — toute l'équipe » : les ventes réellement signées (date de signature, TTC)
+  try{ signedPaint=async function(){
+    var el=document.getElementById('signed-card'); if(!el) return;
+    var b=new Date(), mo=new Date(b.getFullYear(),b.getMonth()+(typeof SIGNED_MO!=='undefined'?SIGNED_MO:0),1);
+    var r=await db.rpc('sss_com_synthese',{p_du:sresYmd(mo),p_au:sresYmd(new Date(mo.getFullYear(),mo.getMonth()+1,0)),p_grain:'mois',p_commercial:null});
+    el=document.getElementById('signed-card'); if(!el) return;
+    var D=(r&&r.data)||{}, V=D.ventes||[], dir=!!D.direction, tot=V.reduce(function(s,x){ return s+Number(x.montant_ttc||0); },0);
+    var h="<div style='display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap'><div style='font-weight:700'>"+(dir?'Ventes signées — toute l’équipe':'Mes clients signés')+"</div>"
+      +"<div style='display:flex;align-items:center;gap:6px'><button class='iconbtn' onclick='signedShift(-1)' title='Mois précédent'>‹</button><b style='font-size:13px;min-width:120px;text-align:center;text-transform:capitalize'>"+esc(mo.toLocaleDateString('fr-CH',{month:'long',year:'numeric'}))+"</b>"
+      +"<button class='iconbtn' onclick='signedShift(1)'"+((typeof SIGNED_MO!=='undefined'&&SIGNED_MO>=0)?" disabled style='opacity:.35'":"")+" title='Mois suivant'>›</button></div></div>";
+    if(r&&r.error) h+="<div style='color:var(--text-3);font-size:13px'>"+esc(r.error.message)+"</div>";
+    else if(!V.length) h+="<div style='color:var(--text-3);font-size:13px'>Aucune vente signée sur ce mois.</div>";
+    else h+=V.map(function(x){ return "<div style='display:flex;gap:8px;font-size:13.5px;padding:5px 0;border-top:1px solid var(--line);cursor:pointer' onclick=\"sresOuvrir('"+x.rdv_source+"','"+x.rdv_id+"')\"><span style='flex:1'><b>"+esc(x.client||'—')+"</b> <span style='color:var(--text-3);font-size:12px'>· "+esc(x.type||'')+" · "+esc(sresDate(x.vente_date))+(dir?' · '+esc(x.commercial||''):'')+"</span></span><b>"+sresChf(x.montant_ttc)+" CHF</b></div>"; }).join('')
+      +"<div style='display:flex;font-size:13.5px;padding-top:6px;border-top:1px solid var(--line)'><span style='flex:1'>"+V.length+" vente(s)</span><b>"+sresChf(tot)+" CHF TTC</b></div>";
+    el.innerHTML=h; }; }catch(e){}
+  try{ var _rdd=renderDashDir; renderDashDir=async function(){ SRES.dashRendu=true; try{ await _rdd.apply(this,arguments); } finally { SRES.dashRendu=false; } try{ await sresBlocDash(); }catch(e){} }; }catch(e){}
+  try{ var _rdc=renderDashCom; renderDashCom=async function(){ SRES.dashRendu=true; try{ await _rdc.apply(this,arguments); } finally { SRES.dashRendu=false; } try{ await sresBlocDash(); }catch(e){} }; }catch(e){}
 })();
 
+/* ============================ calculs communs ============================ */
+function sresPct(x){ return x==null?'—':String(x).replace('.',',')+' %'; }
+function sresTuile(t,v,s,c,click){ return "<div class='card' style='padding:12px 14px;text-align:left"+(click?';cursor:pointer':'')+"'"+(click?" onclick=\""+click+"\"":'')+"><div style='font-size:12px;color:var(--text-3)'>"+t+"</div><div style='font-size:22px;font-weight:800;margin-top:2px"+(c?';color:'+c:'')+"'>"+v+"</div>"+(s?"<div style='font-size:11.5px;color:var(--text-3)'>"+s+"</div>":'')+"</div>"; }
+function sresTuiles(I,nbTraiter){
+  return "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px'>"
+    +sresTuile('RDV réalisés',I.rdv_realises,I.sans_compte_rendu?"<span style='color:#e5484d;font-weight:700'>"+I.sans_compte_rendu+" sans compte rendu</span>":(I.rdv+' RDV au total'))
+    +sresTuile('Offres envoyées',I.devis_envoyes,sresChf(I.offres_montant_ttc)+' CHF TTC','#8a5cf6')
+    +sresTuile('Ventes signées',I.ventes,sresChf(I.ca_vendu_ttc)+' CHF TTC','#22a06b')
+    +sresTuile('RDV → offre',sresPct(I.taux_rdv_offre),'des RDV réalisés')
+    +sresTuile('Offre → vente',sresPct(I.taux_devis_vente),'des offres envoyées')
+    +sresTuile('Panier moyen signé',I.panier_moyen_ttc!=null?sresChf(I.panier_moyen_ttc)+' CHF':'—',I.remise_moyenne!=null?'remise moyenne '+sresPct(I.remise_moyenne):'')
+    +(nbTraiter!=null?sresTuile('À traiter',nbTraiter,'à ne pas laisser filer',nbTraiter?'#e5484d':'',"go('a_traiter_com')"):'')+"</div>";
+}
+function sresObjectifsHtml(O,dir){
+  var h="";
+  O.forEach(function(o){ var barre=function(lib,fait,obj,fmt){ if(obj==null) return ''; var p=obj>0?Math.round(1000*fait/obj)/10:0, reste=Math.max(0,obj-fait);
+      return "<div style='margin:6px 0'><div style='display:flex;font-size:13px'><span style='flex:1'>"+lib+" : réalisé <b>"+fmt(fait)+"</b> / objectif "+fmt(obj)+"</span><b style='color:"+(p>=100?'#22a06b':'inherit')+"'>"+String(p).replace('.',',')+" %</b></div>"
+        +"<div style='height:8px;border-radius:6px;background:var(--line);overflow:hidden'><div style='height:100%;width:"+Math.min(100,p)+"%;background:"+(p>=100?'#22a06b':'#3b82f6')+"'></div></div><div style='font-size:11.5px;color:var(--text-3)'>reste "+fmt(reste)+"</div></div>"; };
+    h+="<div style='border-top:1px solid var(--line);padding-top:8px;margin-top:6px'>"+(dir?"<b>"+esc(o.nom)+"</b>":'')
+      +barre('CA signé',Number(o.ca_ttc||0),o.obj_ca_ttc!=null?Number(o.obj_ca_ttc):null,function(x){ return sresChf(x)+' CHF'; })+barre('Ventes',o.ventes,o.obj_ventes,String)+barre('RDV',o.rdv,o.obj_rdv,String)
+      +(o.obj_taux!=null?"<div style='font-size:13px'>Taux de transformation : <b>"+sresPct(o.taux)+"</b> / objectif "+sresPct(Math.round(o.obj_taux*10)/10)+"</div>":'')+"</div>"; });
+  return h;
+}
+
+/* ============================ bloc « Suivi des ventes » des tableaux de bord ============================ */
+async function sresBlocDash(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='dashboard'||document.getElementById('sres-dash')) return;
+  var n=new Date(), du=sresYmd(new Date(n.getFullYear(),n.getMonth(),1)), au=sresYmd(new Date(n.getFullYear(),n.getMonth()+1,0));
+  var r=await db.rpc('sss_com_synthese',{p_du:du,p_au:au,p_grain:'semaine',p_commercial:null}); if(r.error) return;
+  var t=await db.rpc('sss_com_a_traiter',{p_commercial:null});
+  m=document.getElementById('main'); if(!m||VIEW!=='dashboard'||document.getElementById('sres-dash')) return;
+  var D=r.data, I=D.indicateurs||{}, dir=!!D.direction, nb=(t.data||[]).length;
+  var h="<div id='sres-dash' style='margin:0 0 16px'><div style='display:flex;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap'><div style='font-size:15px;font-weight:800'>📈 Suivi des ventes — "+esc(n.toLocaleDateString('fr-CH',{month:'long',year:'numeric'}))+"</div>"
+    +"<div class='spacer' style='flex:1'></div><a href='#' style='font-size:12.5px' onclick=\"go('resultats_com');return false\">Détail et filtres →</a></div>"+sresTuiles(I,nb);
+  if(dir&&(D.par_commercial||[]).length) h+="<div class='card' style='padding:10px 14px;margin-bottom:10px;text-align:left'>"+D.par_commercial.map(function(c){ return "<div style='display:flex;font-size:13.5px;padding:3px 0'><b style='flex:1'>"+esc(c.nom||'—')+"</b><span>"+c.ventes+" vente"+(c.ventes>1?'s':'')+" — <b>"+sresChf(c.ca_ttc)+" CHF</b> <span style='color:var(--text-3)'>· "+c.devis_envoyes+" offre(s) "+sresChf(c.offres_montant_ttc)+" CHF</span></span></div>"; }).join('')+"</div>";
+  if((D.objectifs||[]).length) h+="<div class='card' style='padding:10px 14px;margin-bottom:10px;text-align:left'><div style='font-weight:800'>🎯 Objectif"+(dir?'s':'')+" du mois</div>"+sresObjectifsHtml(D.objectifs,dir)+"</div>";
+  h+="<div style='font-size:11.5px;color:var(--text-3)'>CA signé = ventes commerciales signées (date de signature) — ni le CA facturé ni l'encaissé.</div></div>";
+  var ph=m.querySelector('.page-head'); if(ph) ph.insertAdjacentHTML('afterend',h); else m.insertAdjacentHTML('afterbegin',h);
+}
+
 /* ============================ page « Résultats commerciaux » ============================ */
-function sresPeriode(){ var d=SRES.ref?new Date(SRES.ref+'T12:00:00'):new Date(), g=SRES.grain, du, au;
+function sresPeriode(){ var g=SRES.grain;
+  if(g==='perso'){ var a=SRES.du||sresYmd(new Date(new Date().getFullYear(),new Date().getMonth(),1)), b=SRES.au||sresYmd(new Date()); if(b<a){ var t=a; a=b; b=t; }
+    return {du:a,au:b,lib:'Du '+sresDate(a)+' au '+sresDate(b)}; }
+  var d=SRES.ref?new Date(SRES.ref+'T12:00:00'):new Date(), du, au;
   if(g==='jour'){ du=au=new Date(d); }
   else if(g==='semaine'){ var w=(d.getDay()+6)%7; du=new Date(d); du.setDate(d.getDate()-w); au=new Date(du); au.setDate(du.getDate()+6); }
   else if(g==='annee'){ du=new Date(d.getFullYear(),0,1); au=new Date(d.getFullYear(),11,31); }
@@ -9260,60 +9408,79 @@ function sresPeriode(){ var d=SRES.ref?new Date(SRES.ref+'T12:00:00'):new Date()
 function sresDecaler(n){ var d=SRES.ref?new Date(SRES.ref+'T12:00:00'):new Date(), g=SRES.grain;
   if(g==='jour') d.setDate(d.getDate()+n); else if(g==='semaine') d.setDate(d.getDate()+7*n); else if(g==='annee') d.setFullYear(d.getFullYear()+n); else { d.setDate(1); d.setMonth(d.getMonth()+n); }
   SRES.ref=sresYmd(d); sresPage(); }
-function sresEstDir(){ return typeof ME!=='undefined'&&ME&&(ME.role==='superadmin'||ME.role==='direction'); }
+function sresGrain(g){ SRES.grain=g; if(g!=='perso') SRES.ref=null; sresPage(); }
 async function sresPage(){
   var m=document.getElementById('main'); if(!m||VIEW!=='resultats_com') return;
-  var P=sresPeriode();
+  var P=sresPeriode(), g=SRES.grain, jours=(new Date(P.au)-new Date(P.du))/864e5;
   if(!SRES.data) m.innerHTML="<div class='page-head'><h2>Résultats commerciaux</h2></div><div style='padding:20px;color:var(--text-3)'>Chargement…</div>";
-  var r=await db.rpc('sss_com_synthese',{p_du:P.du,p_au:P.au,p_grain:SRES.grain==='annee'?'mois':SRES.grain==='mois'?'semaine':'jour',p_commercial:SRES.com||null});
+  var r=await db.rpc('sss_com_synthese',{p_du:P.du,p_au:P.au,p_grain:(g==='annee'||jours>92)?'mois':(g==='mois'||jours>14)?'semaine':'jour',p_commercial:SRES.com||null});
+  var t=await db.rpc('sss_com_a_traiter',{p_commercial:SRES.com||null});
   if(VIEW!=='resultats_com') return;
   if(r.error){ m.innerHTML="<div class='page-head'><h2>Résultats commerciaux</h2></div><div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>"; return; }
-  var D=SRES.data=r.data, I=D.indicateurs||{}, dir=!!D.direction;
-  var carte=function(t,v,s,c){ return "<div class='card' style='padding:12px 14px;text-align:left'><div style='font-size:12px;color:var(--text-3)'>"+t+"</div><div style='font-size:22px;font-weight:800;margin-top:2px"+(c?';color:'+c:'')+"'>"+v+"</div>"+(s?"<div style='font-size:11.5px;color:var(--text-3)'>"+s+"</div>":'')+"</div>"; };
-  var pct=function(x){ return x==null?'—':String(x).replace('.',',')+' %'; };
+  var D=SRES.data=r.data, I=D.indicateurs||{}, dir=!!D.direction, nbT=(t.data||[]).length;
   var h="<div class='page-head' style='flex-wrap:wrap;gap:8px'><h2>Résultats commerciaux</h2><div class='spacer'></div>"+(dir?"<button class='btn' style='width:auto;padding:9px 14px' onclick='sresObjectifs()'>🎯 Objectifs</button>":'')+"</div>";
-  h+="<div class='ssc-chips'>"+[['jour','Jour'],['semaine','Semaine'],['mois','Mois'],['annee','Année']].map(function(g){ return "<button class='"+(SRES.grain===g[0]?'btn':'relbtn')+"' style='width:auto' onclick=\"SRES.grain='"+g[0]+"';sresPage()\">"+g[1]+"</button>"; }).join('')+"</div>";
-  h+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap'><button class='relbtn' style='min-height:42px' onclick='sresDecaler(-1)'>‹</button><b style='flex:1;text-align:center;text-transform:capitalize'>"+esc(P.lib)+"</b><button class='relbtn' style='min-height:42px' onclick='sresDecaler(1)'>›</button>"
+  h+="<div class='ssc-chips'>"+[['jour',"Aujourd'hui"],['semaine','Semaine'],['mois','Mois'],['annee','Année'],['perso','Période']].map(function(x){ return "<button class='"+(g===x[0]?'btn':'relbtn')+"' style='width:auto' onclick=\"sresGrain('"+x[0]+"')\">"+x[1]+"</button>"; }).join('')+"</div>";
+  h+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap'>"
+    +(g==='perso'?"<input type='date' value='"+P.du+"' style='width:auto;min-height:42px' onchange=\"SRES.du=this.value;sresPage()\"><span>→</span><input type='date' value='"+P.au+"' style='width:auto;min-height:42px' onchange=\"SRES.au=this.value;sresPage()\">"
+      :"<button class='relbtn' style='min-height:42px' onclick='sresDecaler(-1)'>‹</button><b style='flex:1;text-align:center;text-transform:capitalize'>"+esc(P.lib)+"</b><button class='relbtn' style='min-height:42px' onclick='sresDecaler(1)'>›</button>")
     +(dir?"<select style='min-height:42px;width:auto' onchange=\"SRES.com=this.value;sresPage()\"><option value=''>Tous les commerciaux</option>"+(SRES.coms||[]).map(function(c){ return "<option value='"+c.id+"'"+(SRES.com===c.id?' selected':'')+">"+esc(c.nom)+"</option>"; }).join('')+"</select>":'')+"</div>";
-  h+="<div style='font-size:11.5px;color:var(--text-3);margin-bottom:10px'>CA vendu = ventes commerciales conclues (résultat « Vendu » des RDV). Ce n'est ni le CA facturé ni l'encaissé (comptabilité).</div>";
-  h+="<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px'>"
-    +carte('CA vendu TTC',sresChf(I.ca_vendu_ttc)+' CHF',I.ventes+' vente(s)','#22a06b')+carte('Panier moyen',I.panier_moyen_ttc!=null?sresChf(I.panier_moyen_ttc)+' CHF':'—')
-    +carte('RDV',I.rdv,I.rdv_realises+' réalisé(s)')+carte('Taux RDV → vente',pct(I.taux_transformation))+carte('Ventes',I.ventes)+carte('Perdus',I.perdus,'',I.perdus?'#e5484d':'')
-    +carte('Devis envoyés',I.devis_envoyes)+carte('Taux devis → vente',pct(I.taux_devis_vente))+"</div>";
+  h+=sresTuiles(I,nbT);
+  h+="<div style='font-size:11.5px;color:var(--text-3);margin-bottom:10px'>CA signé = ventes commerciales signées, comptées à la date de signature. Ce n'est ni le CA facturé ni l'encaissé (comptabilité).</div>";
+  if(dir&&(D.par_commercial||[]).length) h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left;overflow-x:auto'><div style='font-weight:800;margin-bottom:6px'>Par commercial</div>"
+    +D.par_commercial.map(function(c){ return "<div style='display:flex;font-size:13.5px;padding:3px 0'><b style='flex:1'>"+esc(c.nom||'—')+"</b><span>"+c.ventes+" vente"+(c.ventes>1?'s':'')+" — <b>"+sresChf(c.ca_ttc)+" CHF</b></span></div>"; }).join('')
+    +"<table style='width:100%;font-size:12.5px;border-collapse:collapse;margin-top:8px'><tr style='color:var(--text-3);text-align:left'><th>Commercial</th><th>RDV réal.</th><th>Sans CR</th><th>Offres</th><th>Montant offres</th><th>Offre→vente</th><th style='text-align:right'>CA signé</th></tr>"
+    +D.par_commercial.map(function(c){ return "<tr style='border-top:1px solid var(--line)'><td>"+esc(c.nom||'—')+"</td><td>"+c.rdv_realises+"</td><td style='color:"+(c.sans_compte_rendu?'#e5484d':'inherit')+"'>"+c.sans_compte_rendu+"</td><td>"+c.devis_envoyes+"</td><td>"+sresChf(c.offres_montant_ttc)+"</td><td>"+sresPct(c.taux_devis_vente)+"</td><td style='text-align:right'><b>"+sresChf(c.ca_ttc)+"</b></td></tr>"; }).join('')+"</table></div>";
   var O=D.objectifs||[];
-  if(SRES.grain==='mois'||SRES.grain==='annee'){
+  if(g==='mois'||g==='annee'){
     h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>🎯 Objectifs</div>";
-    if(!O.length) h+="<div style='font-size:13px;color:var(--text-3)'>Aucun objectif fixé pour cette période"+(dir?' (bouton « Objectifs »).':'.')+"</div>";
-    O.forEach(function(o){ var barre=function(lib,fait,obj,fmt){ if(obj==null) return ''; var p=obj>0?Math.round(100*fait/obj):0, reste=Math.max(0,obj-fait);
-        return "<div style='margin:6px 0'><div style='display:flex;font-size:13px'><span style='flex:1'>"+lib+" : <b>"+fmt(fait)+"</b> / "+fmt(obj)+"</span><b style='color:"+(p>=100?'#22a06b':'inherit')+"'>"+p+" %</b></div>"
-          +"<div style='height:8px;border-radius:6px;background:var(--line);overflow:hidden'><div style='height:100%;width:"+Math.min(100,p)+"%;background:"+(p>=100?'#22a06b':'#3b82f6')+"'></div></div><div style='font-size:11.5px;color:var(--text-3)'>reste "+fmt(reste)+"</div></div>"; };
-      h+="<div style='border-top:1px solid var(--line);padding-top:8px;margin-top:6px'>"+(dir?"<b>"+esc(o.nom)+"</b>":'')
-        +barre('CA vendu',Number(o.ca_ttc||0),o.obj_ca_ttc!=null?Number(o.obj_ca_ttc):null,function(x){ return sresChf(x)+' CHF'; })+barre('Ventes',o.ventes,o.obj_ventes,String)+barre('RDV',o.rdv,o.obj_rdv,String)
-        +(o.obj_taux!=null?"<div style='font-size:13px'>Taux de transformation : <b>"+pct(o.taux)+"</b> / objectif "+pct(Math.round(o.obj_taux*10)/10)+"</div>":'')+"</div>"; });
+    h+=O.length?sresObjectifsHtml(O,dir):"<div style='font-size:13px;color:var(--text-3)'>Aucun objectif fixé pour cette période"+(dir?' (bouton « Objectifs »).':'.')+"</div>";
     h+="</div>";
-  } else h+="<div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>Objectifs : vues Mois et Année.</div>";
+  }
   if((D.par_type||[]).length) h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Ventes par type</div>"+D.par_type.map(function(t){ return "<div style='display:flex;font-size:13.5px;padding:3px 0'><span style='flex:1'>"+esc(t.libelle)+"</span><span>"+t.ventes+" · <b>"+sresChf(t.ca_ttc)+" CHF</b></span></div>"; }).join('')+"</div>";
-  if(dir&&(D.par_commercial||[]).length) h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left;overflow-x:auto'><div style='font-weight:800;margin-bottom:6px'>Par commercial</div><table style='width:100%;font-size:13px;border-collapse:collapse'><tr style='color:var(--text-3);text-align:left'><th>Commercial</th><th>RDV</th><th>Réal.</th><th>Ventes</th><th>Perdus</th><th>Devis</th><th>Taux</th><th style='text-align:right'>CA vendu</th></tr>"
-    +D.par_commercial.map(function(c){ return "<tr style='border-top:1px solid var(--line)'><td>"+esc(c.nom||'—')+"</td><td>"+c.rdv+"</td><td>"+c.rdv_realises+"</td><td>"+c.ventes+"</td><td>"+c.perdus+"</td><td>"+c.devis_envoyes+"</td><td>"+pct(c.taux_transformation)+"</td><td style='text-align:right'><b>"+sresChf(c.ca_ttc)+"</b></td></tr>"; }).join('')+"</table></div>";
-  var S=(D.series||[]).filter(function(s){ return s.rdv||s.ventes; });
-  if(S.length&&SRES.grain!=='jour') h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Détail par "+(SRES.grain==='annee'?'mois':SRES.grain==='mois'?'semaine':'jour')+"</div>"+S.map(function(s){ var dd=new Date(s.periode+'T12:00:00');
-      var l=SRES.grain==='annee'?dd.toLocaleDateString('fr-CH',{month:'long'}):SRES.grain==='mois'?'Semaine du '+dd.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit'}):dd.toLocaleDateString('fr-CH',{weekday:'short',day:'2-digit',month:'2-digit'});
-      return "<div style='display:flex;font-size:13px;padding:3px 0'><span style='flex:1;text-transform:capitalize'>"+esc(l)+"</span><span>"+s.rdv+" RDV · "+s.ventes+" vente(s) · <b>"+sresChf(s.ca_ttc)+" CHF</b></span></div>"; }).join('')+"</div>";
   var V=D.ventes||[];
-  h+="<div class='card' style='padding:12px 14px;margin-bottom:30px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Ventes ("+V.length+")</div>"+(V.length?V.map(function(x){ return "<div style='border-top:1px solid var(--line);padding:7px 0;font-size:13px'><div style='display:flex;gap:8px'><b style='flex:1'>"+esc(x.client||'—')+"</b><b>"+sresChf2(x.montant_ttc)+" CHF</b></div>"
-      +"<div style='color:var(--text-3);font-size:12px'>Vente du "+esc(sresDate(x.vente_date))+" · "+esc(x.type||'')+(dir?' · '+esc(x.commercial||''):'')+" · RDV du "+esc(sresDate(x.rdv_at))+(x.devis_ref?' · '+esc(x.devis_ref):'')+"</div>"+(x.notes?"<div style='font-size:12px;white-space:pre-wrap'>"+esc(x.notes)+"</div>":'')
-      +"<a href='#' style='font-size:12px' onclick=\"sresOuvrir('"+x.rdv_source+"','"+x.rdv_id+"');return false\">voir / corriger le résultat</a></div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune vente sur la période.</div>")+"</div>";
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>✅ Ventes signées ("+V.length+")</div>"+(V.length?V.map(function(x){ var rem=x.offre_montant_ttc!=null&&Number(x.offre_montant_ttc)>0?Math.round(1000*(x.offre_montant_ttc-x.montant_ttc)/x.offre_montant_ttc)/10:null;
+      return "<div style='border-top:1px solid var(--line);padding:7px 0;font-size:13px'><div style='display:flex;gap:8px'><b style='flex:1'>"+esc(x.client||'—')+"</b><b>"+sresChf(x.montant_ttc)+" CHF</b></div>"
+      +"<div style='color:var(--text-3);font-size:12px'>Signé le "+esc(sresDate(x.vente_date))+" · "+esc(x.type||'')+(dir?' · '+esc(x.commercial||''):'')+(x.offre_montant_ttc!=null?' · offre '+sresChf(x.offre_montant_ttc)+' CHF'+(rem?' (remise '+String(rem).replace('.',',')+' %)':''):'')+(x.devis_ref?' · '+esc(x.devis_ref):'')+"</div>"
+      +"<a href='#' style='font-size:12px' onclick=\"sresOuvrir('"+x.rdv_source+"','"+x.rdv_id+"');return false\">voir / corriger</a></div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune vente signée sur la période.</div>")+"</div>";
+  var OF=D.offres||[];
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:30px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>📨 Offres envoyées ("+OF.length+")</div>"+(OF.length?OF.map(function(x){
+      return "<div style='border-top:1px solid var(--line);padding:7px 0;font-size:13px'><div style='display:flex;gap:8px'><b style='flex:1'>"+esc(x.client||'—')+"</b><b>"+(x.offre_montant_ttc!=null?sresChf(x.offre_montant_ttc)+' CHF':'<span style="color:#e0a52b">montant à compléter</span>')+"</b></div>"
+      +"<div style='color:var(--text-3);font-size:12px'>Envoyée le "+esc(sresDate(x.envoye_le))+(dir?' · '+esc(x.commercial||''):'')+" · aujourd'hui : <b style='color:"+sresCoul(x.resultat)+"'>"+esc(x.libelle)+"</b>"+(x.devis_ref?' · '+esc(x.devis_ref):'')+"</div>"
+      +"<a href='#' style='font-size:12px' onclick=\"sresOuvrir('"+x.rdv_source+"','"+x.rdv_id+"');return false\">mettre à jour</a></div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune offre envoyée sur la période.</div>")+"</div>";
   m.innerHTML=h;
   if(dir&&!SRES.coms){ var c=await db.rpc('sss_com_objectifs_mois',{p_mois:P.du}); if(!c.error){ SRES.coms=(c.data||[]).map(function(x){ return {id:x.commercial_id,nom:x.nom}; }); if(VIEW==='resultats_com') sresPage(); } }
 }
+
+/* ============================ page « À traiter » ============================ */
+async function sresTraiterPage(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='a_traiter_com') return;
+  if(!SRES.traiter) m.innerHTML="<div class='page-head'><h2>À traiter</h2></div><div style='padding:20px;color:var(--text-3)'>Chargement…</div>";
+  var r=await db.rpc('sss_com_a_traiter',{p_commercial:SRES.com||null}); if(VIEW!=='a_traiter_com') return;
+  if(r.error){ m.innerHTML="<div class='page-head'><h2>À traiter</h2></div><div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>"; return; }
+  var L=SRES.traiter=r.data||[], dir=typeof ME!=='undefined'&&ME&&(ME.role==='superadmin'||ME.role==='direction');
+  var grp={}; L.forEach(function(x){ (grp[x.type]=grp[x.type]||[]).push(x); });
+  var h="<div class='page-head'><h2>À traiter</h2><div class='spacer'></div><span style='font-size:13px;color:var(--text-3)'>"+L.length+" élément(s)</span></div>";
+  h+="<div style='font-size:12.5px;color:var(--text-3);margin-bottom:10px'>Aucune opportunité ne doit disparaître : chaque ligne s'ouvre et se règle en enregistrant le résultat structuré (la note seule ne suffit pas). Les anciennes données ne sont jamais transformées automatiquement en vente.</div>";
+  if(!L.length) h+="<div class='card' style='padding:16px;text-align:center'>✅ Rien en retard. Bravo.</div>";
+  ['sans_cr','a_completer','offre_sans_suivi','rappel','offre_sans_resultat'].forEach(function(k){ var A=grp[k]; if(!A) return; var d=SRES_TRAITER[k];
+    h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px;color:"+d[2]+"'>"+d[0]+" "+d[1]+" ("+A.length+")</div>"+A.map(function(x){
+      var act=x.rdv_id?"sresOuvrir('"+x.src+"','"+x.rdv_id+"',function(){ sresTraiterPage(); })":x.prospect_id?"sresAllerProspect('"+x.prospect_id+"')":x.contact_id?"sresAllerClient('"+x.contact_id+"')":'';
+      return "<div style='border-top:1px solid var(--line);padding:8px 0;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap'><div style='flex:1;min-width:180px'><b>"+esc(x.client||'—')+"</b>"+(x.montant!=null?" · "+sresChf(x.montant)+" CHF":'')
+        +"<div style='font-size:12px;color:var(--text-3)'>"+(x.date?sresDate(x.date)+' · ':'')+esc(x.detail||d[1])+(dir&&x.commercial?' · '+esc(x.commercial):'')+"</div></div>"
+        +(act?"<button class='relbtn' style='min-height:40px' onclick=\""+act+"\">"+(x.rdv_id?'📝 Compléter':'Ouvrir')+"</button>":'')+"</div>"; }).join('')+"</div>"; });
+  m.innerHTML=h;
+}
+function sresAllerProspect(pid){ go('prospects'); setTimeout(function(){ try{ if(typeof SSSPR!=='undefined') SSSPR.sel=pid; sssPrFiche(pid); }catch(e){} },250); }
+function sresAllerClient(cid){ go('base_clients'); setTimeout(function(){ try{ if(typeof SSSBC!=='undefined') SSSBC.sel=cid; sssBcFiche(cid); }catch(e){} },250); }
+
 /* objectifs du mois affiché (direction) : un formulaire par commercial */
 async function sresObjectifs(){
   var P=sresPeriode(), mois=P.du.slice(0,8)+'01'; var r=await db.rpc('sss_com_objectifs_mois',{p_mois:mois}); if(r.error){ alert(r.error.message); return; }
   var L=r.data||[], lib=new Date(mois+'T12:00:00').toLocaleDateString('fr-CH',{month:'long',year:'numeric'});
   var champ=function(id,lab,v,ph){ return "<div class='field' style='flex:1;min-width:110px'><label style='font-size:11.5px'>"+lab+"</label><input id='"+id+"' type='number' inputmode='decimal' min='0' value='"+(v==null?'':v)+"' placeholder='"+ph+"'></div>"; };
-  try{ sssCss(); }catch(e){} sssSheet("<h3 style='margin:0 0 4px'>🎯 Objectifs — "+esc(lib)+"</h3><div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>Par commercial et par mois. Laisser vide = pas d'objectif.</div>"
+  try{ sssCss(); }catch(e){} sssSheet("<h3 style='margin:0 0 4px'>🎯 Objectifs — "+esc(lib)+"</h3><div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>Par commercial et par mois. Les ventes comptent selon leur date de signature. Laisser vide = pas d'objectif.</div>"
     +(L.length?L.map(function(o,i){ return "<div style='border-top:1px solid var(--line);padding-top:8px;margin-top:8px'><b>"+esc(o.nom)+"</b><div style='display:flex;gap:8px;flex-wrap:wrap'>"
-      +champ('sob-ca'+i,'CA TTC (CHF)',o.obj_ca_ttc,'80000')+champ('sob-v'+i,'Ventes',o.obj_ventes,'6')+champ('sob-r'+i,'RDV',o.obj_rdv,'20')+champ('sob-t'+i,'Taux (%)',o.obj_taux,'30')+"</div>"
+      +champ('sob-ca'+i,'CA signé TTC (CHF)',o.obj_ca_ttc,'80000')+champ('sob-v'+i,'Ventes',o.obj_ventes,'6')+champ('sob-r'+i,'RDV',o.obj_rdv,'20')+champ('sob-t'+i,'Taux (%)',o.obj_taux,'30')+"</div>"
       +"<button class='btn' style='min-height:42px' onclick=\"sresObjOk(this,'"+o.commercial_id+"','"+mois+"',"+i+")\">Enregistrer "+esc(o.nom)+"</button></div>"; }).join(''):"<div style='font-size:13px'>Aucun commercial actif.</div>")
     +"<button class='relbtn' style='margin-top:12px;min-height:44px' onclick='sssSheetFermer()'>Fermer</button>");
 }
@@ -9322,7 +9489,8 @@ async function sresObjOk(btn,com,mois,i){ var v=function(k){ var e=document.getE
   if(d) sresPage(); }
 (function(){
   try{ VUE_ROLES.resultats_com=['superadmin','direction','commercial']; VUE_SERVICES.resultats_com=['commercial']; }catch(e){}
-  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='resultats_com'){ SRES.data=null; sresPage(); } }catch(e){ console.error(e); } return r; }; }catch(e){}
+  try{ VUE_ROLES.a_traiter_com=['superadmin','direction','commercial']; VUE_SERVICES.a_traiter_com=['commercial']; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='resultats_com'){ SRES.data=null; sresPage(); } else if(VIEW==='a_traiter_com'){ SRES.traiter=null; sresTraiterPage(); } }catch(e){ console.error(e); } return r; }; }catch(e){}
 })();
 
 /* SSS-RESULTATS-FIN */
