@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261105122916-8f1b1e7 -->
+<!-- deploy-marker: pub-20261114184449-56f3b22 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -8373,11 +8373,47 @@ var SSSAG_TYPES={visite:'Visite',etude:'Étude',signature:'Signature',telephone:
 function sssAgEstCom(){ return typeof ME!=='undefined'&&ME&&ME.role==='commercial'; }
 function sssAgEstDir(){ return typeof ME!=='undefined'&&ME&&(ME.role==='superadmin'||ME.role==='direction'); }
 function sssAgConcerne(){ return sssAgEstCom()||sssAgEstDir(); }
+/* 0066 — lecture seule de l'agenda de TOUS les commerciaux pour les comptes listés par la direction (Xiaoli) : la base décide
+   (sss_agenda_com_lecteur) ; ses propres rendez-vous restent modifiables, ceux des autres ne le sont pas. */
+var SSSAG_LECT={cle:null,val:false};
+async function sssAgLecteurCharger(){
+  var cle=(typeof ME!=='undefined'&&ME)?(ME.id+'|'+ME.role):'';
+  if(SSSAG_LECT.cle===cle) return SSSAG_LECT.val;
+  var v=false;
+  if(sssAgEstCom()&&!sssAgEstDir()){ try{ var r=await db.rpc('sss_agenda_com_lecteur'); v=!r.error&&r.data===true; }catch(e){ v=false; } }
+  SSSAG_LECT={cle:cle,val:v}; return v;
+}
+function sssAgLecteur(){ var cle=(typeof ME!=='undefined'&&ME)?(ME.id+'|'+ME.role):''; return SSSAG_LECT.cle===cle&&SSSAG_LECT.val===true; }
+function sssAgVoitTout(){ return sssAgEstDir()||sssAgLecteur(); }
+function sssAgPasAMoi(id){
+  if(!sssAgLecteur()) return false;
+  id=''+id; if(id.indexOf('lrv:')===0) return true;
+  var it=(window.__AGALL||[]).find(function(r){ return ''+r.id===id; }); if(!it) return false;
+  if(it._prdv){ var x=it._prdv; return (x.intervenant_id||x.cree_par)!==ME.id; }
+  return !!it.assigne_a&&it.assigne_a!==ME.id;
+}
+function sssAgLectureSeule(){ try{ sssToast('Lecture seule : ce rendez-vous appartient à un autre commercial.',false); }catch(e){ alert('Lecture seule : ce rendez-vous appartient à un autre commercial.'); } }
+/* rendez-vous clients des autres commerciaux (lecture seule, sans coût ni note) */
+async function sssAgLectureClients(data){
+  var r=await db.rpc('sss_agenda_com_lecture'); if(r.error||!Array.isArray(r.data)) return;
+  var vus={}; data.forEach(function(x){ vus[''+x.id]=1; });
+  r.data.forEach(function(x){ if(vus[''+x.id]) return; x.id='lrv:'+x.id; x._lecture=true; data.push(x); });
+}
+function sssAgCarteLecture(it){
+  var c=it.contact||{}, a=it.assigne, adr=[c.adresse,[c.npa,c.localite].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  return "<h3 style='margin:0 0 4px'>"+esc(((c.nom||'')+' '+(c.prenom||'')).trim()||'Rendez-vous')+"</h3>"
+    +"<div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>👁 Lecture seule · commercial : "+esc(a?((a.prenom||'')+' '+(a.nom||'')).trim():'à attribuer')+(it.source?' · '+esc(it.source):'')+"</div>"
+    +"<div class='row' style='margin:6px 0'>🗓 <b>"+esc(it.date_rdv?new Date(it.date_rdv+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}):'date à fixer')+(it.heure?' à '+esc((''+it.heure).slice(0,5)):'')+"</b></div>"
+    +(adr?"<div class='row' style='margin:6px 0'><a href='https://maps.google.com/?q="+encodeURIComponent(adr)+"' target='_blank' rel='noopener'>📍 "+esc(adr)+"</a></div>":'')
+    +(c.telephone?"<div class='row' style='margin:6px 0'><a href='tel:"+esc((c.telephone||'').replace(/\s/g,''))+"' style='color:var(--green)'>📞 "+esc(c.telephone)+"</a></div>":'')
+    +(it.debouche?"<div class='row' style='margin:6px 0'>Résultat : <b>"+esc(it.debouche)+"</b></div>":'')
+    +"<div class='modal-actions'><button class='btn' style='width:auto;padding:10px 18px' onclick='closeModal()'>Fermer</button></div>";
+}
 function sssAgYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function sssAgHm(d){ return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 async function sssAgProspects(){
   if(!sssAgConcerne()) return [];
-  var dir=sssAgEstDir();
+  var dir=sssAgVoitTout();
   var q=db.from('prospect_rdv').select('id,prospect_id,debut,fin,adresse,type,commentaire,statut,intervenant_id,cree_par,prospect:prospect_id(numero,prenom,nom,societe,telephone,rue,npa,localite),intervenant:intervenant_id(prenom,nom),createur:cree_par(prenom,nom)')
     .not('statut','in','(annule,reporte)');
   if(!dir) q=q.or('intervenant_id.eq.'+ME.id+',and(intervenant_id.is.null,cree_par.eq.'+ME.id+')');
@@ -8395,25 +8431,27 @@ async function sssAgProspects(){
 async function sssAgFusion(data){
   if(!Array.isArray(data)||!sssAgConcerne()) return;
   try{ sssAgTempsReel(); }catch(e){}
-  var px=await sssAgProspects(); if(!px.length) return;
+  try{ if(await sssAgLecteurCharger()) await sssAgLectureClients(data); }catch(e){}
+  var px=await sssAgProspects();
   Array.prototype.push.apply(data,px);
   data.sort(function(a,b){ return (''+(a.date_rdv||'')).localeCompare(''+(b.date_rdv||''))||(''+(a.heure||'')).localeCompare(''+(b.heure||'')); });
+  window.__AGALL=data;   // aussi en vue liste : le clic sur un rendez-vous prospect / en lecture seule retrouve sa fiche
 }
 function sssAgCarte(it){
-  var x=it._prdv||{}, c=it.contact||{}, d=new Date(x.debut), tel=(c.telephone||'').replace(/\s/g,'');
+  var x=it._prdv||{}, c=it.contact||{}, d=new Date(x.debut), tel=(c.telephone||'').replace(/\s/g,''), lect=sssAgPasAMoi(it.id);
   var lieu=c.adresse?"<a href='https://maps.google.com/?q="+encodeURIComponent(c.adresse)+"' target='_blank' rel='noopener'>📍 "+esc(c.adresse)+"</a>":'📍 —';
   return "<h3 style='margin:0 0 4px'>"+esc(((c.nom||'')+' '+(c.prenom||'')).trim()||'Rendez-vous')+"</h3>"
-    +"<div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>"+esc(it.source||'')+(it.assigne?' · commercial : '+esc(((it.assigne.prenom||'')+' '+(it.assigne.nom||'')).trim()):'')+"</div>"
+    +"<div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>"+esc(it.source||'')+(it.assigne?' · commercial : '+esc(((it.assigne.prenom||'')+' '+(it.assigne.nom||'')).trim()):'')+(lect?' · 👁 Lecture seule':'')+"</div>"
     +"<div class='row' style='margin:6px 0'>🗓 <b>"+esc(d.toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}))+" à "+esc(sssAgHm(d))+"</b></div>"
     +"<div class='row' style='margin:6px 0'>"+lieu+"</div>"
     +(c.telephone?"<div class='row' style='margin:6px 0'><a href='tel:"+esc(tel)+"' style='color:var(--green)'>📞 "+esc(c.telephone)+"</a></div>":'')
     +(x.commentaire?"<div class='row' style='margin:6px 0;white-space:pre-wrap'>📝 "+esc(x.commentaire)+"</div>":'')
-    +"<div id='sssag-dep' style='display:none;margin-top:10px'><div class='field'><label>Nouvelle date</label><input id='sssag-d' type='date' value='"+sssAgYmd(d)+"'></div>"
+    +(lect?'':"<div id='sssag-dep' style='display:none;margin-top:10px'><div class='field'><label>Nouvelle date</label><input id='sssag-d' type='date' value='"+sssAgYmd(d)+"'></div>"
     +"<div class='field'><label>Heure</label><input id='sssag-h' type='time' step='900' value='"+sssAgHm(d)+"'></div>"
-    +"<button class='btn' onclick=\"sssAgDeplacerDepuisFiche('"+x.id+"')\">Enregistrer le nouvel horaire</button></div>"
+    +"<button class='btn' onclick=\"sssAgDeplacerDepuisFiche('"+x.id+"')\">Enregistrer le nouvel horaire</button></div>")
     +"<div class='modal-actions' style='flex-wrap:wrap;gap:8px'>"
     +"<button class='btn btn-ghost' style='width:auto;padding:10px 14px' onclick=\"closeModal();sssAgOuvrirFiche('"+it.prospect_id+"')\">📇 Fiche prospect</button>"
-    +(x.statut==='prevu'?"<button class='btn btn-ghost' style='width:auto;padding:10px 14px' onclick=\"document.getElementById('sssag-dep').style.display='block'\">🕒 Déplacer</button>"
+    +(x.statut==='prevu'&&!lect?"<button class='btn btn-ghost' style='width:auto;padding:10px 14px' onclick=\"document.getElementById('sssag-dep').style.display='block'\">🕒 Déplacer</button>"
                        +"<button class='btn btn-ghost' style='width:auto;padding:10px 14px;color:#e5484d' onclick=\"sssAgAnnuler('"+x.id+"','"+it.prospect_id+"')\">✖ Annuler le RDV</button>":'')
     +"<button class='btn' style='width:auto;padding:10px 18px' onclick='closeModal()'>Fermer</button></div>";
 }
@@ -8467,9 +8505,12 @@ function sssAgTempsReel(){
 
 /* =============================== branchement =============================== */
 (function(){
+  try{ var _o0=openRdv; openRdv=function(id){ if((''+id).indexOf('lrv:')===0){ var it=(window.__AGALL||[]).find(function(r){ return ''+r.id===''+id; }); if(it) modal(sssAgCarteLecture(it)); return; } return _o0.apply(this,arguments); }; }catch(e){}
   try{ var _o=openRdv; openRdv=function(id){ if((''+id).indexOf('prdv:')===0) return sssAgOuvrirProspectRdv((''+id).slice(5)); return _o.apply(this,arguments); }; }catch(e){}
-  try{ var _vt=vtAnticipee; vtAnticipee=function(id){ if((''+id).indexOf('prdv:')===0){ alert('La VT anticipée concerne un rendez-vous client : ouvre d’abord la fiche prospect et convertis-le en client.'); return; } return _vt.apply(this,arguments); }; }catch(e){}
+  try{ var _vt=vtAnticipee; vtAnticipee=function(id){ if((''+id).indexOf('lrv:')===0) return sssAgLectureSeule(); if((''+id).indexOf('prdv:')===0){ alert('La VT anticipée concerne un rendez-vous client : ouvre d’abord la fiche prospect et convertis-le en client.'); return; } return _vt.apply(this,arguments); }; }catch(e){}
   try{ var _m=agMoveRdv; agMoveRdv=function(id,ds,heure){ if((''+id).indexOf('prdv:')===0) return sssAgDeplacer((''+id).slice(5),ds,heure); return _m.apply(this,arguments); }; }catch(e){}
+  /* lecture seule : glisser-déposer refusé sur le rendez-vous d'un autre commercial (s'applique avant tout autre traitement) */
+  try{ var _m2=agMoveRdv; agMoveRdv=function(id){ if(sssAgPasAMoi(id)){ sssAgLectureSeule(); try{ if(agView()!=='liste') agRepaint(); }catch(e){} return; } return _m2.apply(this,arguments); }; }catch(e){}
 })();
 
 /* SSS-AGENDA-COM-FIN */
@@ -9188,7 +9229,7 @@ async function sresEnregistrer(btn,autre){
 
 /* ============================ branchements (agenda, RDV client, fiche prospect) ============================ */
 (function(){
-  try{ var _c=sssAgCarte; sssAgCarte=function(it){ var h=_c.apply(this,arguments); var x=it&&it._prdv; if(!x||!x.id) return h;
+  try{ var _c=sssAgCarte; sssAgCarte=function(it){ var h=_c.apply(this,arguments); var x=it&&it._prdv; if(!x||!x.id) return h; if(typeof sssAgPasAMoi==='function'&&sssAgPasAMoi(it.id)) return h;   /* 0066 : lecture seule */
     var bloc="<div id='sres-ag' data-rdv='"+x.id+"' style='margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px'><div id='sres-ag-b' style='margin-bottom:8px'>…</div>"
       +"<button class='btn' style='width:auto;padding:10px 14px;min-height:44px' onclick=\"closeModal();sresOuvrir('prospect','"+x.id+"',function(){ try{ renderAgenda(); }catch(e){} })\">📊 Résultat du RDV</button></div>";
     setTimeout(function(){ sresCharger('prospect',[x.id]).then(function(m){ var b=document.getElementById('sres-ag-b'); if(b) b.innerHTML=sresBadge(m[x.id]); }); },30);
@@ -10984,7 +11025,7 @@ async function renderAgenda(){
 
   } else {
     const g={today:[],demain:[],avenir:[]};
-    rows0.filter(function(r){ return (typeof sssAgEstDir==='function'&&sssAgEstDir()) ? true : (r.assigne_a ? (r.assigne_a===ME.id) : true); }).forEach(r=>{ const d=r.date_rdv||''; if(d && d<t0) return; let bk; if(!d) bk='avenir'; else if(d===t0) bk='today'; else if(d===tm) bk='demain'; else bk='avenir'; g[bk].push(r); });
+    rows0.filter(function(r){ return (typeof sssAgVoitTout==='function'?sssAgVoitTout():(typeof sssAgEstDir==='function'&&sssAgEstDir())) ? true : (r.assigne_a ? (r.assigne_a===ME.id) : true); }).forEach(r=>{ const d=r.date_rdv||''; if(d && d<t0) return; let bk; if(!d) bk='avenir'; else if(d===t0) bk='today'; else if(d===tm) bk='demain'; else bk='avenir'; g[bk].push(r); });
     const sec=(t,arr,col)=> arr.length? '<div class="agenda-sec" style="color:'+(col||'var(--text-2)')+'">'+t+' <span style="color:var(--text-3);font-weight:600">('+arr.length+')</span></div><div class="cards">'+arr.map(card).join('')+'</div>' : '';
     ahtml=pastPicker+'<div class="agenda-head"><div class="agenda-date">'+esc(frDateLong(t0))+'</div></div>';
     var body=sec("Aujourd'hui",g.today,'var(--green)')+sec('Demain',g.demain)+sec('À venir',g.avenir);
