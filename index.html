@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261114212105-1c2e025 -->
+<!-- deploy-marker: pub-20261114213247-dd1b066 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -9394,7 +9394,36 @@ async function sresBlocDash(){
   if((D.objectifs||[]).length) h+="<div class='card' style='padding:10px 14px;margin-bottom:10px;text-align:left'><div style='font-weight:800'>🎯 Objectif"+(dir?'s':'')+" du mois</div>"+sresObjectifsHtml(D.objectifs,dir)+"</div>";
   h+="<div style='font-size:11.5px;color:var(--text-3)'>CA signé = ventes commerciales signées (date de signature) — ni le CA facturé ni l'encaissé.</div></div>";
   var ph=m.querySelector('.page-head'); if(ph) ph.insertAdjacentHTML('afterend',h); else m.insertAdjacentHTML('afterbegin',h);
+  try{ sresTuileCA(D); }catch(e){}
 }
+/* ============================ tuile « 💰 CA SIGNÉ CE MOIS » (au-dessus du bloc Suivi des ventes, sans le modifier) ============================
+   Ventes SIGNÉES du mois en cours, à la date réelle de signature (jamais les offres, jamais les encaissements / commissions).
+   Même source que tout le reste (résultats commerciaux en base) : une vente saisie, corrigée ou annulée par la commerciale OU par la
+   direction se répercute immédiatement. Repart à 0 chaque 1er du mois. Commerciale : son CA et son objectif ; direction : société + détail. */
+function sresTuileCAHtml(D){
+  var I=D.indicateurs||{}, dir=!!D.direction, ca=Number(I.ca_vendu_ttc||0), O=D.objectifs||[];
+  var objs=O.filter(function(o){ return o.obj_ca_ttc!=null; }), obj=objs.length?objs.reduce(function(s,o){ return s+Number(o.obj_ca_ttc||0); },0):null;
+  var pct=obj?Math.round(1000*ca/obj)/10:null, reste=obj!=null?Math.max(0,obj-ca):null, ok=pct!=null&&pct>=100;
+  var mois=new Date(D.du+'T12:00:00').toLocaleDateString('fr-CH',{month:'long',year:'numeric'});
+  var h="<div id='sres-ca-mois' class='card' style='margin:0 0 16px;padding:18px 20px;text-align:left;border:1px solid "+(ok?'#22a06b':'#22a06b66')+";background:linear-gradient(135deg,rgba(34,160,107,.18),transparent 70%)'>"
+    +"<div style='display:flex;align-items:baseline;gap:10px;flex-wrap:wrap'><div style='font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase'>💰 CA signé "+(dir?'société ':'')+"ce mois</div><div style='flex:1'></div><div style='font-size:12.5px;color:var(--text-3);text-transform:capitalize'>"+esc(mois)+"</div></div>"
+    +"<div style='font-size:44px;font-weight:900;line-height:1.1;margin:6px 0 4px;color:#22a06b;letter-spacing:-.02em'>"+sresChf(ca)+" <span style='font-size:20px;font-weight:800'>CHF TTC</span></div>";
+  if(obj!=null){
+    h+="<div style='font-size:14.5px;margin-bottom:8px'>Objectif : <b>"+sresChf(obj)+" CHF</b> · <b style='color:"+(ok?'#22a06b':'inherit')+"'>"+String(pct).replace('.',',')+" % atteint</b> · Reste : <b>"+sresChf(reste)+" CHF</b>"+(ok?' 🎉':'')+"</div>"
+      +"<div style='height:14px;border-radius:8px;background:var(--line);overflow:hidden'><div style='height:100%;width:"+Math.min(100,pct)+"%;background:linear-gradient(90deg,#22a06b,#3ccf8e);border-radius:8px'></div></div>";
+  } else h+="<div style='font-size:13px;color:var(--text-3)'>Objectif du mois non fixé"+(dir?' (Résultats commerciaux → 🎯 Objectifs)':'')+".</div>";
+  if(dir){ var P=(D.par_commercial||[]).filter(function(c){ return Number(c.ca_ttc)>0||O.some(function(o){ return o.commercial_id===c.id&&o.obj_ca_ttc!=null; }); });
+    if(P.length) h+="<div style='font-size:13px;color:var(--text-3);margin-top:10px'>"+P.map(function(c){ var o=O.filter(function(x){ return x.commercial_id===c.id; })[0];
+      return "<span style='white-space:nowrap'>"+esc(String(c.nom||'—').split(' ')[0])+" : <b style='color:var(--text)'>"+sresChf(c.ca_ttc)+"</b>"+(o&&o.obj_ca_ttc?' / '+sresChf(o.obj_ca_ttc):'')+"</span>"; }).join(' · ')+"</div>"; }
+  return h+"</div>";
+}
+function sresTuileCA(D){ var b=document.getElementById('sres-dash'); if(!b) return; var t=document.getElementById('sres-ca-mois'), html=sresTuileCAHtml(D);
+  if(t) t.outerHTML=html; else b.insertAdjacentHTML('beforebegin',html); }
+/* rafraîchissement : retour sur l'application et toutes les 60 s tant que le tableau de bord est affiché (seule la tuile est recalculée) */
+async function sresTuileCARafraichir(){ if(typeof VIEW==='undefined'||VIEW!=='dashboard'||!document.getElementById('sres-ca-mois')) return;
+  var n=new Date(), du=sresYmd(new Date(n.getFullYear(),n.getMonth(),1)), au=sresYmd(new Date(n.getFullYear(),n.getMonth()+1,0));
+  var r=await db.rpc('sss_com_synthese',{p_du:du,p_au:au,p_grain:'semaine',p_commercial:null}); if(!r.error&&r.data) sresTuileCA(r.data); }
+(function(){ try{ document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') sresTuileCARafraichir(); }); setInterval(function(){ if(document.visibilityState==='visible') sresTuileCARafraichir(); },60000); }catch(e){} })();
 
 /* ============================ page « Résultats commerciaux » ============================ */
 function sresPeriode(){ var g=SRES.grain;
