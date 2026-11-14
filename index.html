@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261114194948-e45ac22 -->
+<!-- deploy-marker: pub-20261114205042-4f3fa25 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -9601,6 +9601,192 @@ function spmAdrChantier(d){ (Array.isArray(d)?d:(d?[d]:[])).forEach(function(a){
 })();
 
 /* SSS-PLANNING-MODIF-FIN */
+
+/* SSS-COMMISSIONS-DEBUT */
+/* ==========================================================================
+   SSS OS — Commissions commerciales selon le contrat (0070) + décisions de la direction du 14.11.2026.
+   En production depuis le GO de la direction du 14.11.2026.
+   • Commerciale sous contrat : tuile « Commission acquise du mois » (uniquement le CA HT réellement encaissé) et, à part,
+     « CA signé en attente d'encaissement ». Jamais de coût, de marge, de prix fournisseur, de banque.
+   • Fiche RH : l'ancien barème 4/5/6 % est remplacé par le calcul contractuel (5/6/7 % · 7/8/9 % · 2 %).
+   • Direction : « Décompte commissions » — calcul du mois (méthode proportionnelle figée à la clôture), affaires à
+     valider (rabais > 5 % mesuré sur la grille figée de l'offre, offre sans grille, apport sans date de signature),
+     paiements Bexio à rattacher, factures non commissionnables, régime / exclusions / rabais / dérogation de provenance,
+     leads apportés, avoirs et corrections, arrêt du décompte (figé) et export. Bexio en lecture seule.
+   • Fiches prospect / client : « 🤝 Annoncer comme mon apport » (la direction tranche).
+   ========================================================================== */
+var SCOM={mois:null,com:null,data:null,dir:null,tuile:null};
+function scomMois(){ if(!SCOM.mois){ var n=new Date(); SCOM.mois=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-01'; } return SCOM.mois; }
+function scomDecaler(n){ var d=new Date(scomMois()+'T12:00:00'); d.setMonth(d.getMonth()+n); SCOM.mois=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01'; scomPage(); }
+function scomLibMois(m){ return new Date((m||scomMois())+'T12:00:00').toLocaleDateString('fr-CH',{month:'long',year:'numeric'}); }
+function scomChf(n){ return n==null?'—':sresChf2(n)+' CHF'; }
+function scomProv(l){ var p=l.provenance, d=l.provenance_detail||{};
+  if(p==='apport') return "<span style='color:#22a06b;font-weight:700'>Apport Anne — validé</span>"+(d.source==='derogation_direction'?' (dérogation direction)':'');
+  if(p==='a_valider') return "<span style='color:#e0a52b;font-weight:700'>Apport : signature à confirmer</span>";
+  return 'Lead SSS'+(d.source==='signee_apres_6_mois'?' (signé après 6 mois)':d.source==='signee_avant_annonce'?' (signé avant l’annonce)':''); }
+function scomRab(l){ var e=l.rabais_etat; if(e==='grille_ok') return l.rabais_pct+' % (grille)'; if(e==='valide_reduit') return l.rabais_pct+' % validé → −1 pt'; if(e==='confirme') return l.rabais_pct+' % (confirmé)';
+  if(e==='a_valider_superieur_5') return "<span style='color:#e0a52b'>"+l.rabais_pct+" % > 5 % : à valider</span>"; return "<span style='color:#e0a52b'>sans grille : à confirmer</span>"; }
+
+/* ---------------- tuile de la commerciale ---------------- */
+function scomTuileHtml(C){
+  var acq=C.commission_acquise!=null?scomChf(C.commission_acquise):(C.statut==='aucun_encaissement'?'0.00 CHF':'à valider par la direction');
+  var h="<div id='scom-tuile' class='card' style='padding:14px 16px;margin:0 0 16px;text-align:left;border-color:#22a06b55'>"
+    +"<div style='font-size:15px;font-weight:800'>💰 Commission acquise du mois — "+esc(scomLibMois(C.mois))+"</div>"
+    +"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin:10px 0'>"
+    +sresTuile('Commission acquise du mois',acq,C.statut==='aucun_encaissement'?'Encaissement non confirmé — commission non calculée':(C.message?esc(C.message):'sur le CA HT réellement encaissé'),'#22a06b')
+    +sresTuile('CA HT encaissé commissionnable',scomChf(Number(C.ca_ht_commissionnable||0)+Number(C.base_forfait_ht||0)),C.base_forfait_ht>0?'dont '+scomChf(C.base_forfait_ht)+' à 2 % forfaitaire':'')
+    +sresTuile('CA signé en attente d’encaissement',sresChf(C.ca_signe_en_attente_ttc)+' CHF TTC','aucune commission tant que rien n’est encaissé')
+    +(C.total_ajustements?sresTuile('Régularisations',scomChf(C.total_ajustements),'avoirs / corrections'):'')+"</div>";
+  var L=C.lignes||[];
+  if(L.length) h+="<div style='font-size:12.5px;font-weight:700;margin-bottom:4px'>Détail par encaissement</div>"+L.map(function(l){ return "<div style='display:flex;gap:8px;font-size:13px;padding:4px 0;border-top:1px solid var(--line);flex-wrap:wrap'><span style='flex:1;min-width:160px'><b>"+esc(l.client)+"</b> <span style='color:var(--text-3);font-size:12px'>· "+esc(sresDate(l.date))+" · "+scomProv(l)+(l.regime==='forfait_2'?' · 2 % forfaitaire':'')+(l.annulee?' · affaire annulée':'')+"</span></span><span>encaissé HT "+sresChf(l.encaisse_ht)+(Number(l.exclusions_ht)>0?' (exclus '+sresChf(l.exclusions_ht)+')':'')+" → <b>"+(l.commission!=null?scomChf(l.commission):'à valider')+"</b></span></div>"; }).join('');
+  if(typeof C.non_rattaches==='number'&&C.non_rattaches) h+="<div style='font-size:12px;color:#e0a52b;margin-top:6px'>"+C.non_rattaches+" encaissement(s) en cours de rattachement par la direction — non compté(s) pour l’instant.</div>";
+  h+="<div style='font-size:11.5px;color:var(--text-3);margin-top:8px'>Contrat, art. 6 : commission sur le CA HT réellement encaissé dans le mois — jamais sur le CA signé. Décompte établi par la direction, versé avec le salaire du mois suivant.</div></div>";
+  return h;
+}
+
+/* ---------------- page direction ---------------- */
+async function scomPage(){
+  var m=document.getElementById('main'); if(!m||VIEW!=='commissions_dir') return;
+  if(!SCOM.data) m.innerHTML="<div class='page-head'><h2>Décompte commissions</h2></div><div style='padding:20px;color:var(--text-3)'>Chargement…</div>";
+  var d=await db.rpc('sss_commission_direction',{p_commercial:null}); if(VIEW!=='commissions_dir') return;
+  if(d.error){ m.innerHTML="<div class='page-head'><h2>Décompte commissions</h2></div><div class='msg err' style='display:block'>"+esc(d.error.message)+"</div>"; return; }
+  SCOM.dir=d.data; var K=SCOM.dir.contrats||[]; if(!SCOM.com&&K.length) SCOM.com=K[0].commercial_id;
+  var r=SCOM.com?await db.rpc('sss_commission_calcul',{p_commercial:SCOM.com,p_mois:scomMois()}):{data:null};
+  if(VIEW!=='commissions_dir') return; if(r.error){ m.innerHTML="<div class='msg err' style='display:block'>"+esc(r.error.message)+"</div>"; return; }
+  var C=SCOM.data=r.data||{};
+  var h="<div class='page-head' style='flex-wrap:wrap;gap:8px'><h2>Décompte commissions</h2><div class='spacer'></div>"+(C.lignes?"<button class='relbtn' style='width:auto' onclick='scomExport()'>⬇︎ Export CSV</button> <button class='relbtn' style='width:auto' onclick='window.print()'>🖨 Imprimer</button>":'')+"</div>";
+  h+="<div style='display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap'><button class='relbtn' style='min-height:42px' onclick='scomDecaler(-1)'>‹</button><b style='flex:1;text-align:center;text-transform:capitalize'>"+esc(scomLibMois())+"</b><button class='relbtn' style='min-height:42px' onclick='scomDecaler(1)'>›</button>"
+    +"<select style='min-height:42px;width:auto' onchange=\"SCOM.com=this.value;scomPage()\">"+K.map(function(k){ return "<option value='"+k.commercial_id+"'"+(SCOM.com===k.commercial_id?' selected':'')+">"+esc(k.nom)+"</option>"; }).join('')+"</select></div>";
+  if(!K.length){ m.innerHTML=h+"<div class='card' style='padding:14px'>Aucun barème contractuel enregistré.</div>"; return; }
+  h+="<div style='font-size:12px;color:var(--text-3);margin-bottom:10px'>Source : "+esc((C.contrat||{}).source||'')+". Base = CA HT réellement encaissé (paiements Bexio des factures rattachées). Tranches : méthode proportionnelle (décision direction), figée à la clôture ; 2 % hors tranches. Bexio en lecture seule ; rien n’est payé ni comptabilisé automatiquement.</div>";
+  var col={a_valider:'#e0a52b',provisoire:'#e0a52b',calcule:'#22a06b'}[C.statut]||'var(--text-3)';
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left;border-color:"+col+"'><div style='font-weight:800;color:"+col+"'>"+esc(C.message||'Calcul conforme au contrat')+"</div>"
+    +((C.a_valider||[]).length?"<div style='margin-top:6px'>"+C.a_valider.map(function(x){ return "<div style='font-size:13px'>• <b>"+esc(x.client)+"</b> — "+esc(x.raison)+"</div>"; }).join('')+"</div>":'')
+    +"<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px'>"+sresTuile('CA HT commissionnable (tranches)',scomChf(C.ca_ht_commissionnable))+sresTuile('Base 2 % forfaitaire',scomChf(C.base_forfait_ht),'commission '+scomChf(C.commission_forfait))
+    +sresTuile('Commission tranches',scomChf(C.commission_tranches),C.mixte?'mois mixte : proportionnelle':'')+sresTuile('Ajustements',scomChf(C.total_ajustements))+sresTuile('Total du mois',C.commission_acquise!=null?scomChf(C.commission_acquise):'à valider','','#22a06b')+"</div></div>";
+  var L=C.lignes||[];
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left;overflow-x:auto'><div style='font-weight:800;margin-bottom:6px'>Encaissements du mois ("+L.length+")</div>"+(L.length?"<table style='width:100%;font-size:12px;border-collapse:collapse'><tr style='color:var(--text-3);text-align:left'><th>Date</th><th>Client</th><th>Facture</th><th>Provenance</th><th>Signé TTC</th><th>Encaissé TTC</th><th>HT</th><th>Exclus</th><th>Base</th><th>Régime</th><th>Rabais</th><th>Tranche · taux</th><th style='text-align:right'>Commission</th></tr>"
+    +L.map(function(l){ var tr=(l.tranches||[]).map(function(t){ return 'T'+t.tranche+' '+t.taux+' %'; }).join(', ')||(l.regime==='forfait_2'?'2 % forfait':'');
+      return "<tr style='border-top:1px solid var(--line)'><td>"+esc(sresDate(l.date))+"</td><td>"+esc(l.client)+(l.qualifie?'':" <span style='color:#e0a52b'>(à qualifier)</span>")+"</td><td>"+esc(l.facture||'')+"</td><td>"+scomProv(l)+"</td><td>"+sresChf(l.signe_ttc)+"</td><td>"+sresChf2(l.encaisse_ttc)+"</td><td>"+sresChf2(l.encaisse_ht)+"</td><td title='"+esc(l.exclusions_source||'')+"'>"+sresChf2(l.exclusions_ht)+"</td><td>"+sresChf2(l.base_ht)+"</td><td>"+esc(l.annulee?'annulée':l.regime)+"</td><td>"+scomRab(l)+"</td><td>"+esc(tr)+"</td><td style='text-align:right'><b>"+(l.commission!=null?sresChf2(l.commission):'à valider')+"</b></td></tr>"; }).join('')+"</table>":"<div style='font-size:13px;color:var(--text-3)'>Aucun encaissement rattaché ce mois : commission non calculée.</div>")+"</div>";
+  var NR=Array.isArray(C.non_rattaches)?C.non_rattaches:[];
+  if(NR.length) h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px;color:#e0a52b'>Paiements Bexio à rattacher ("+NR.length+")</div>"+NR.map(function(p){ return "<div style='border-top:1px solid var(--line);padding:6px 0;font-size:13px'>"+esc(sresDate(p.date))+" · facture "+esc(p.facture)+" · "+sresChf2(p.montant_ttc)+" CHF TTC<div>"+(p.affaires||[]).map(function(a){ return "<button class='relbtn' style='width:auto;min-height:36px;margin:3px 6px 0 0' onclick=\"scomRattacher("+p.facture_id+",'"+a.id+"')\">Rattacher à "+esc(a.client)+" ("+sresChf(a.montant_ttc)+" CHF)</button>"; }).join('')+"</div></div>"; }).join('')+"</div>";
+  if((C.remboursements||[]).length) h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px;color:#e5484d'>Remboursements détectés</div>"+C.remboursements.map(function(x){ return "<div style='font-size:13px;border-top:1px solid var(--line);padding:5px 0'>"+esc(sresDate(x.date))+" · facture "+esc(x.facture)+" · "+sresChf2(x.montant_ttc)+" CHF — à régulariser par un ajustement ci-dessous</div>"; }).join('')+"</div>";
+  // affaires : régime, exclusions, rabais, provenance
+  var A=SCOM.dir.affaires||[];
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Affaires — qualification ("+A.length+")</div>"+(A.length?A.map(function(a){ var q=a.qualification||{}, g=a.rabais_grille||{}, x=a.exclusions_offre||{}, pv=a.provenance||{}, id=a.affaire_id;
+      var rabInfo=g.fiable?("Rabais mesuré sur la grille figée ("+esc(g.offre)+") : <b>"+g.rabais_pct+" %</b>"+(g.rabais_pct>5?" — <b style='color:#e0a52b'>> 5 % : validation obligatoire</b>":" — rien à valider")):("<b style='color:#e0a52b'>"+esc(g.raison||'pas de grille')+"</b> — confirmer le rabais à la main");
+      return "<div style='border-top:1px solid var(--line);padding:8px 0;font-size:13px'><b>"+esc(a.client||'—')+"</b> · "+esc(a.type||'')+" · "+sresChf(a.montant_ttc)+" CHF TTC · "+esc(a.commercial||'')+(q.qualifie?" <span style='color:#22a06b'>✓ qualifiée</span>":" <span style='color:#e0a52b'>à qualifier</span>")
+        +"<div style='font-size:12px;color:var(--text-3);margin-top:3px'>"+rabInfo+(q.rabais_confirme?" · confirmé par la direction : "+q.rabais_pct+" %":'')+"</div>"
+        +"<div style='font-size:12px;color:var(--text-3)'>Exclusions : "+(x.identifiees?"lignes exactes de l’offre "+esc(x.offre)+" = <b>"+sresChf2(x.ht)+" HT</b> ("+(x.lignes||[]).map(function(z){ return esc(z.designation); }).join(', ')+")":"aucune ligne identifiable sur l’offre")+(q.exclusions_saisies?" · montant saisi : "+sresChf2(q.exclusions_ht)+" HT ("+esc(q.exclusions_detail||'')+")":'')+"</div>"
+        +"<div style='font-size:12px;color:var(--text-3)'>Provenance : "+esc({apport:'apport validé',sss:'lead SSS',a_valider:'apport — date de signature inconnue'}[pv.provenance]||pv.provenance)+(pv.annonce_le?' · annonce '+esc(sresDate(pv.annonce_le)):'')+(pv.signature?' · signature '+esc(sresDate(pv.signature)):'')+(pv.source==='derogation_direction'?' · dérogation : '+esc(pv.motif||''):'')+"</div>"
+        +((a.factures||[]).length?"<div style='font-size:12px;margin-top:3px'>"+a.factures.map(function(f){ return "Facture "+esc(f.numero)+" ("+sresChf(f.total_ht)+" HT) "+(f.non_commissionnable?"<b>non commissionnable</b> ("+esc(f.motif||'')+") <a href='#' onclick=\"scomFacture("+f.facture_id+",false);return false\">annuler</a>":"<a href='#' onclick=\"scomFacture("+f.facture_id+",true);return false\">marquer non commissionnable</a>"); }).join(' · ')+"</div>":'')
+        +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:flex-end'><select id='scq-r-"+id+"' style='width:auto'>"+[['standard','Commission standard'],['forfait_2','Forfait 2 % (matériel seul, partenaire refacturé)'],['non_commissionnable','Non commissionnable']].map(function(o){ return "<option value='"+o[0]+"'"+((q.regime||'standard')===o[0]?' selected':'')+">"+o[1]+"</option>"; }).join('')+"</select>"
+        +"<input id='scq-p-"+id+"' type='text' inputmode='decimal' style='width:130px' placeholder='Rabais confirmé %' value='"+(q.rabais_confirme&&q.rabais_pct!=null?q.rabais_pct:'')+"' title='Laisser vide si la grille de l’offre suffit (≤ 5 %)'>"
+        +"<input id='scq-e-"+id+"' type='text' inputmode='decimal' style='width:130px' placeholder='Exclusions HT' value='"+(q.exclusions_saisies?q.exclusions_ht:'')+"' title='Seulement si non identifiables sur l’offre / la facture'>"
+        +"<input id='scq-d-"+id+"' style='width:180px' placeholder='Nature des exclusions' value='"+esc(q.exclusions_detail||'')+"'>"
+        +"<select id='scq-v-"+id+"' style='width:auto'><option value=''>Provenance : automatique</option><option value='apport'"+(q.provenance_derogation==='apport'?' selected':'')+">Dérogation : apport</option><option value='sss'"+(q.provenance_derogation==='sss'?' selected':'')+">Dérogation : lead SSS</option></select>"
+        +"<input id='scq-m-"+id+"' style='width:180px' placeholder='Motif de la dérogation' value='"+esc(q.derogation_motif||'')+"'>"
+        +"<button class='btn' style='width:auto;min-height:38px' onclick=\"scomQualifier(this,'"+id+"')\">Enregistrer</button></div></div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune affaire attribuée à un commercial sous contrat.</div>")+"</div>";
+  var LD=SCOM.dir.leads||[];
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Leads annoncés comme apport personnel ("+LD.length+")</div>"+(LD.length?LD.map(function(l){ var k=l.controles||{}, alerte=(k.demandes_12_mois||0)+(k.offres_12_mois||0)+(k.rdv_12_mois||0);
+      return "<div style='border-top:1px solid var(--line);padding:7px 0;font-size:13px'><b>"+esc(l.client||'—')+"</b> · "+esc(l.commercial)+" · annoncé le "+esc(sresDate(l.annonce_le))+" · <b>"+esc({annonce:'en attente',valide:'Apport validé',refuse:'refusé'}[l.statut])+"</b>"
+        +"<div style='font-size:12px;color:"+(alerte?'#e0a52b':'var(--text-3)')+"'>Contrôles à l’annonce : "+(k.demandes_12_mois||0)+" demande(s), "+(k.offres_12_mois||0)+" offre(s), "+(k.rdv_12_mois||0)+" RDV dans les 12 mois"+(l.preuve?' · preuve : '+esc(l.preuve):'')+" · barème apport seulement si l’affaire est signée dans les 6 mois</div>"
+        +"<div style='margin-top:4px'><button class='relbtn' style='width:auto;min-height:34px' onclick=\"scomLead('"+l.id+"','valide')\">Valider l’apport</button> <button class='relbtn' style='width:auto;min-height:34px' onclick=\"scomLead('"+l.id+"','refuse')\">Refuser (lead SSS)</button></div></div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune annonce.</div>")+"</div>";
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Ajustement (avoir, remboursement, correction)</div>"
+    +"<div style='display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end'><select id='scj-t' style='width:auto'><option value='avoir'>Avoir</option><option value='remboursement'>Remboursement</option><option value='correction'>Correction (montant)</option></select>"
+    +"<select id='scj-a' style='width:auto'><option value=''>— affaire —</option>"+A.map(function(a){ return "<option value='"+a.affaire_id+"'>"+esc(a.client)+"</option>"; }).join('')+"</select>"
+    +"<input id='scj-b' type='text' inputmode='decimal' style='width:130px' placeholder='Montant HT'><input id='scj-c' type='text' inputmode='decimal' style='width:130px' placeholder='Correction CHF'><input id='scj-m' style='width:220px' placeholder='Motif *'>"
+    +"<button class='btn' style='width:auto;min-height:38px' onclick='scomAjuster(this)'>Ajouter au mois</button></div>"
+    +((C.ajustements||[]).length?C.ajustements.map(function(j){ return "<div style='font-size:12.5px;border-top:1px solid var(--line);padding:4px 0'>"+esc(j.type)+" · "+scomChf(j.commission)+" · "+esc(j.motif)+"</div>"; }).join(''):'')+"</div>";
+  var DC=(SCOM.dir.decomptes||[]).filter(function(x){ return x.commercial_id===SCOM.com; });
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:30px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>Décomptes arrêtés</div>"
+    +"<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px'><input id='scd-n' style='flex:1;min-width:200px' placeholder='Note (ex. versé avec le salaire de décembre)'><button class='btn' style='width:auto;min-height:40px' "+(C.statut==='calcule'?'':'disabled')+" onclick='scomArreter(this)'>Arrêter le décompte de "+esc(scomLibMois())+"</button></div>"
+    +(DC.length?DC.map(function(x){ return "<div style='font-size:13px;border-top:1px solid var(--line);padding:4px 0'>"+esc(scomLibMois(x.mois))+" · v"+x.version+" · <b>"+scomChf(x.total)+"</b> · arrêté le "+esc(sresDate(x.arrete_le))+" · méthode "+esc(x.methode||'')+"</div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucun décompte arrêté.</div>")+"</div>";
+  m.innerHTML=h;
+}
+async function scomRattacher(f,a){ var r=await db.rpc('sss_commission_rattacher',{p_facture:f,p_affaire:a}); if(r.error){ alert(r.error.message); return; } try{ sssToast('Paiement rattaché ✓',true); }catch(e){} scomPage(); }
+async function scomFacture(f,ex){ var mo=''; if(ex){ mo=prompt('Motif (facture séparée de raccordement, émoluments GRD, autorisations, frais administratifs) :',''); if(mo===null) return; }
+  var r=await db.rpc('sss_commission_facture_exclure',{p_facture:f,p_exclue:ex,p_motif:mo}); if(r.error){ alert(r.error.message); return; } scomPage(); }
+async function scomQualifier(btn,id){ var v=function(k){ var e=document.getElementById(k+id); return e?String(e.value||'').trim():''; };
+  var p={regime:v('scq-r-'),rabais_pct:sresNum(v('scq-p-')),exclusions_ht:sresNum(v('scq-e-')),exclusions_detail:v('scq-d-'),provenance_derogation:v('scq-v-'),derogation_motif:v('scq-m-')};
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_commission_affaire',{p_affaire:id,p:p}); }); if(d) scomPage(); }
+async function scomLead(id,st){ var m=prompt(st==='valide'?'Motif de validation (annonce écrite avant le 1er échange, inconnu depuis 12 mois…) :':'Motif du refus :',''); if(m===null) return;
+  var r=await db.rpc('sss_lead_apport_decider',{p_id:id,p_statut:st,p_motif:m}); if(r.error){ alert(r.error.message); return; } scomPage(); }
+async function scomAjuster(btn){ var v=function(k){ var e=document.getElementById(k); return e?String(e.value||'').trim():''; };
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_commission_ajuster',{p_commercial:SCOM.com,p_mois:scomMois(),p_type:v('scj-t'),p_affaire:v('scj-a')||null,p_base_ht:v('scj-b')?Number(sresNum(v('scj-b'))):null,p_commission:v('scj-c')?Number(sresNum(v('scj-c'))):null,p_motif:v('scj-m')}); }); if(d) scomPage(); }
+async function scomArreter(btn){ if(!confirm('Arrêter le décompte de '+scomLibMois()+' ? Il sera figé (méthode proportionnelle ; toute correction passera par un ajustement le mois suivant).')) return;
+  var d=await sssAgir(btn,function(){ return db.rpc('sss_commission_arreter',{p_commercial:SCOM.com,p_mois:scomMois(),p_note:(document.getElementById('scd-n')||{}).value||''}); }); if(d) scomPage(); }
+function scomExport(){ var C=SCOM.data||{}, L=C.lignes||[], q=function(s){ return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'; };
+  var rows=[['Commercial','Mois','Date','Client','Facture','Provenance','Signé TTC','Encaissé TTC','Encaissé HT','Exclus HT','Source exclusions','Base HT','Régime','Rabais %','État rabais','Tranches','Commission']].concat(L.map(function(l){ return [C.commercial,C.mois,l.date,l.client,l.facture,l.provenance,l.signe_ttc,l.encaisse_ttc,l.encaisse_ht,l.exclusions_ht,l.exclusions_source,l.base_ht,l.regime,l.rabais_pct,l.rabais_etat,(l.tranches||[]).map(function(t){ return 'T'+t.tranche+' '+t.base+' à '+t.taux+'%'; }).join(' '),l.commission]; }));
+  rows.push([]); rows.push(['Méthode','proportionnelle']); rows.push(['Commission tranches',C.commission_tranches]); rows.push(['Commission 2 %',C.commission_forfait]); rows.push(['Ajustements',C.total_ajustements]); rows.push(['TOTAL',C.commission_acquise!=null?C.commission_acquise:'à valider']);
+  var b=new Blob(["﻿"+rows.map(function(r){ return r.map(q).join(';'); }).join('\n')],{type:'text/csv;charset=utf-8'}); var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='commissions-'+(C.mois||'')+'-'+String(C.commercial||'').replace(/\s+/g,'_')+'.csv'; a.click(); }
+/* ---------------- annoncer un lead personnel (commerciale) ---------------- */
+async function scomAnnoncer(prospect,contact){ var p=prompt('Annoncer ce contact comme TON apport personnel (contrat, art. 7).\n\nPreuve de l’annonce écrite avant le 1er échange (ex. « e-mail du 12.11 à Adson ») :',''); if(p===null) return;
+  var r=await db.rpc('sss_lead_apport_annoncer',{p_prospect:prospect||null,p_contact:contact||null,p_preuve:p}); if(r.error){ alert(r.error.message); return; } try{ sssToast((r.data&&r.data.message)||'Annoncé ✓',true); }catch(e){} }
+function scomBoutonAnnonce(boxId,prospect,contact){ var box=document.getElementById(boxId); if(!box||box.querySelector('.scom-annonce')) return; if(!(typeof ME!=='undefined'&&ME&&ME.role==='commercial')) return;
+  box.insertAdjacentHTML('afterbegin',"<div class='scom-annonce' style='margin-bottom:8px'><button class='relbtn' style='width:auto;min-height:38px' onclick=\"scomAnnoncer("+(prospect?"'"+prospect+"'":'null')+","+(contact?"'"+contact+"'":'null')+")\">🤝 Annoncer comme mon apport</button> <span style='font-size:11.5px;color:var(--text-3)'>la direction valide</span></div>"); }
+/* ---------------- fiche RH : l'ancien barème laisse la place au calcul contractuel ---------------- */
+async function scomFicheRH(uid){
+  var c=await db.rpc('sss_commission_calcul',{p_commercial:uid,p_mois:null}); if(c.error||!c.data||c.data.statut==='sans_contrat') return;
+  var C=c.data, m=document.getElementById('main'); if(!m) return;
+  var acq=C.commission_acquise!=null?Math.round(C.commission_acquise).toLocaleString('fr-CH')+' CHF':(C.statut==='aucun_encaissement'?'0 CHF':'à valider');
+  // ventes signées du mois (suivi commercial) pour « CA ce mois » / « Ventes » — l'ancien calcul lisait l'ancien agenda
+  var n=new Date(), du=sresYmd(new Date(n.getFullYear(),n.getMonth(),1)), au=sresYmd(new Date(n.getFullYear(),n.getMonth()+1,0));
+  var s=await db.rpc('sss_com_synthese',{p_du:du,p_au:au,p_grain:'mois',p_commercial:uid}); var I=(s&&s.data&&s.data.indicateurs)||null;
+  var ancien=[].slice.call(m.querySelectorAll('.card')).filter(function(x){ return /La commission est due quand le client a/.test(x.textContent||''); })[0];
+  if(ancien&&!document.getElementById('scom-tuile')) ancien.outerHTML=scomTuileHtml(C);
+  // l'élément animé de la fiche est REMPLACÉ (l'animation garde l'ancien, détaché) : valeur stable même onglet en arrière-plan
+  var poser=function(lib,nouveau,val){ [].slice.call(m.querySelectorAll('div')).forEach(function(el){ if(el.children.length||(el.textContent||'').trim()!==lib) return; el.textContent=nouveau;
+      var v=el.previousElementSibling; if(v){ var w=document.createElement('div'); w.setAttribute('style',v.getAttribute('style')||''); w.textContent=val; v.parentNode.replaceChild(w,v); } }); };
+  poser('Comm. potentielle (signé)','CA signé en attente d’encaissement',Math.round(C.ca_signe_en_attente_ttc||0).toLocaleString('fr-CH')+' CHF TTC');
+  poser('Comm. réelle (encaissé)','Commission acquise du mois',acq);
+  if(I){ poser('CA ce mois','CA signé ce mois (TTC)',Math.round(I.ca_vendu_ttc||0).toLocaleString('fr-CH')+' CHF'); poser('Ventes','Ventes signées',String(I.ventes||0)); }
+}
+
+/* ---------------- « Mes performances » et préparation des salaires : plus d'ancien barème pour un commercial sous contrat ---------------- */
+async function scomPerso(){
+  var c=await db.rpc('sss_commission_calcul',{p_commercial:null,p_mois:null}); if(c.error||!c.data||c.data.statut==='sans_contrat') return;
+  var C=c.data, acq=C.commission_acquise!=null?scomChf(C.commission_acquise):(C.statut==='aucun_encaissement'?'0.00 CHF':'à valider');
+  [].slice.call(document.querySelectorAll('#main .stat')).forEach(function(s){ var l=s.querySelector('.l'), n=s.querySelector('.n'); if(l&&n&&/Ma commission/.test(l.textContent)){ l.textContent='Commission acquise du mois (encaissé HT)'; n.textContent=acq; } });
+}
+async function scomSalaires(){
+  if(typeof SAL_ROWS==='undefined'||!SAL_ROWS||!SAL_ROWS.com||typeof salYM!=='function') return;
+  var ym=salYM(), d=new Date(ym+'-01T12:00:00'); d.setMonth(d.getMonth()-1); var mois=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01', lib=scomLibMois(mois), change=false;
+  for(var i=0;i<SAL_ROWS.com.length;i++){ var r=SAL_ROWS.com[i];
+    var c=await db.rpc('sss_commission_calcul',{p_commercial:r.uid,p_mois:mois}); if(c.error||!c.data||c.data.statut==='sans_contrat') continue;
+    var dc=await db.from('commission_decomptes').select('total,version').eq('commercial_id',r.uid).eq('mois',mois).order('version',{ascending:false}).limit(1);
+    var arr=(dc.data||[])[0], C=c.data;
+    r.taux='contrat'; r.base='HT encaissé'; r._contrat=true; change=true;
+    r.commission=arr?Number(arr.total):(C.commission_acquise!=null?Number(C.commission_acquise):0);
+    r.clients='Commission contrat (5/6/7 % · 7/8/9 % · 2 %) — '+(arr?'décompte de '+lib+' arrêté (v'+arr.version+')':'décompte de '+lib+' NON arrêté'+(C.commission_acquise==null&&C.statut!=='aucun_encaissement'?' — à valider par la direction':''));
+  }
+  if(change) try{ salPaint(); }catch(e){}
+}
+
+/* ---------------- branchements ---------------- */
+/* Module en PRODUCTION depuis le GO de la direction du 14.11.2026 (0070 appliquée). */
+var SCOM_ACTIF=true;
+(function(){
+  if(!SCOM_ACTIF) return;
+  try{ var _rdp=renderDashPerso; renderDashPerso=async function(){ var r=await _rdp.apply(this,arguments); try{ await scomPerso(); }catch(e){} return r; }; }catch(e){}
+  try{ var _rsal=renderSalaires; renderSalaires=async function(){ var r=await _rsal.apply(this,arguments); try{ await scomSalaires(); }catch(e){} return r; }; }catch(e){}
+  try{ var _sts=salTauxSet; salTauxSet=function(i,k,v){ var r=SAL_ROWS&&SAL_ROWS.com&&SAL_ROWS.com[i]; if(r&&r._contrat){ try{ sssToast('Taux fixé par le contrat : modifie le montant si besoin, pas le taux.',false); }catch(e){} return; } return _sts.apply(this,arguments); }; }catch(e){}
+  try{ VUE_ROLES.commissions_dir=['superadmin','direction']; VUE_SERVICES.commissions_dir=['commercial']; }catch(e){}
+  try{ var _go=go; go=function(v){ var r=_go.apply(this,arguments); try{ if(VIEW==='commissions_dir'){ SCOM.data=null; scomPage(); } }catch(e){ console.error(e); } return r; }; }catch(e){}
+  // tableau de bord : la tuile historique « Ma commission (barème) » laisse la place au calcul contractuel
+  try{ var _dcs2=dashcShown; dashcShown=function(k){ if(k==='commission'&&SCOM.tuile&&SRES.dashRendu) return false; return _dcs2.apply(this,arguments); }; }catch(e){}
+  try{ var _rdc2=renderDashCom; renderDashCom=async function(){
+      SCOM.tuile=null; try{ var c=await db.rpc('sss_commission_calcul',{p_commercial:null,p_mois:null}); if(!c.error&&c.data&&c.data.statut!=='sans_contrat') SCOM.tuile=c.data; }catch(e){}
+      var r=await _rdc2.apply(this,arguments);
+      try{ if(SCOM.tuile&&VIEW==='dashboard'&&!document.getElementById('scom-tuile')){ var b=document.getElementById('sres-dash'), m=document.getElementById('main'); if(b) b.insertAdjacentHTML('afterend',scomTuileHtml(SCOM.tuile)); else if(m) m.insertAdjacentHTML('afterbegin',scomTuileHtml(SCOM.tuile)); } }catch(e){}
+      return r; }; }catch(e){}
+  try{ var _rh=rhFiche; rhFiche=async function(uid){ var r=await _rh.apply(this,arguments); try{ await scomFicheRH(uid); }catch(e){} return r; }; }catch(e){}
+  try{ var _sp=sresPage; sresPage=async function(){ var r=await _sp.apply(this,arguments); try{ if(VIEW==='resultats_com'&&ME&&(ME.role==='superadmin'||ME.role==='direction')){ var ph=document.querySelector('#main .page-head'); if(ph&&!ph.querySelector('.scom-btn')) ph.insertAdjacentHTML('beforeend',"<button class='btn scom-btn' style='width:auto;padding:9px 14px;margin-left:6px' onclick=\"go('commissions_dir')\">💰 Décompte commissions</button>"); } }catch(e){} return r; }; }catch(e){}
+  try{ var _pf2=sssPrFiche; sssPrFiche=async function(pid){ var r=await _pf2.apply(this,arguments); try{ scomBoutonAnnonce('sspr-f',pid,null); }catch(e){} return r; }; }catch(e){}
+  try{ var _bf2=sssBcFiche; sssBcFiche=async function(cid){ var r=await _bf2.apply(this,arguments); try{ scomBoutonAnnonce('ssbc-f',null,cid); }catch(e){} return r; }; }catch(e){}
+})();
+
+/* SSS-COMMISSIONS-FIN */
 
 function sssIntervInvites(sv){ try{ var l=[]; Object.keys(sv||{}).forEach(function(k){ var d=sv[k]; if(/_d$/.test(k) && d && Array.isArray(d.interv)) d.interv.forEach(function(x){ (x&&x.mails||[]).forEach(function(m){ if(m&&l.indexOf(m)<0) l.push(m); }); }); }); sv.interv_invites=l; }catch(e){} return sv; }
 
