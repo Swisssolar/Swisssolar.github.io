@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261114214526-7c447d3 -->
+<!-- deploy-marker: pub-20261115131325-ed3ef9e -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -9475,11 +9475,17 @@ async function sresPage(){
       return "<div style='border-top:1px solid var(--line);padding:7px 0;font-size:13px'><div style='display:flex;gap:8px'><b style='flex:1'>"+esc(x.client||'—')+"</b><b>"+sresChf(x.montant_ttc)+" CHF</b></div>"
       +"<div style='color:var(--text-3);font-size:12px'>Signé le "+esc(sresDate(x.vente_date))+" · "+esc(x.type||'')+(voit?' · '+esc(x.commercial||''):'')+(x.offre_montant_ttc!=null?' · offre '+sresChf(x.offre_montant_ttc)+' CHF'+(rem?' (remise '+String(rem).replace('.',',')+' %)':''):'')+(x.devis_ref?' · '+esc(x.devis_ref):'')+"</div>"
       +(lec?"<span style='font-size:11.5px;color:var(--text-3)'>👁 lecture seule</span>":"<a href='#' style='font-size:12px' onclick=\"sresOuvrir('"+x.rdv_source+"','"+x.rdv_id+"');return false\">voir / corriger</a>")+"</div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune vente signée sur la période.</div>")+"</div>";
-  var OF=D.offres||[];
-  h+="<div class='card' style='padding:12px 14px;margin-bottom:30px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>📨 Offres envoyées ("+OF.length+")</div>"+(OF.length?OF.map(function(x){
+  var OF=(D.offres||[]).slice(), dejaOF={}, nbAnt=0; OF.forEach(function(x){ dejaOF[x.rdv_id]=1; });
+  /* offres d'une période précédente encore sans montant : affichées dans la période en cours (n'entrent pas dans ses chiffres) */
+  if(P.au>=sresYmd(new Date())) (t.data||[]).forEach(function(x){
+    if(x.type==='a_completer'&&x.rdv_id&&/montant de l'offre manquant/.test(x.detail||'')&&!dejaOF[x.rdv_id]&&x.date&&sresYmd(new Date(x.date))<P.du){
+      OF.push({client:x.client,offre_montant_ttc:null,envoye_le:x.date,commercial:x.commercial,commercial_id:x.commercial_id,libelle:'Offre envoyée',resultat:'devis_envoye',rdv_source:x.src,rdv_id:x.rdv_id,anterieure:true});
+      dejaOF[x.rdv_id]=1; nbAnt++; } });
+  h+="<div class='card' style='padding:12px 14px;margin-bottom:30px;text-align:left'><div style='font-weight:800;margin-bottom:6px'>📨 Offres envoyées ("+(OF.length-nbAnt)+(nbAnt?" + "+nbAnt+" à compléter":'')+")</div>"+(OF.length?OF.map(function(x){
       return "<div style='border-top:1px solid var(--line);padding:7px 0;font-size:13px'><div style='display:flex;gap:8px'><b style='flex:1'>"+esc(x.client||'—')+"</b><b>"+(x.offre_montant_ttc!=null?sresChf(x.offre_montant_ttc)+' CHF':'<span style="color:#e0a52b">montant à compléter</span>')+"</b></div>"
       +"<div style='color:var(--text-3);font-size:12px'>Envoyée le "+esc(sresDate(x.envoye_le))+(voit?' · '+esc(x.commercial||''):'')+" · aujourd'hui : <b style='color:"+sresCoul(x.resultat)+"'>"+esc(x.libelle)+"</b>"+(x.devis_ref?' · '+esc(x.devis_ref):'')+"</div>"
-      +(lec?"<span style='font-size:11.5px;color:var(--text-3)'>👁 lecture seule</span>":"<a href='#' style='font-size:12px' onclick=\"sresOuvrir('"+x.rdv_source+"','"+x.rdv_id+"');return false\">mettre à jour</a>")+"</div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune offre envoyée sur la période.</div>")+"</div>";
+      +(x.anterieure?"<div style='font-size:11.5px;color:#e0a52b'>🧩 offre d'une période précédente sans montant — comptée à sa date d'envoi, pas dans cette période</div>":'')
+      +(lec&&!(x.anterieure&&x.commercial_id===ME.id)?"<span style='font-size:11.5px;color:var(--text-3)'>👁 lecture seule</span>":"<a href='#' style='font-size:12px' onclick=\"sresOuvrir('"+x.rdv_source+"','"+x.rdv_id+"'"+(x.anterieure?",function(){ sresPage(); }":'')+");return false\">"+(x.anterieure?'📝 compléter le montant':'mettre à jour')+"</a>")+"</div>"; }).join(''):"<div style='font-size:13px;color:var(--text-3)'>Aucune offre envoyée sur la période.</div>")+"</div>";
   m.innerHTML=h;
   if(dir&&!SRES.coms){ var c=await db.rpc('sss_com_objectifs_mois',{p_mois:P.du}); if(!c.error){ SRES.coms=(c.data||[]).map(function(x){ return {id:x.commercial_id,nom:x.nom}; }); if(VIEW==='resultats_com') sresPage(); } }
 }
