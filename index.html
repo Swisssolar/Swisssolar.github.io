@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261115131325-ed3ef9e -->
+<!-- deploy-marker: pub-20261117132236-6a32b99 -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -900,7 +900,8 @@ body.light .loading::before{background-image:url("data:image/svg+xml,%3Csvg%20xm
 .agcal-more{font-size:10.5px;color:var(--text-3);font-weight:700}
 .ag-drop-hl{outline:2px solid var(--green);outline-offset:-2px;background:rgba(255,75,71,.10)!important}
 .agcal-chip{touch-action:none}
-@media(max-width:700px){.agcal-day{min-height:64px}.agcal-chip{display:none}.agcal-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin:1px}}
+.agcal-hd,.agcal-grid{grid-template-columns:repeat(7,minmax(0,1fr))}.agcal-day{min-width:0}
+@media(max-width:700px){.agcal{border-radius:10px}.agcal-hd span{padding:6px 0;font-size:9.5px;letter-spacing:0}.agcal-day{min-height:74px;padding:3px 2px 4px}.agcal-num{font-size:11px;margin-bottom:2px;text-align:center}.agcal-chip{font-size:9px;line-height:1.2;padding:1px 2px;border-left-width:2px;border-radius:3px;margin-bottom:1px;touch-action:auto}.agcal-chip b{display:block;font-size:9px}.agcal-more{font-size:9.5px;text-align:center}}
 </style></head>
 <body>
 <style id="sss-splash-css">
@@ -11093,13 +11094,13 @@ function agCalHTML(data){
   var base=new Date(); var mo=new Date(base.getFullYear(), base.getMonth()+AGCAL_MO, 1);
   var y=mo.getFullYear(), m=mo.getMonth();
   var first=new Date(y,m,1); var start=new Date(first); start.setDate(1-((first.getDay()+6)%7));
-  var today=new Date().toISOString().slice(0,10);
+  var today=sssYmd(new Date());
   var byDay=agByDay(data);
   var hh=agNavBar(mo.toLocaleDateString('fr-CH',{month:'long',year:'numeric'}),'agCalNav(-1)','agCalNav(1)',AGCAL_MO!==0);
   hh+="<div class='agcal'><div class='agcal-hd'><span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span></div><div class='agcal-grid'>";
   var d=new Date(start);
   for(var i=0;i<42;i++){
-    var ds=d.toISOString().slice(0,10); var inMo=(d.getMonth()===m);
+    var ds=sssYmd(d); var inMo=(d.getMonth()===m);
     var rdvs=byDay[ds]||[];
     hh+="<div class='agcal-day"+(inMo?'':' out')+(ds===today?' today':'')+"' data-ds='"+ds+"' onclick=\"agCalDay('"+ds+"')\"><div class='agcal-num'>"+d.getDate()+"</div>";
     rdvs.slice(0,3).forEach(function(r){ var c=r.contact||{}; var col=agComColor(r);
@@ -11149,13 +11150,13 @@ function agHourLabels(){
 }
 function agNowLine(ds){
   var today=new Date();
-  if(ds!==today.toISOString().slice(0,10)) return '';
+  if(ds!==sssYmd(today)) return '';
   var t=((today.getHours()-AG_H0)+today.getMinutes()/60)*AG_HPX;
   if(t<0||t>(AG_H1-AG_H0)*AG_HPX) return '';
   return "<div style='position:absolute;top:"+t+"px;left:0;right:0;height:2px;background:#e5484d;z-index:3'></div><div style='position:absolute;top:"+(t-4)+"px;left:-4px;width:10px;height:10px;border-radius:50%;background:#e5484d;z-index:3'></div>";
 }
 function agDayCol(ds,byDay,showHead){
-  var d=new Date(ds+'T00:00:00'); var today=new Date().toISOString().slice(0,10);
+  var d=new Date(ds+'T00:00:00'); var today=sssYmd(new Date());
   var rdvs=byDay[ds]||[];
   var head=showHead?("<div style='text-align:center;padding:7px 2px;border-bottom:1px solid var(--line);cursor:pointer' onclick=\"agCalDay('"+ds+"')\"><div style='font-size:10.5px;color:var(--text-3);text-transform:uppercase'>"+['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]+"</div><div style='font-size:15px;font-weight:800;"+(ds===today?"color:var(--green)":"")+"'>"+d.getDate()+"</div></div>"):"";
   var body="<div style='position:relative;height:"+((AG_H1-AG_H0)*AG_HPX)+"px'>"+agHourGrid()+agNowLine(ds)+agLanes(rdvs).map(function(x){ return agEvBlock(x.r,x.lane,x.lanes); }).join('')+"</div>";
@@ -11173,16 +11174,16 @@ function agWeekHTML(data){
   var cols='';
   var labels="<div>"+agHourLabels()+"</div>";
   var heads=[];
-  for(var i=0;i<7;i++){ var d=new Date(mon); d.setDate(mon.getDate()+i); var ds=d.toISOString().slice(0,10); heads.push(agDayCol(ds,byDay,true)); }
+  for(var i=0;i<7;i++){ var d=new Date(mon); d.setDate(mon.getDate()+i); var ds=sssYmd(d); heads.push(agDayCol(ds,byDay,true)); }
   // en-têtes + colonnes dans une seule grille : on refait proprement
   hh="<div>"+agNavBar(lbl,'agWNav(-1)','agWNav(1)',AGW_OFF!==0)+"<div style='border:1px solid var(--line);border-radius:14px;overflow:auto;background:var(--card)'><div style='display:grid;grid-template-columns:50px repeat(7,minmax(110px,1fr));min-width:820px'>";
   hh+="<div style='border-bottom:1px solid var(--line)'></div>";
-  for(var i2=0;i2<7;i2++){ var d2=new Date(mon); d2.setDate(mon.getDate()+i2); var ds2=d2.toISOString().slice(0,10); var today2=new Date().toISOString().slice(0,10);
+  for(var i2=0;i2<7;i2++){ var d2=new Date(mon); d2.setDate(mon.getDate()+i2); var ds2=sssYmd(d2); var today2=sssYmd(new Date());
     hh+="<div style='text-align:center;padding:7px 2px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);cursor:pointer' onclick=\"agCalDay('"+ds2+"')\"><span style='font-size:10.5px;color:var(--text-3);text-transform:uppercase'>"+['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d2.getDay()]+"</span> <span style='font-size:14px;font-weight:800;"+(ds2===today2?"color:var(--green)":"")+"'>"+d2.getDate()+"</span></div>"; }
   hh+="<div>"+agHourLabels()+"</div>";
-  for(var i3=0;i3<7;i3++){ var d3=new Date(mon); d3.setDate(mon.getDate()+i3); var ds3=d3.toISOString().slice(0,10);
+  for(var i3=0;i3<7;i3++){ var d3=new Date(mon); d3.setDate(mon.getDate()+i3); var ds3=sssYmd(d3);
     var rdvs3=(byDay[ds3]||[]);
-    hh+="<div style='border-left:1px solid var(--line);position:relative;"+(ds3===new Date().toISOString().slice(0,10)?"background:rgba(255,75,71,.04)":"")+"'><div data-agcol='"+ds3+"' style='position:relative;height:"+((AG_H1-AG_H0)*AG_HPX)+"px'>"+agHourGrid()+agNowLine(ds3)+agLanes(rdvs3).map(function(x){ return agEvBlock(x.r,x.lane,x.lanes); }).join('')+"</div></div>"; }
+    hh+="<div style='border-left:1px solid var(--line);position:relative;"+(ds3===sssYmd(new Date())?"background:rgba(255,75,71,.04)":"")+"'><div data-agcol='"+ds3+"' style='position:relative;height:"+((AG_H1-AG_H0)*AG_HPX)+"px'>"+agHourGrid()+agNowLine(ds3)+agLanes(rdvs3).map(function(x){ return agEvBlock(x.r,x.lane,x.lanes); }).join('')+"</div></div>"; }
   hh+="</div></div></div>";
   return hh;
 }
@@ -11190,7 +11191,7 @@ function agWeekHTML(data){
 function agDayViewHTML(data){
   var byDay=agByDay(data);
   var d=new Date(); d.setDate(d.getDate()+AGD_OFF);
-  var ds=d.toISOString().slice(0,10);
+  var ds=sssYmd(d);
   var hh=agNavBar(frDateLong(ds),'agDNav(-1)','agDNav(1)',AGD_OFF!==0);
   var rdvs=byDay[ds]||[];
   hh+="<div style='border:1px solid var(--line);border-radius:14px;overflow:auto;background:var(--card)'><div style='display:grid;grid-template-columns:50px 1fr'>";
