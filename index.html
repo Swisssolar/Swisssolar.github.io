@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- deploy-marker: pub-20261117132236-6a32b99 -->
+<!-- deploy-marker: pub-20261117134627-9ac7b9a -->
 <html lang="fr">
 <head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -6520,9 +6520,16 @@ function sssPrRdv(id){ var p=SSSPR.p||{};
 async function sssPrRdvOk(id){ if(await sssPrAct(id,'rdv_creer',{debut:sssPrIso('sspr-d'),type:sssPrV('sspr-ty'),adresse:sssPrV('sspr-ad'),intervenant_id:sssPrV('sspr-iv'),note:sssPrV('sspr-n')})) sssPrApres(id); }
 function sssPrRdvCr(id,rid){ sssPrModal('Compte rendu du rendez-vous',sssPrChamp('Résultat',sssPrSel('sspr-rr',SSSPR_RDVRES,'effectue'))+sssPrChamp('Compte rendu',"<textarea id='sspr-n' rows='3'></textarea>"),"sssPrRdvCrOk('"+id+"','"+rid+"')"); }
 async function sssPrRdvCrOk(id,rid){ if(await sssPrAct(id,'rdv_compte_rendu',{rdv_id:rid,resultat:sssPrV('sspr-rr'),note:sssPrV('sspr-n')})) sssPrApres(id); }
-function sssPrOffre(id){ sssPrModal('Offre envoyée',sssPrChamp('Référence (facultatif)',"<input id='sspr-ref' placeholder='AN-…'>")+sssPrChamp('Montant HT (facultatif, seulement s’il est connu)',"<input id='sspr-mt' type='number' step='0.05'>")+sssPrChamp('Note',"<textarea id='sspr-n' rows='2'></textarea>"),"sssPrOffreOk('"+id+"')"); }
-async function sssPrOffreOk(id){ if(await sssPrAct(id,'offre',{reference:sssPrV('sspr-ref'),montant_ht:sssPrV('sspr-mt'),note:sssPrV('sspr-n')})) sssPrApres(id); }
-async function sssPrStatutSet(id){ var v=sssPrV('sspr-st'); var d={statut:v}; if(v==='vendu'){ if(!confirm('Marquer ce prospect « Vendu » ? (rien n’est créé dans Bexio)')) return; d.confirme=true; } if(await sssPrAct(id,'statut',d)) sssPrApres(id); }
+/* 0074 : une offre envoyée s'enregistre TOUJOURS avec son montant TTC (résultat structuré : comptée dans les offres envoyées, relance auto à 3 jours) */
+async function sssPrOffre(id){ try{ closeModal(); }catch(e){}
+  var c=await db.rpc('sss_offre_cible',{p_prospect:id}); if(c.error||!c.data){ alert('Impossible : '+((c.error&&c.error.message)||'prospect introuvable')); return; }
+  if(typeof sresOuvrir!=='function'){ alert('Module des résultats indisponible : recharge l’application.'); return; }
+  sresOuvrir(c.data.source,c.data.rdv_id,function(){ sssPrApres(id); },'devis_envoye'); }
+async function sssPrStatutSet(id){ var v=sssPrV('sspr-st'); var d={statut:v};
+  if(v==='offre_envoyee') return sssPrOffre(id);   /* montant TTC obligatoire */
+  if(v==='relance_offre'){ var rr=await db.rpc('sss_prospect_action',{p_id:id,p_action:'statut',d:d}); if(!rr.error){ sssPrApres(id); return; }
+    if(/MONTANT_OFFRE_REQUIS/.test(rr.error.message||'')){ alert('Aucune offre chiffrée pour ce dossier : indique d’abord le montant TTC de l’offre envoyée.'); return sssPrOffre(id); }
+    alert('Impossible : '+rr.error.message); return; } if(v==='vendu'){ if(!confirm('Marquer ce prospect « Vendu » ? (rien n’est créé dans Bexio)')) return; d.confirme=true; } if(await sssPrAct(id,'statut',d)) sssPrApres(id); }
 async function sssPrAttribuer(id){ if(await sssPrAct(id,'attribuer',{commercial_id:sssPrV('sspr-com')})) sssPrApres(id); }
 async function sssPrConvertir(id){ if(!confirm('Convertir en client / projet ? La source, la référence, la date du lead et le commercial sont conservés. Rien n’est créé dans Bexio.')) return; var r=await sssPrAct(id,'convertir',{}); if(r){ alert('Client / projet créé.'); sssPrApres(id); } }
 async function sssPrFusion(id,autre){ if(!confirm('Fusionner l’autre fiche dans celle-ci ? Tout son historique sera rattaché ici (rien n’est supprimé).')) return; if(await sssPrAct(id,'fusionner',{autre_id:autre})) sssPrApres(id); }
@@ -9189,11 +9196,11 @@ function sresBouton(src,rdv){ return "<button class='btn' style='width:auto;padd
 async function sresCharger(src,ids){ if(!ids.length) return {}; var r=await db.rpc('sss_rdv_resultats_de',{p_source:src,p_ids:ids}); return (r&&r.data)||{}; }
 
 /* ============================ fenêtre « Compte rendu / Résultat » ============================ */
-async function sresOuvrir(src,rdv,apres){
+async function sresOuvrir(src,rdv,apres,choix){
   SRES.src=src; SRES.rdv=rdv; SRES.apres=apres||SRES.apres; SRES.saisie=null;
   var r=await db.rpc('sss_rdv_resultat_contexte',{p_source:src,p_rdv:rdv});
   if(r.error){ alert('Compte rendu : '+r.error.message); return; }
-  SRES.ctx=r.data; var z=SRES.ctx.resultat; SRES.choix=z?z.resultat:null; sresPeindre();
+  SRES.ctx=r.data; var z=SRES.ctx.resultat; SRES.choix=(choix&&!(z&&z.resultat==='vendu'))?choix:(z?z.resultat:null); sresPeindre();
 }
 function sresDefType(){ var z=SRES.ctx.resultat; if(z&&z.type_vente) return z.type_vente; var c=SRES.ctx.categorie;
   return {photovoltaique:'photovoltaique',batterie:'batterie',borne:'borne',pac:'pac',renovation_electricite:'electricite'}[c]||''; }
@@ -9201,7 +9208,7 @@ function sresComNom(){ var X=SRES.ctx, z=X.resultat, id=(z&&z.commercial_id)||X.
 function sresPeindre(){
   var X=SRES.ctx, z=X.resultat, ch=SRES.choix, g=SRES.saisie||{}, dir=!!X.direction, o=X.offres||[], com=X.commerciaux||[];
   var auj=sresYmd(new Date());
-  var h="<h3 style='margin:0 0 2px'>📝 Compte rendu / Résultat</h3><div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>"+esc(X.client||'')+" · RDV du "+esc(sresDate(X.rdv_at))+" à "+esc(new Date(X.rdv_at).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}))+"</div>";
+  var h="<h3 style='margin:0 0 2px'>📝 Compte rendu / Résultat</h3><div style='font-size:13px;color:var(--text-3);margin-bottom:10px'>"+esc(X.client||'')+(X.sans_rdv?" · offre hors rendez-vous (dossier prospect)":" · RDV du "+esc(sresDate(X.rdv_at))+" à "+esc(new Date(X.rdv_at).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})))+"</div>";
   if(z) h+="<div style='font-size:12.5px;color:var(--text-3);margin-bottom:8px'>Actuel : <b>"+esc(sresLib(z.resultat))+"</b> · modifié le "+esc(sresDate(z.maj_at))+((z.historique||[]).length?' · '+z.historique.length+' version(s) précédente(s) gardée(s)':'')+"</div>";
   h+="<div style='font-size:12.5px;font-weight:700;margin-bottom:4px'>Résultat du rendez-vous *</div>";
   h+="<div class='ssc-chips'>"+SRES_RES.map(function(x){ var on=ch===x[0]; return "<button onclick=\"sresGarder();SRES.choix='"+x[0]+"';sresPeindre()\" style='border:2px solid "+x[2]+";background:"+(on?x[2]:'transparent')+";color:"+(on?'#fff':'inherit')+";font-weight:700'>"+x[1]+"</button>"; }).join('')+"</div>";
@@ -9217,6 +9224,8 @@ function sresPeindre(){
     if(om===''&&curOffre){ var oo=o.filter(function(x){ return x.id===curOffre; })[0]; if(oo) om=Number(oo.total_ttc||0).toFixed(2); }
     h+=offreSel(curOffre);
     h+="<div class='field'><label>Montant TTC de l'offre envoyée (CHF) *</label><input id='sres-om' type='text' inputmode='decimal' value='"+esc(om)+"' placeholder='ex. 24900'></div>";
+    h+="<div style='font-size:12px;color:var(--text-3);margin:-6px 0 10px'>Tu n'as que le montant HT ? <input id='sres-oht' type='text' inputmode='decimal' placeholder='HT' style='width:110px;display:inline-block;padding:5px 8px;min-height:0' oninput='sresHtTtc()'> → TTC calculé (TVA 8,1 %)</div>";
+    if(!(z&&z.resultat==='devis_envoye')) h+="<div style='font-size:12px;background:#0ea5e91a;border:1px solid #0ea5e9;border-radius:10px;padding:7px 10px;margin-bottom:8px'>⏰ Une relance sera programmée automatiquement au plus tard <b>3 jours</b> après l'envoi.</div>";
     h+="<div class='field'><label>Référence de l'offre</label><input id='sres-r' value='"+esc(g.r!=null?g.r:(z&&z.devis_ref)||'')+"' placeholder='ex. OF-2026-0012 (facultatif)'></div>";
     var dEnv=z&&z.devis_envoye_at;
     h+=dir?"<div class='field'><label>Date d'envoi</label><input id='sres-od' type='date' max='"+auj+"' value='"+esc(g.od!=null?g.od:(dEnv?sresYmd(new Date(dEnv)):auj))+"'></div>"
@@ -9246,6 +9255,7 @@ function sresPeindre(){
   try{ sssCss(); }catch(e){} sssSheet(h);
 }
 function sresFermer(){ SRES.saisie=null; sssSheetFermer(); }
+function sresHtTtc(){ var h=document.getElementById('sres-oht'), t=document.getElementById('sres-om'); if(!h||!t) return; var v=Number(sresNum(h.value)); t.value=v>0?(Math.round(v*108.1)/100).toFixed(2):''; }
 /* garde la saisie en cours quand on change de statut (rien n'est perdu en passant d'« Offre envoyée » à « Signé ») */
 function sresGarder(){ var v=function(i){ var e=document.getElementById(i); return e?e.value:null; }; var g=SRES.saisie||{};
   [['d','sres-d'],['m','sres-m'],['o','sres-o'],['c','sres-c'],['t','sres-t'],['r','sres-r'],['n','sres-n'],['om','sres-om'],['od','sres-od'],['rp','sres-rp'],['sd','sres-sd']].forEach(function(k){ var x=v(k[1]); if(x!=null) g[k[0]]=x; });
@@ -9271,7 +9281,7 @@ async function sresEnregistrer(btn,autre){
   if(btn){ btn.disabled=false; btn.textContent='Enregistrer'; }
   if(r.error){ var m=r.error.message||''; if(/DEJA_VENDU/.test(m)){ if(confirm('Une vente est déjà enregistrée pour ce client sur un autre rendez-vous.\n\nEst-ce une vente DIFFÉRENTE (autre produit / autre projet) ?')) return sresEnregistrer(btn,true); return; }
     alert('Enregistrement impossible : '+m.replace(/^COMMERCIAL_REQUIS : /,'')); return; }
-  SRES.saisie=null; sssSheetFermer(); try{ sssToast((r.data&&r.data.message)||'Enregistré ✓',true); }catch(e){}
+  SRES.saisie=null; sssSheetFermer(); try{ sssToast(((r.data&&r.data.message)||'Enregistré ✓')+(r.data&&r.data.relance_le?' · relance le '+sresDate(r.data.relance_le):''),true); }catch(e){}
   var f=SRES.apres; SRES.apres=null; try{ if(typeof f==='function') f(); }catch(e){}
   try{ if(typeof VIEW!=='undefined'){ if(VIEW==='resultats_com') sresPage(); else if(VIEW==='a_traiter_com') sresTraiterPage(); } }catch(e){}
 }
@@ -9420,7 +9430,20 @@ function sresTuileCAHtml(D){
   return h+"</div>";
 }
 function sresTuileCA(D){ var b=document.getElementById('sres-dash'); if(!b) return; var t=document.getElementById('sres-ca-mois'), html=sresTuileCAHtml(D);
-  if(t) t.outerHTML=html; else b.insertAdjacentHTML('beforebegin',html); }
+  if(t) t.outerHTML=html; else b.insertAdjacentHTML('beforebegin',html); try{ sresTuileOffres(D); }catch(e){} }
+/* tuile « 📨 Offres envoyées » : ce mois (date d'envoi) + toutes les offres en attente de réponse + relances dues + offres sans montant */
+async function sresTuileOffres(D){ if(!document.getElementById('sres-ca-mois')) return;
+  var r=await db.rpc('sss_com_offres_en_attente',{p_commercial:null}); if(r.error||!r.data) return;
+  var A=r.data, I=D.indicateurs||{}, ca=document.getElementById('sres-ca-mois'); if(!ca) return;
+  var lien=function(txt,coul){ return "<a href='#' onclick=\"go('a_traiter_com');return false\" style='display:inline-block;margin:6px 8px 0 0;padding:6px 11px;border-radius:999px;border:1px solid "+coul+";color:"+coul+";font-size:12.5px;font-weight:700;text-decoration:none'>"+txt+"</a>"; };
+  var h="<div id='sres-offres-tuile' class='card' style='margin:0 0 16px;padding:16px 20px;text-align:left;border:1px solid #8a5cf666;background:linear-gradient(135deg,rgba(138,92,246,.14),transparent 70%)'>"
+    +"<div style='font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px'>📨 Offres envoyées"+(D.direction||D.lecteur?' société':'')+"</div>"
+    +"<div style='display:flex;gap:22px;flex-wrap:wrap'>"
+    +"<div><div style='font-size:12px;color:var(--text-3)'>Ce mois</div><div style='font-size:26px;font-weight:900;color:#8a5cf6;line-height:1.15'>"+sresChf(I.offres_montant_ttc)+" <span style='font-size:14px'>CHF TTC</span></div><div style='font-size:12.5px;color:var(--text-3)'>"+(I.devis_envoyes||0)+" offre(s)</div></div>"
+    +"<div><div style='font-size:12px;color:var(--text-3)'>En attente de réponse (toutes)</div><div style='font-size:26px;font-weight:900;line-height:1.15'>"+sresChf(A.montant_ttc)+" <span style='font-size:14px'>CHF TTC</span></div><div style='font-size:12.5px;color:var(--text-3)'>"+(A.nb||0)+" offre(s)</div></div></div>"
+    +(A.relances_dues>0?lien('⏰ '+A.relances_dues+' relance(s) à faire','#0ea5e9'):'')+(A.sans_montant>0?lien('⚠️ '+A.sans_montant+' offre(s) sans montant à compléter','#e0a52b'):'')
+    +"</div>";
+  var t=document.getElementById('sres-offres-tuile'); if(t) t.outerHTML=h; else ca.insertAdjacentHTML('afterend',h); }
 /* rafraîchissement : retour sur l'application et toutes les 60 s tant que le tableau de bord est affiché (seule la tuile est recalculée) */
 async function sresTuileCARafraichir(){ if(typeof VIEW==='undefined'||VIEW!=='dashboard'||!document.getElementById('sres-ca-mois')) return;
   var n=new Date(), du=sresYmd(new Date(n.getFullYear(),n.getMonth(),1)), au=sresYmd(new Date(n.getFullYear(),n.getMonth()+1,0));
@@ -9504,7 +9527,7 @@ async function sresTraiterPage(){
   if(!L.length) h+="<div class='card' style='padding:16px;text-align:center'>✅ Rien en retard. Bravo.</div>";
   ['sans_cr','a_completer','offre_sans_suivi','rappel','offre_sans_resultat'].forEach(function(k){ var A=grp[k]; if(!A) return; var d=SRES_TRAITER[k];
     h+="<div class='card' style='padding:12px 14px;margin-bottom:12px;text-align:left'><div style='font-weight:800;margin-bottom:6px;color:"+d[2]+"'>"+d[0]+" "+d[1]+" ("+A.length+")</div>"+A.map(function(x){
-      var act=x.rdv_id?"sresOuvrir('"+x.src+"','"+x.rdv_id+"',function(){ sresTraiterPage(); })":x.prospect_id?"sresAllerProspect('"+x.prospect_id+"')":x.contact_id?"sresAllerClient('"+x.contact_id+"')":'';
+      var act=x.rdv_id?"sresOuvrir('"+x.src+"','"+x.rdv_id+"',function(){ sresTraiterPage(); }"+(/montant/.test(x.detail||'')?",'devis_envoye'":'')+")":x.prospect_id?"sresAllerProspect('"+x.prospect_id+"')":x.contact_id?"sresAllerClient('"+x.contact_id+"')":'';
       return "<div style='border-top:1px solid var(--line);padding:8px 0;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap'><div style='flex:1;min-width:180px'><b>"+esc(x.client||'—')+"</b>"+(x.montant!=null?" · "+sresChf(x.montant)+" CHF":'')
         +"<div style='font-size:12px;color:var(--text-3)'>"+(x.date?sresDate(x.date)+' · ':'')+esc(x.detail||d[1])+(dir&&x.commercial?' · '+esc(x.commercial):'')+"</div></div>"
         +(lec&&(x.rdv_id?x.commercial_id!==ME.id:(x.commercial_id&&x.commercial_id!==ME.id))?"<span style='font-size:11.5px;color:var(--text-3)'>👁 lecture seule</span>":(act?"<button class='relbtn' style='min-height:40px' onclick=\""+act+"\">"+(x.rdv_id?'📝 Compléter':'Ouvrir')+"</button>":''))+"</div>"; }).join('')+"</div>"; });
